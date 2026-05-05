@@ -19,4 +19,4 @@ Két MI-rendszer egy helyen — leveszi a válladról az álláskeresés terhét
 - Apify · SerpAPI · Profession RSS · Jobline RSS
 
 ## Státusz
-🚧 Fejlesztés alatt — 2025. május
+🚧 Fejlesztés alatt — 2026. május
