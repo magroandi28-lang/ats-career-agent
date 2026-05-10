@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karrier-Ügynökség — Rendszerterv</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+  :root { --gold:#D4A843;--gold2:#F0C060;--dark:#0A0E1A;--dark2:#111827;--dark3:#1C2540;--text:#E8EAF0;--sub:#94A3B8;--border:rgba(212,168,67,0.25); }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--text);max-width:1100px;margin:0 auto;padding:24px 20px;line-height:1.65}
+  .fejlec{background:linear-gradient(135deg,#0A0E1A 0%,#1C2540 50%,#0A1628 100%);border:1px solid var(--border);border-radius:16px;padding:40px 36px 32px;margin-bottom:28px;position:relative;overflow:hidden}
+  .fejlec::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(212,168,67,.12) 0%,transparent 60%);pointer-events:none}
+  .fejlec h1{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--gold);margin-bottom:8px;position:relative}
+  .fejlec p{color:rgba(232,234,240,.8);font-size:14px;margin:3px 0;position:relative}
+  .fejlec strong{color:var(--gold2)}
+  .fejlec .alcim{font-size:13px;color:var(--sub);margin-top:10px;font-style:italic;position:relative}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px}
+  .nav a{padding:7px 16px;border-radius:20px;text-decoration:none;font-size:12px;font-weight:600;border:1px solid var(--border);color:var(--gold);background:rgba(212,168,67,.08);transition:all .2s}
+  .nav a:hover{background:rgba(212,168,67,.2);border-color:var(--gold)}
+  .elo{background:linear-gradient(135deg,#1C2540,#0A1628);border:1px solid var(--border);border-radius:12px;padding:22px 26px;margin-bottom:28px}
+  .elo-h2{color:var(--gold);font-size:15px;font-weight:700;margin-bottom:14px}
+  .link-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .lgomb{display:block;padding:10px 16px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;text-align:center;color:#fff;transition:opacity .2s}
+  .lgomb:hover{opacity:.85}
+  .lgomb.github{background:#24292e}
+  .lgomb.streamlit{background:#FF4B4B}
+  .lgomb.render{background:#ff6600}
+  .kartya{background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin:20px 0;border-top:3px solid var(--gold)}
+  h1.szekc{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);border-bottom:1px solid var(--border);padding-bottom:10px;margin:36px 0 18px}
+  h2.arany{font-size:16px;font-weight:700;color:var(--gold2);border-left:3px solid var(--gold);padding-left:12px;margin:20px 0 10px}
+  p{font-size:14px;color:var(--sub);margin:6px 0}
+  ul{font-size:14px;color:var(--sub);padding-left:20px;line-height:2}
+  ul li strong{color:var(--text)}
+  .tag{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;margin:2px;background:rgba(212,168,67,.12);color:var(--gold2);border:1px solid rgba(212,168,67,.2)}
+  .tag.kek{background:rgba(59,130,246,.12);color:#93c5fd;border-color:rgba(59,130,246,.2)}
+  .tabla{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  .tabla th{background:rgba(212,168,67,.15);color:var(--gold2);padding:9px 12px;text-align:left;border-bottom:1px solid var(--border)}
+  .tabla td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--sub)}
+  .tabla td strong{color:var(--text)}
+  .result{border-left:3px solid var(--gold);padding:10px 14px;margin:6px 0;font-size:13px;color:var(--sub);background:rgba(212,168,67,.05);border-radius:0 6px 6px 0}
+  .result strong{color:var(--gold2)}
+  .fejl{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:14px 18px;margin:10px 0}
+  .fejl h4{color:#fca5a5;font-size:13px;font-weight:700;margin-bottom:4px}
+  .fejl p{font-size:13px}
+  .otlet{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:14px 18px;margin:10px 0}
+  .otlet h4{color:#86efac;font-size:13px;font-weight:700;margin-bottom:4px}
+  .otlet p{font-size:13px}
+  .agensek{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}
+  .agens{background:var(--dark3);border:1.5px solid var(--border);border-radius:10px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+  .agens:hover{border-color:var(--gold);transform:translateY(-3px);box-shadow:0 8px 24px rgba(212,168,67,.15)}
+  .agens.aktiv{border-color:var(--gold);background:rgba(212,168,67,.08)}
+  .agens .szam{position:absolute;top:-8px;left:-8px;width:22px;height:22px;background:var(--gold);color:#000;border-radius:50%;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .agens .ikon{font-size:26px;margin-bottom:8px}
+  .agens .nev{font-size:11px;font-weight:700;color:var(--gold2);line-height:1.3}
+  .agens .fajl{font-size:10px;color:var(--sub);margin-top:3px}
+  .detail{background:var(--dark3);border:1px solid var(--gold);border-radius:10px;padding:20px 24px;margin-top:12px;display:none;animation:fadeIn .2s ease}
+  .detail.lathato{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+  .detail h4{color:var(--gold);font-size:15px;margin-bottom:10px}
+  .detail .zar{float:right;cursor:pointer;color:var(--sub);font-size:18px}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .detail-item label{font-size:10px;color:var(--sub);display:block;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+  .detail-item .val{font-size:13px;color:var(--text);background:var(--dark2);padding:5px 10px;border-radius:5px;font-family:monospace}
+  .sablonok{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0}
+  .sablon{border-radius:10px;padding:18px;border:1px solid}
+  .sablon.modern{background:rgba(26,115,232,.08);border-color:rgba(26,115,232,.3)}
+  .sablon.klasszikus{background:rgba(100,100,100,.08);border-color:rgba(100,100,100,.3)}
+  .sablon.kreativ{background:rgba(123,45,191,.08);border-color:rgba(123,45,191,.3)}
+  .sablon h4{font-size:13px;font-weight:700;margin-bottom:6px}
+  .sablon.modern h4{color:#60a5fa}
+  .sablon.klasszikus h4{color:#d1d5db}
+  .sablon.kreativ h4{color:#c084fc}
+  .sablon p{font-size:12px}
+  .struktura{background:var(--dark3);border-radius:8px;padding:16px;font-family:monospace;font-size:13px;color:var(--sub);line-height:2.2}
+  .struktura .ar{color:var(--gold2)}
+  .struktura .ko{color:#4B5563}
+  .gdpr-box{background:rgba(212,168,67,.06);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin:14px 0}
+  .gdpr-box h4{color:var(--gold2);font-size:13px;font-weight:700;margin-bottom:6px}
+  .pipeline-wrap{overflow-x:auto;margin:18px 0}
+  @media(max-width:700px){.agensek{grid-template-columns:1fr 1fr}.link-grid{grid-template-columns:1fr}.sablonok{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="fejlec">
+  <h1>🕵️ Karrier-Ügynökség</h1>
+  <p><strong>Fejlesztő:</strong> Varga Andrea</p>
+  <p><strong>Típus:</strong> Önálló portfólió projekt</p>
+  <p><strong>Státusz:</strong> Fejlesztés alatt — 2025–2026</p>
+  <p class="alcim"><em>MI-alapú álláskeresési asszisztens: multi-agent rendszer SerpAPI adatgyűjtéssel, Claude API elemzéssel és személyre szabott .docx outputtal</em></p>
+</div>
+
+<div class="nav">
+  <a href="#pipeline">⚡ Pipeline</a>
+  <a href="#agensek">🤖 Ágensek</a>
+  <a href="#adatforrasok">🌐 Adatforrások</a>
+  <a href="#sablonok">📄 Sablonok</a>
+  <a href="#dashboard">📊 Dashboard</a>
+  <a href="#fejlesztendo">🔧 Fejlesztendő</a>
+  <a href="#otletek">💡 Ötletek</a>
+  <a href="#gdpr">🔒 GDPR</a>
+  <a href="#tech">🛠️ Tech</a>
+</div>
+
+<div class="elo">
+  <div class="elo-h2">🔗 Rendszer elérhetősége</div>
+  <div class="link-grid">
+    <a href="https://github.com/magroandi28-lang" target="_blank" class="lgomb github">📦 GitHub Repository</a>
+    <a href="#" class="lgomb streamlit">🚀 Streamlit App (lokális)</a>
+    <a href="#" class="lgomb render">⚙️ Render (hamarosan)</a>
+  </div>
+</div>
+
+<div class="kartya" id="pipeline">
+  <h2 class="arany">🏗️ Rendszer Architektúra — Teljes Pipeline</h2>
+  <p style="margin-bottom:16px;">Felhasználói input → GDPR beleegyezés → 2 tab → 5 MI ágens → személyre szabott .docx output</p>
+  <div class="pipeline-wrap">
+<svg width="100%" viewBox="0 0 860 340" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#D4A843" stroke-width="1.5" stroke-linecap="round"/></marker>
+  <marker id="arr-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/></marker>
+</defs>
+<rect x="8" y="8" width="844" height="324" rx="8" fill="#111827" stroke="#D4A843" stroke-width="1" stroke-opacity="0.3"/>
+<rect x="8" y="8" width="844" height="32" rx="8" fill="#1C2540"/>
+<rect x="8" y="30" width="844" height="10" fill="#1C2540"/>
+<text font-family="sans-serif" font-weight="700" font-size="12" x="24" y="28" fill="#D4A843" dominant-baseline="central">KARRIER-ÜGYNÖKSÉG — MULTI-AGENT PIPELINE</text>
+<text font-family="sans-serif" font-size="10" x="836" y="28" text-anchor="end" fill="#94A3B8" dominant-baseline="central">SerpAPI · Claude API · python-docx · Streamlit</text>
+<rect x="24" y="52" width="148" height="56" rx="6" fill="#1C2540" stroke="#D4A843" stroke-width="1.5"/>
+<text font-family="sans-serif" font-weight="700" font-size="11" x="98" y="70" text-anchor="middle" fill="#F0C060" dominant-baseline="central">👤 Felhasználói input</text>
+<text font-family="sans-serif" font-size="9" x="98" y="88" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">Pozíció · helyszín · bérigény</text>
+<text font-family="sans-serif" font-size="9" x="98" y="101" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">Remote/hybrid · CV (PDF)</text>
+<rect x="24" y="124" width="148" height="34" rx="6" fill="#1C2540" stroke="#EF9F27" stroke-width="1"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="98" y="141" text-anchor="middle" fill="#EF9F27" dominant-baseline="central">✓ GDPR checkbox</text>
+<line x1="98" y1="108" x2="98" y2="124" stroke="#D4A843" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="98" y1="158" x2="98" y2="176" stroke="#D4A843" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="24" y="176" width="148" height="34" rx="6" fill="#1C2540" stroke="#D4A843" stroke-width="1"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="98" y="193" text-anchor="middle" fill="#F0C060" dominant-baseline="central">Melyik tab?</text>
+<line x1="60" y1="210" x2="60" y2="232" stroke="#94A3B8" stroke-width="1" marker-end="url(#arr-g)"/>
+<line x1="136" y1="210" x2="136" y2="232" stroke="#94A3B8" stroke-width="1" marker-end="url(#arr-g)"/>
+<text font-family="sans-serif" font-size="9" x="38" y="226" fill="#94A3B8">Tab 1</text>
+<text font-family="sans-serif" font-size="9" x="140" y="226" fill="#94A3B8">Tab 2</text>
+<rect x="24" y="232" width="96" height="52" rx="6" fill="#0C4A3A" stroke="#22c55e" stroke-width="1"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="72" y="252" text-anchor="middle" fill="#86efac" dominant-baseline="central">🎯 ATS-Hacker</text>
+<text font-family="sans-serif" font-size="9" x="72" y="270" text-anchor="middle" fill="#86efac" dominant-baseline="central">Elemzés → Átírás</text>
+<rect x="130" y="232" width="100" height="52" rx="6" fill="#1C2540" stroke="#D4A843" stroke-width="1.5"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="180" y="252" text-anchor="middle" fill="#F0C060" dominant-baseline="central">🕵️ Karrier</text>
+<text font-family="sans-serif" font-size="9" x="180" y="270" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">5 ágens pipeline</text>
+<rect x="256" y="52" width="112" height="56" rx="6" fill="#1C2540" stroke="#D4A843" stroke-width="1"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="312" y="70" text-anchor="middle" fill="#F0C060" dominant-baseline="central">🔍 1. Kutató</text>
+<text font-family="sans-serif" font-size="9" x="312" y="86" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">6 forrás · SerpAPI</text>
+<text font-family="sans-serif" font-size="9" x="312" y="100" text-anchor="middle" fill="#D4A843" dominant-baseline="central">→ 20-30 állás</text>
+<rect x="388" y="52" width="112" height="56" rx="6" fill="#1C2540" stroke="#D4A843" stroke-width="1"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="444" y="70" text-anchor="middle" fill="#F0C060" dominant-baseline="central">🔎 2. Szűrő</text>
+<text font-family="sans-serif" font-size="9" x="444" y="86" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">Bérigény · remote/hybrid</text>
+<text font-family="sans-serif" font-size="9" x="444" y="100" text-anchor="middle" fill="#D4A843" dominant-baseline="central">→ 10-15 állás</text>
+<rect x="520" y="52" width="124" height="56" rx="6" fill="#1C2540" stroke="#F0C060" stroke-width="2"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="582" y="70" text-anchor="middle" fill="#F0C060" dominant-baseline="central">🧠 3. Elemző</text>
+<text font-family="sans-serif" font-size="9" x="582" y="86" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">Claude · CV elemzés</text>
+<text font-family="sans-serif" font-size="9" x="582" y="100" text-anchor="middle" fill="#D4A843" dominant-baseline="central">→ TOP 5 (80%+)</text>
+<rect x="664" y="52" width="168" height="56" rx="6" fill="#1C2540" stroke="#D4A843" stroke-width="1"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="748" y="70" text-anchor="middle" fill="#F0C060" dominant-baseline="central">⚡ 4. ATS-Hacker</text>
+<text font-family="sans-serif" font-size="9" x="748" y="86" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">Kulcsszavak · CV javaslatok</text>
+<text font-family="sans-serif" font-size="9" x="748" y="100" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">CV javulás % megjelenítés</text>
+<line x1="368" y1="80" x2="386" y2="80" stroke="#D4A843" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="500" y1="80" x2="518" y2="80" stroke="#D4A843" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="644" y1="80" x2="662" y2="80" stroke="#D4A843" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="748" y1="108" x2="748" y2="132" stroke="#D4A843" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="520" y="132" width="312" height="44" rx="6" fill="#1C2540" stroke="#F0C060" stroke-width="2"/>
+<text font-family="sans-serif" font-weight="700" font-size="10" x="676" y="150" text-anchor="middle" fill="#F0C060" dominant-baseline="central">✍️ 5. Író ágens — Claude API</text>
+<text font-family="sans-serif" font-size="9" x="676" y="166" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">Személyre szabott motivációs levél · hangvétel választás · sablon</text>
+<line x1="676" y1="176" x2="676" y2="200" stroke="#D4A843" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="256" y="200" width="576" height="52" rx="6" fill="#1C2540" stroke="#D4A843" stroke-width="1.5"/>
+<text font-family="sans-serif" font-weight="700" font-size="11" x="544" y="220" text-anchor="middle" fill="#F0C060" dominant-baseline="central">📊 Dashboard Output</text>
+<text font-family="sans-serif" font-size="9" x="544" y="238" text-anchor="middle" fill="#94A3B8" dominant-baseline="central">Top 5 kártya · Céginfó · Motivációs levél · CV átírás · Előzmények · Letölthető .docx</text>
+<line x1="230" y1="258" x2="254" y2="80" stroke="#D4A843" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+<rect x="24" y="300" width="816" height="24" rx="4" fill="#1C2540"/>
+<text font-family="sans-serif" font-size="9" x="36" y="312" fill="#94A3B8" dominant-baseline="central">Claude API: Elemző (TOP 5) · Író (motivációs levél) · ATS-Hacker (CV átírás)  |  SerpAPI: Kutató · Céginfó (Glassdoor → fallback: Google hírek)  |  * = fejlesztendő</text>
+</svg>
+  </div>
+</div>
+
+<h1 class="szekc" id="agensek">🤖 Interaktív Ágensek</h1>
+<p style="font-size:13px;margin-bottom:14px;">Kattints bármelyik ágensre a részletek megtekintéséhez!</p>
+<div class="agensek">
+  <div class="agens" onclick="showAgens('kutato')" id="ac-kutato"><div class="szam">1</div><div class="ikon">🔍</div><div class="nev">Kutató ágens</div><div class="fajl">researcher.py</div></div>
+  <div class="agens" onclick="showAgens('szuro')" id="ac-szuro"><div class="szam">2</div><div class="ikon">🔎</div><div class="nev">Szűrő ágens</div><div class="fajl">filter.py</div></div>
+  <div class="agens" onclick="showAgens('elemzo')" id="ac-elemzo"><div class="szam">3</div><div class="ikon">🧠</div><div class="nev">Elemző ágens</div><div class="fajl">analyzer.py</div></div>
+  <div class="agens" onclick="showAgens('ats')" id="ac-ats"><div class="szam">4</div><div class="ikon">⚡</div><div class="nev">ATS-Hacker</div><div class="fajl">ats_hacker.py</div></div>
+  <div class="agens" onclick="showAgens('iro')" id="ac-iro"><div class="szam">5</div><div class="ikon">✍️</div><div class="nev">Író ágens</div><div class="fajl">writer.py</div></div>
+</div>
+<div class="detail" id="detail-panel">
+  <span class="zar" onclick="closeAgens()">✕</span>
+  <h4 id="detail-title"></h4>
+  <p id="detail-desc" style="font-size:13px;color:var(--sub);margin:8px 0 12px;"></p>
+  <div class="detail-grid" id="detail-grid"></div>
+</div>
+
+<h1 class="szekc" id="adatforrasok">🌐 Adatforrások</h1>
+<div class="kartya">
+  <table class="tabla">
+    <tr><th>Forrás</th><th>Piac</th><th>Módszer</th><th>Megjegyzés</th></tr>
+    <tr><td><strong>Profession.hu</strong></td><td>Magyar</td><td>SerpAPI Google keresés</td><td>Legnagyobb magyar portál</td></tr>
+    <tr><td><strong>Indeed.com</strong></td><td>Nemzetközi</td><td>SerpAPI Google keresés</td><td>Globális jelenlét</td></tr>
+    <tr><td><strong>CVonline.hu</strong></td><td>Magyar</td><td>SerpAPI Google keresés</td><td>—</td></tr>
+    <tr><td><strong>Allasportal.hu</strong></td><td>Magyar</td><td>SerpAPI Google keresés</td><td>—</td></tr>
+    <tr><td><strong>Jooble.org</strong></td><td>Nemzetközi</td><td>SerpAPI Google keresés</td><td>Aggregátor</td></tr>
+    <tr><td><strong>Workline.hu</strong></td><td>Magyar</td><td>SerpAPI Google keresés</td><td>—</td></tr>
+    <tr><td><strong>Google Jobs</strong></td><td>Globális</td><td>SerpAPI direkt</td><td>Kiegészítő forrás</td></tr>
+    <tr><td><strong>Glassdoor</strong></td><td>Globális</td><td>SerpAPI cégkutatás</td><td>Fallback: Google hírek kis cégeknél</td></tr>
+  </table>
+  <p style="font-size:12px;margin-top:8px;">* Teljes leírás betöltése: BeautifulSoup scraper (max 3000 karakter/állás) · fallback: Google snippet</p>
+</div>
+
+<h1 class="szekc" id="sablonok">📄 CV Sablonok</h1>
+<div class="kartya">
+  <p style="margin-bottom:14px;">A <code style="background:var(--dark3);padding:2px 6px;border-radius:3px;font-size:12px;">utils/template_generator.py</code> három .docx sablont generál python-docx-szal. Az ATS-Hacker és az Író ágens ezekbe tölti ki az átírt tartalmat.</p>
+  <div class="sablonok">
+    <div class="sablon modern"><h4>🔵 Modern</h4><p>Kék accent · tech és IT pozíciókhoz · bal margón elrendezés · PROJEKTEK szekció</p></div>
+    <div class="sablon klasszikus"><h4>⚫ Klasszikus</h4><p>Fekete/szürke · pénzügyi és jogi pozíciókhoz · középre igazított fejléc · formális stílus</p></div>
+    <div class="sablon kreativ"><h4>🟣 Kreatív</h4><p>Lila accent · marketing és design pozíciókhoz · pozíció cím mező · PORTFÓLIÓ szekció</p></div>
+  </div>
+  <p style="font-size:12px;margin-top:10px;">* Sablon választás az átírás előtt. Claude kitölti a &#123;&#123;PLACEHOLDER&#125;&#125; mezőket az átírt tartalommal.</p>
+</div>
+
+<h1 class="szekc" id="dashboard">📊 Dashboard Működés</h1>
+<div class="kartya">
+  <h2 class="arany">Tab 1 — ATS-Hacker (C variáns)</h2>
+  <div class="result"><strong>1.</strong> CV (PDF) + álláshirdetés szöveg feltöltése</div>
+  <div class="result"><strong>2.</strong> Claude elemzi → hiányzó ATS kulcsszavak listája + magyarázat megjelenik</div>
+  <div class="result"><strong>3.</strong> Rákérdez: "Átírjam a CV-t?" → Igen / Nem</div>
+  <div class="result"><strong>Ha Igen:</strong> Sablon választás → Claude átírja (csak meglévő tapasztalat!) → CV javulás % → Letölthető .docx</div>
+  <div class="result"><strong>Ha Nem:</strong> Csak a hiányzó kulcsszavak listája jelenik meg — felhasználó maga írja be</div>
+  <h2 class="arany" style="margin-top:20px;">Tab 2 — Karrierügynökség</h2>
+  <div class="result"><strong>1.</strong> Kutató → 20-30 nyers állás (6 forrás + BeautifulSoup leírás betöltés)</div>
+  <div class="result"><strong>2.</strong> Szűrő → bérigény + helyszín + remote/hybrid preferencia → 10-15 állás</div>
+  <div class="result"><strong>3.</strong> Elemző (Claude) → TOP 5 (80%+) · illeszkedés % · erősségek · hiányok · csökkenő sorrend</div>
+  <div class="result"><strong>Ha nincs 80%+:</strong> Visszajelzés + threshold csökkentés ajánlata (pl. 70%-ra)</div>
+  <div class="result"><strong>Ha 5-nél kevesebb találat:</strong> Az összes elérhető állásra fut az elemzés + tájékoztatás</div>
+  <div class="result"><strong>4.</strong> Felhasználó kiválasztja melyik állást pályázza (checkbox)</div>
+  <div class="result"><strong>5.</strong> A kiválasztott álláshoz kérésre fut:</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:10px 0;">
+    <div style="background:var(--dark3);border-radius:8px;padding:12px;border:1px solid var(--border);"><div style="font-size:12px;font-weight:700;color:var(--gold2);margin-bottom:6px;">🏢 Céginfó</div><div style="font-size:12px;color:var(--sub);">Glassdoor vélemény · átlagfizetés · fallback: Google hírek</div></div>
+    <div style="background:var(--dark3);border-radius:8px;padding:12px;border:1px solid var(--border);"><div style="font-size:12px;font-weight:700;color:var(--gold2);margin-bottom:6px;">✉️ Motivációs levél</div><div style="font-size:12px;color:var(--sub);">Hangvétel választás · formális / laza · Claude API · .docx</div></div>
+    <div style="background:var(--dark3);border-radius:8px;padding:12px;border:1px solid var(--border);"><div style="font-size:12px;font-weight:700;color:var(--gold2);margin-bottom:6px;">📝 CV átírás</div><div style="font-size:12px;color:var(--sub);">Sablon választás · Claude átír · CV javulás % · .docx</div></div>
+  </div>
+  <div class="result"><strong>Előzmények tab:</strong> Session_state-ben tárolt korábbi keresések — bezárásig elérhető</div>
+  <div class="result"><strong>Hasonló állások:</strong> Egy-egy kártyán belül újabb SerpAPI keresés szűkebb kulcsszóval</div>
+</div>
+
+<h1 class="szekc" id="fejlesztendo">🗺️ Fejlesztési Roadmap</h1>
+<div class="kartya">
+  <div class="otlet"><h4>1. Remote/hybrid/office intelligens szűrő</h4><p>A filter.py az állásleírásból automatikusan azonosítja a munkavégzés módját (remote/hybrid/office) és szűr a felhasználó preferenciájára.</p></div>
+  <div class="otlet"><h4>2. Rugalmas találati küszöb</h4><p>Ha a keresés kevesebb mint 5 találatot ad, a rendszer automatikusan az összes elérhető állásra futtatja az elemzést és tájékoztatja a felhasználót.</p></div>
+  <div class="otlet"><h4>3. Motivációs levél hangvétel választás</h4><p>A levél generálása előtt a felhasználó megadhatja a kívánt hangvételt: formális (pénzügyi/jogi szektorhoz) vagy közvetlen/laza (startup/tech pozíciókhoz).</p></div>
+  <div class="otlet"><h4>4. Session figyelmeztetés és exportálás</h4><p>A felhasználó egyértelműen látja hogy az adatok csak a session ideje alatt érhetők el. Az összes eredmény egyszerre exportálható egyetlen .docx csomagba.</p></div>
+  <div class="otlet"><h4>5. Céginfó intelligens fallback</h4><p>Ha a Glassdoor-on nem szerepel a cég (kis magyar vállalatok), a rendszer automatikusan Google hírek kereséssel egészíti ki a cégriportot (legfrissebb 3 cikk).</p></div>
+</div>
+
+<h1 class="szekc" id="otletek">💡 Fejlesztési Ötletek</h1>
+<div class="kartya">
+  <div class="otlet"><h4>A) CV javulás % megjelenítése</h4><p>Az ATS-Hacker az átírás előtt és után kiszámolja az illeszkedési %-ot — a különbség vizuálisan megjelenik. Motiváló és látványos: "A CV-d 23%-kal jobban fog átmenni az ATS szűrőn."</p></div>
+  <div class="otlet"><h4>B) Hasonló állások gomb</h4><p>A TOP 5 kártyán egy "Hasonló állások" gomb indít újabb SerpAPI keresést szűkebb kulcsszóval (pl. cég neve + pozíció). Mélyebb keresés egy-egy érdekes pozíciónál.</p></div>
+  <div class="otlet"><h4>C) Előzmények tab</h4><p>Session_state-ben tárolt előző keresések eredményei egy külön tabban. A felhasználó visszanézhet korábbi keresésekre a böngészőablak bezárásáig — nem kell újrafuttatni a pipeline-t.</p></div>
+</div>
+
+<h1 class="szekc" id="gdpr">🔒 GDPR és Adatvédelem</h1>
+<div class="kartya">
+  <div class="gdpr-box">
+    <h4>✓ Kötelező beleegyező checkbox — minden session elején</h4>
+    <p style="font-size:13px;margin-top:6px;font-style:italic;">"Hozzájárulok, hogy a feltöltött CV-m és személyes adataim az álláskereső elemzés céljából az Anthropic Claude API-ra kerüljenek továbbításra. Az adatok kizárólag a session ideje alatt kerülnek feldolgozásra, tartósan nem tárolódnak."</p>
+  </div>
+  <table class="tabla" style="margin-top:14px;">
+    <tr><th>Elv</th><th>Megvalósítás</th></tr>
+    <tr><td><strong>Adatminimalizálás</strong></td><td>Csak CV szövege és keresési paraméterek kerülnek feldolgozásra</td></tr>
+    <tr><td><strong>Célhoz kötöttség</strong></td><td>Kizárólag álláskeresési célra — nem tárolódik, nem kerül tovább</td></tr>
+    <tr><td><strong>Átláthatóság</strong></td><td>A felhasználó tudja: Claude API (Anthropic) + SerpAPI látja az adatokat</td></tr>
+    <tr><td><strong>Adatbiztonság</strong></td><td>API kulcsok .env-ben · HTTPS · session_state (csak memória, nem fájl)</td></tr>
+    <tr><td><strong>Session korlát</strong></td><td>Bezáráskor minden adat törlődik — figyelmeztetés megjelenik</td></tr>
+  </table>
+</div>
+
+<h1 class="szekc" id="tech">🛠️ Technológiai Stack</h1>
+<div class="kartya">
+  <h2 class="arany">Felhasznált technológiák</h2>
+  <div style="margin:12px 0;">
+    <span class="tag">Python 3.11</span><span class="tag">Streamlit</span><span class="tag kek">Anthropic Claude API</span><span class="tag kek">OpenAI GPT-4o-mini</span><span class="tag">SerpAPI</span><span class="tag">BeautifulSoup4</span><span class="tag">pdfplumber</span><span class="tag">python-docx</span><span class="tag">python-dotenv</span><span class="tag">requests</span>
+  </div>
+  <h2 class="arany">Költséghatékony tervezés</h2>
+  <table class="tabla">
+    <tr><th>Ágens</th><th>Modell</th><th>Miért?</th><th>Mikor fut?</th></tr>
+    <tr><td><strong>Kutató</strong></td><td>SerpAPI ($50/hó)</td><td>Gyors weblap betöltés</td><td>Minden keresésnél</td></tr>
+    <tr><td><strong>Szűrő</strong></td><td>Szabályalapú (ingyenes)</td><td>Nem kell AI ehhez</td><td>Minden keresésnél</td></tr>
+    <tr><td><strong>Elemző</strong></td><td>Claude Opus 4.5</td><td>Mély CV elemzés</td><td>Csak TOP 5-re</td></tr>
+    <tr><td><strong>ATS-Hacker</strong></td><td>Claude / GPT-4o-mini</td><td>Kulcsszó azonosítás</td><td>Csak kérésre</td></tr>
+    <tr><td><strong>Író</strong></td><td>Claude Opus 4.5</td><td>Természetes szöveg</td><td>Csak kérésre</td></tr>
+    <tr><td><strong>Céginfó</strong></td><td>SerpAPI</td><td>Glassdoor → Google fallback</td><td>Csak kérésre</td></tr>
+  </table>
+  <h2 class="arany" style="margin-top:20px;">Projektstruktúra</h2>
+  <div class="struktura">
+    <span class="ar">KARRIER-UGYNOKSEG/</span><br>
+    ├── <span class="ar">agents/</span><br>
+    │&nbsp;&nbsp;&nbsp;├── researcher.py &nbsp;<span class="ko">← SerpAPI + BeautifulSoup · 6 forrás</span><br>
+    │&nbsp;&nbsp;&nbsp;├── filter.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ko">← szabályalapú · bérigény · helyszín · remote/hybrid*</span><br>
+    │&nbsp;&nbsp;&nbsp;├── analyzer.py &nbsp;&nbsp;<span class="ko">← Claude Opus · illeszkedés % · TOP 5</span><br>
+    │&nbsp;&nbsp;&nbsp;├── ats_hacker.py &nbsp;<span class="ko">← ATS kulcsszavak · CV javulás %* · C variáns*</span><br>
+    │&nbsp;&nbsp;&nbsp;└── writer.py &nbsp;&nbsp;&nbsp;&nbsp;<span class="ko">← Claude · motivációs levél · hangvétel választás*</span><br>
+    ├── <span class="ar">utils/</span><br>
+    │&nbsp;&nbsp;&nbsp;└── template_generator.py <span class="ko">← 3 .docx sablon (modern/klasszikus/kreatív)</span><br>
+    ├── <span class="ar">templates/</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ko">← modern.docx · klasszikus.docx · kreativ.docx</span><br>
+    ├── <span class="ar">outputs/</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ko">← generált CV-k és motivációs levelek</span><br>
+    ├── app.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ko">← Streamlit főalkalmazás · 2 tab + előzmények*</span><br>
+    ├── .env &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ko">← ANTHROPIC_API_KEY · OPENAI_API_KEY · SERPAPI_KEY</span><br>
+    └── requirements.txt<br><br>
+    <span class="ko">* = fejlesztendő</span>
+  </div>
+</div>
+
+<script>
+const agensData = {
+  kutato:{title:'🔍 1. Kutató Ágens — researcher.py',desc:'A pipeline belépési pontja. SerpAPI Google kereséssel gyűjt állásokat 6 forrásból, majd BeautifulSoup-pal betölti a teljes állásleírást (max 3000 karakter). Ha a scraping sikertelen, fallback: Google snippet.',params:[{label:'Keresési módszer',val:'SerpAPI Google search (num=20)'},{label:'Query',val:'{pozíció} allas {helyszín} site:profession.hu OR ...'},{label:'Leírás betöltés',val:'BeautifulSoup (max 3000 kar)'},{label:'Fallback',val:'Google snippet ha scraping sikertelen'},{label:'Források',val:'Profession · Indeed · CVonline · Allasportal · Jooble · Workline'},{label:'Output',val:'20-30 állás (cím, link, leírás, forrás)'}]},
+  szuro:{title:'🔎 2. Szűrő Ágens — filter.py',desc:'Olcsó szabályalapú előszűrés — nem használ AI-t. Bérigény, helyszín és kulcsszó egyezést ellenőriz. Fejlesztendő: remote/hybrid/office preferencia szűrés hozzáadása.',params:[{label:'Módszer',val:'Szabályalapú Python (ingyenes)'},{label:'Szűrési szempontok',val:'Bérigény · helyszín · kulcsszó'},{label:'Fejlesztendő',val:'Remote/hybrid/office preferencia szűrés'},{label:'Input',val:'20-30 nyers állás'},{label:'Output',val:'10-15 előszűrt állás'},{label:'AI használat',val:'Nincs — tiszta Python logika'}]},
+  elemzo:{title:'🧠 3. Elemző Ágens — analyzer.py',desc:'A pipeline legértékesebb lépése. Claude Opus 4.5-tel mély CV vs. állásleírás elemzést végez. Csak a TOP 5-re fut — így tartja alacsonyan az API költséget. Ha nincs 80%+ → threshold csökkentést ajánl.',params:[{label:'Modell',val:'claude-opus-4-5'},{label:'Max tokens',val:'500/állás'},{label:'Output struktúra',val:'ILLESZKEDÉS % · ERŐSSÉGEK · HIÁNYZIK · JAVASLAT'},{label:'Top N',val:'5 (ha kevesebb találat → összes)'},{label:'80%+ küszöb',val:'Ha nincs → threshold csökkentés ajánlata'},{label:'Rendezés',val:'Illeszkedés % szerint csökkenő'}]},
+  ats:{title:'⚡ 4. ATS-Hacker — ats_hacker.py',desc:'C variáns: először megmutatja mi hiányzik, aztán rákérdez hogy átírja-e a CV-t. Átíráskor sablon választás + CV javulás % megjelenítés. Etikai korlát: csak meglévő tapasztalat újrafogalmazása.',params:[{label:'Variáns',val:'C — elemzés + rákérdez + átír/csak tippek'},{label:'Ha Igen',val:'Sablon választás → Claude átírja (meglévő tartalom!)'},{label:'Ha Nem',val:'Hiányzó kulcsszavak listája magyarázattal'},{label:'CV javulás',val:'Átírás előtt/után illeszkedés % különbség'},{label:'Output',val:'Letölthető .docx (modern/klasszikus/kreatív)'},{label:'Etikai korlát',val:'Kizárólag meglévő tapasztalat újrafogalmazása'}]},
+  iro:{title:'✍️ 5. Író Ágens — writer.py',desc:'Claude Opus 4.5-tel személyre szabott motivációs leveleket ír. Fejlesztendő: hangvétel választás (formális/laza). 3-4 bekezdés, ATS-optimalizált, természetes hangvételű.',params:[{label:'Modell',val:'claude-opus-4-5'},{label:'Max tokens',val:'800/levél'},{label:'Hangvétel',val:'Fejlesztendő: formális / laza választás'},{label:'Hossz',val:'3-4 bekezdés'},{label:'ATS',val:'Tartalmazza a fő kulcsszavakat'},{label:'Output',val:'Letölthető .docx (sablon alapján)'}]}
+};
+function showAgens(id){
+  document.querySelectorAll('.agens').forEach(a=>a.classList.remove('aktiv'));
+  document.getElementById('ac-'+id).classList.add('aktiv');
+  const d=agensData[id];
+  document.getElementById('detail-title').textContent=d.title;
+  document.getElementById('detail-desc').textContent=d.desc;
+  document.getElementById('detail-grid').innerHTML=d.params.map(p=>`<div class="detail-item"><label>${p.label}</label><div class="val">${p.val}</div></div>`).join('');
+  document.getElementById('detail-panel').classList.add('lathato');
+}
+function closeAgens(){
+  document.getElementById('detail-panel').classList.remove('lathato');
+  document.querySelectorAll('.agens').forEach(a=>a.classList.remove('aktiv'));
+}
+</script>
+</body>
+</html>
