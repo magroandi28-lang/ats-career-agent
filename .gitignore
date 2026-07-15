@@ -1,0 +1,15 @@
+# TITKOK — SOHA nem kerülhet GitHubra!
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Személyes / generált fájlok — nem valók publikus repóba
+*.pdf
+outputs/
+PORTFOLIÓ KÉSZÍTÉSHEZ/
+Képernyőkép*
+
+# Kísérleti fájlok
+proba.py

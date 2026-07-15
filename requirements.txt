@@ -1,0 +1,14 @@
+streamlit
+crewai
+anthropic
+pdfplumber
+requests
+feedparser
+apify-client
+google-search-results
+python-docx
+reportlab
+beautifulsoup4
+python-dotenv
+sendgrid
+supabase

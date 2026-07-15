@@ -1,0 +1,27 @@
+name: Jooble gyujto (napi)
+
+on:
+  schedule:
+    - cron: "0 4 * * *"    # minden nap 04:00 UTC = 06:00 magyar idő
+  workflow_dispatch:        # kézzel is indítható az Actions fülön
+
+jobs:
+  gyujtes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Csomagok telepitese
+        run: pip install requests anthropic supabase python-dotenv beautifulsoup4
+
+      - name: Gyujtes futtatasa
+        env:
+          JOOBLE_API_KEY: ${{ secrets.JOOBLE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/jooble_gyujto.py

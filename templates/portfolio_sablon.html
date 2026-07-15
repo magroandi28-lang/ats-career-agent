@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="{{NYELV}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{NEV}} — {{POZICIO}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --accent:  {{ACCENT_SZIN}};
+  --accent2: {{ACCENT_SZIN2}};
+  --accent3: {{ACCENT_SZIN3}};
+  --accent-rgb: {{ACCENT_RGB}};
+  --dark:  #080C14;
+  --dark2: #0D1420;
+  --dark3: #141E30;
+  --dark4: #1A2640;
+  --text:  #E2E8F4;
+  --sub:   #8899BB;
+  --border: rgba({{ACCENT_RGB}}, 0.2);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'DM Sans', sans-serif; background: var(--dark); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0;
+  background: radial-gradient(ellipse at 15% 20%, rgba({{ACCENT_RGB}}, 0.06) 0%, transparent 50%), radial-gradient(ellipse at 85% 80%, rgba({{ACCENT_RGB}}, 0.03) 0%, transparent 50%);
+  pointer-events: none; z-index: 0; }
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 18px 48px; background: rgba(8,12,20,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+.nav-logo { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+.nav-links { display: flex; gap: 32px; list-style: none; }
+.nav-links a { text-decoration: none; font-size: 13px; font-weight: 500; color: var(--sub); letter-spacing: 0.5px; transition: color 0.2s; }
+.nav-links a:hover { color: var(--accent); }
+.hero { min-height: 100vh; display: flex; align-items: center; padding: 120px 48px 80px; position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; gap: 80px; }
+.hero-bal { flex: 1; }
+.hero-eyebrow { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+.hero-eyebrow::before { content: ''; display: inline-block; width: 40px; height: 1px; background: var(--accent); }
+.hero h1 { font-family: 'Cormorant Garamond', serif; font-size: clamp(48px, 6vw, 80px); font-weight: 700; line-height: 1.05; color: var(--text); margin-bottom: 8px; }
+.hero h1 em { font-style: italic; color: var(--accent); }
+.hero-sub { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; color: var(--sub); margin-bottom: 28px; font-style: italic; }
+.hero-desc { font-size: 15px; color: var(--sub); line-height: 1.8; max-width: 520px; margin-bottom: 40px; }
+.hero-cta { display: flex; gap: 14px; flex-wrap: wrap; }
+.btn-primary { padding: 13px 28px; border-radius: 4px; background: var(--accent); color: #000; text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; transition: all 0.2s; border: 1px solid var(--accent); }
+.btn-primary:hover { background: var(--accent2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba({{ACCENT_RGB}}, 0.3); }
+.btn-sec { padding: 13px 28px; border-radius: 4px; background: transparent; color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.2s; border: 1px solid var(--border); }
+.btn-sec:hover { border-color: var(--accent); background: var(--accent3); }
+.hero-jobb { flex-shrink: 0; position: relative; }
+.foto-keret { width: 260px; height: 300px; position: relative; }
+.foto-keret img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; box-shadow: 0 8px 32px rgba({{ACCENT_RGB}}, 0.15); }
+.foto-placeholder { width: 260px; height: 300px; background: var(--dark3); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.foto-placeholder span { font-size: 48px; opacity: 0.3; }
+.foto-placeholder p { font-size: 12px; color: var(--sub); }
+.foto-badge { position: absolute; bottom: -20px; left: -20px; background: var(--dark3); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-size: 12px; color: var(--sub); backdrop-filter: blur(8px); }
+.foto-badge strong { color: var(--accent); display: block; font-size: 18px; font-weight: 700; }
+section { max-width: 1200px; margin: 0 auto; padding: 80px 48px; position: relative; z-index: 1; }
+.szekc-eyebrow { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+.szekc-eyebrow::before { content: ''; display: inline-block; width: 30px; height: 1px; background: var(--accent); }
+.szekc-cim { font-family: 'Cormorant Garamond', serif; font-size: clamp(32px, 4vw, 48px); font-weight: 700; color: var(--text); margin-bottom: 48px; line-height: 1.1; }
+.projektek-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.projekt-kartya { background: var(--dark2); border: 1px solid var(--border); border-radius: 8px; padding: 28px; transition: all 0.3s; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.projekt-kartya:hover { border-color: rgba({{ACCENT_RGB}}, 0.4); transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,0.4); }
+.projekt-szam { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 2px; margin-bottom: 16px; opacity: 0.7; }
+.projekt-cim { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 10px; line-height: 1.3; }
+.projekt-leiras { font-size: 13px; color: var(--sub); line-height: 1.7; flex: 1; margin-bottom: 20px; }
+.projekt-tagek { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.tag { font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 10px; border-radius: 3px; letter-spacing: 0.5px; background: rgba({{ACCENT_RGB}}, 0.1); color: var(--accent2); border: 1px solid rgba({{ACCENT_RGB}}, 0.2); }
+.projekt-ikon { font-size: 30px; margin-bottom: 14px; line-height: 1; }
+.projekt-tag { font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 10px; border-radius: 3px; letter-spacing: 0.5px; background: rgba({{ACCENT_RGB}}, 0.1); color: var(--accent2); border: 1px solid rgba({{ACCENT_RGB}}, 0.2); }
+.projekt-linkek { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.projekt-link { font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; letter-spacing: 0.3px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 4px; border: 1px solid var(--border); transition: all 0.2s; }
+.projekt-link:hover { border-color: var(--accent); background: var(--accent3); }
+.projekt-link.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+.projekt-link.primary:hover { background: var(--accent2); }
+/* ── CÉL DOBOZ (dupla statisztika) ── */
+.cel-box { display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: center; background: linear-gradient(135deg, var(--dark3), var(--dark4)); border: 1px solid var(--border); border-radius: 12px; padding: 44px; position: relative; overflow: hidden; }
+.cel-box::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 0% 0%, rgba({{ACCENT_RGB}}, 0.08) 0%, transparent 60%); pointer-events: none; }
+.cel-cim { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 700; color: var(--text); margin-bottom: 16px; position: relative; z-index: 1; }
+.cel-cim em { font-style: italic; color: var(--accent); }
+.cel-leiras { font-size: 14px; color: var(--sub); line-height: 1.9; position: relative; z-index: 1; }
+.cel-jobb { text-align: center; position: relative; z-index: 1; }
+.keszs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.keszs-kartya { background: var(--dark2); border: 1px solid var(--border); border-radius: 8px; padding: 24px; }
+.keszs-cim { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
+.keszs-lista { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.keszs-lista li { font-size: 13px; color: var(--sub); padding-left: 14px; position: relative; }
+.keszs-lista li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-size: 11px; }
+.nyelv-grid { display: flex; gap: 16px; flex-wrap: wrap; }
+.nyelv-kartya { background: var(--dark2); border: 1px solid var(--border); border-radius: 8px; padding: 20px 28px; display: flex; align-items: center; gap: 14px; }
+.nyelv-zaszlo { font-size: 28px; }
+.nyelv-nev { font-size: 15px; font-weight: 600; color: var(--text); }
+.nyelv-szint { font-size: 12px; color: var(--accent); margin-top: 2px; }
+.timeline { position: relative; padding-left: 32px; }
+.timeline::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 1px; background: var(--border); }
+.timeline-item { position: relative; margin-bottom: 48px; }
+.timeline-item::before { content: ''; position: absolute; left: -36px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px rgba({{ACCENT_RGB}}, 0.5); }
+.timeline-ev { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 2px; margin-bottom: 8px; }
+.timeline-cim { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.timeline-ceg { font-size: 13px; color: var(--accent2); margin-bottom: 10px; font-style: italic; }
+.timeline-leiras { font-size: 13px; color: var(--sub); line-height: 1.7; }
+.tanulmany-item { position: relative; margin-bottom: 28px; }
+.tanulmany-item::before { content: ''; position: absolute; left: -36px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); }
+.tanulmany-ev { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 2px; margin-bottom: 6px; }
+.tanulmany-nev { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.tanulmany-int { font-size: 13px; color: var(--sub); font-style: italic; }
+.cel-grid { display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: start; }
+.cel-szoveg { font-size: 15px; color: var(--sub); line-height: 1.9; }
+.cel-jobb { text-align: center; }
+.cel-szam { font-family: 'Cormorant Garamond', serif; font-size: 56px; font-weight: 700; color: var(--accent); line-height: 1; }
+.cel-szam-label { font-size: 11px; color: var(--sub); letter-spacing: 1px; margin-top: 4px; }
+/* ── PRÓBÁLJ KI (opcionális) ── */
+.probald-box { background: linear-gradient(135deg, var(--dark3), var(--dark4)); border: 1px solid var(--border); border-radius: 12px; padding: 44px; position: relative; overflow: hidden; }
+.probald-box::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba({{ACCENT_RGB}}, 0.08) 0%, transparent 70%); pointer-events: none; }
+.probald-szoveg { font-size: 16px; color: var(--text); line-height: 1.9; position: relative; z-index: 1; white-space: pre-line; }
+.probald-alair { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 18px; color: var(--accent); margin-top: 20px; position: relative; z-index: 1; }
+/* ── LETÖLTHETŐ DOKUMENTUMOK (opcionális) ── */
+.dok-grid { display: flex; gap: 16px; flex-wrap: wrap; }
+.dok-kartya { background: var(--dark2); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; display: flex; align-items: center; gap: 16px; text-decoration: none; transition: all 0.2s; min-width: 240px; }
+.dok-kartya:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+.dok-ikon { width: 42px; height: 42px; border-radius: 8px; background: rgba({{ACCENT_RGB}}, 0.1); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dok-ikon i { color: var(--accent); font-size: 16px; }
+.dok-nev { font-size: 14px; font-weight: 600; color: var(--text); }
+.dok-meta { font-size: 11px; color: var(--sub); margin-top: 2px; letter-spacing: 0.5px; }
+.kontakt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+.kontakt-bal h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(36px, 4vw, 52px); font-weight: 700; color: var(--text); margin-bottom: 20px; line-height: 1.1; }
+.kontakt-bal h2 em { color: var(--accent); font-style: italic; }
+.kontakt-bal p { font-size: 14px; color: var(--sub); line-height: 1.8; margin-bottom: 28px; }
+.kontakt-linkek { display: flex; flex-direction: column; gap: 4px; }
+.kontakt-link { display: flex; align-items: center; gap: 14px; font-size: 14px; color: var(--sub); text-decoration: none; transition: color 0.2s; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.kontakt-link:hover { color: var(--accent); }
+.kontakt-link:last-child { border-bottom: none; }
+.fa-icon { width: 36px; height: 36px; border-radius: 8px; background: rgba({{ACCENT_RGB}}, 0.08); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+.kontakt-link:hover .fa-icon { background: rgba({{ACCENT_RGB}}, 0.18); border-color: var(--accent); }
+.fa-icon i { font-size: 14px; color: var(--accent); }
+.pozicio-lista { display: flex; flex-direction: column; gap: 12px; }
+.pozicio-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--dark3); border-radius: 6px; border: 1px solid var(--border); }
+.pozicio-nev { font-size: 14px; font-weight: 600; color: var(--text); }
+.pozicio-tech { font-size: 12px; color: var(--sub); margin-top: 2px; }
+.cta-box { background: linear-gradient(135deg, var(--dark3), var(--dark4)); border: 1px solid var(--border); border-radius: 12px; padding: 48px; text-align: center; position: relative; overflow: hidden; }
+.cta-box::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba({{ACCENT_RGB}}, 0.08) 0%, transparent 70%); pointer-events: none; }
+footer { border-top: 1px solid var(--border); padding: 24px 48px; text-align: center; font-size: 12px; color: var(--sub); position: relative; z-index: 1; }
+.elvalaszto { max-width: 1200px; margin: 0 auto; padding: 0 48px; border-top: 1px solid var(--border); }
+@media(max-width: 768px) {
+  nav { padding: 16px 24px; } .nav-links { display: none; }
+  .hero { flex-direction: column; padding: 100px 24px 60px; gap: 40px; }
+  section { padding: 60px 24px; }
+  .projektek-grid { grid-template-columns: 1fr; } .keszs-grid { grid-template-columns: 1fr 1fr; }
+  .kontakt-grid { grid-template-columns: 1fr; } .cel-grid { grid-template-columns: 1fr; }
+  .foto-keret, .foto-placeholder { width: 200px; height: 240px; } footer { padding: 20px 24px; }
+  .probald-box { padding: 28px; } .dok-kartya { min-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">{{NEV_ROVID}}</div>
+  <ul class="nav-links">
+    <li><a href="#tapasztalat">Tapasztalat</a></li>
+    <li><a href="#keszsegek">Készségek</a></li>
+    <li><a href="#cel">Rólam</a></li>
+    <li><a href="#kontakt">Kapcsolat</a></li>
+  </ul>
+</nav>
+
+<div class="hero">
+  <div class="hero-bal">
+    <div class="hero-eyebrow">{{SZAKMA_TERULET}}</div>
+    <h1>{{NEV_ELSO}}<br><em>{{NEV_VEZETEK}}</em></h1>
+    <div class="hero-sub">{{POZICIO}}</div>
+    <p class="hero-desc">{{BEMUTATKOZAS}}</p>
+    <div class="hero-cta">
+      <a href="#kontakt" class="btn-primary">Vegyük fel a kapcsolatot</a>
+    </div>
+  </div>
+  <div class="hero-jobb">
+    <!-- FOTO START --><!-- FOTO END -->
+    <div class="foto-badge">
+      <strong>{{EVEK_SZAMA}}</strong>
+      {{EVEK_LABEL}}
+    </div>
+  </div>
+</div>
+
+<div class="elvalaszto"></div>
+
+<!-- PROJEKTEK START --><!-- PROJEKTEK END -->
+
+<!-- TAPASZTALAT & KÉPZÉS -->
+<section id="tapasztalat">
+  <div class="szekc-eyebrow">Karrierút</div>
+  <h2 class="szekc-cim">Tapasztalat &amp; Képzés</h2>
+  <div class="timeline">
+<!-- TAPASZTALAT TIMELINE START --><!-- TAPASZTALAT TIMELINE END -->
+<!-- TANULMANYOK START --><!-- TANULMANYOK END -->
+  </div>
+</section>
+
+<div class="elvalaszto"></div>
+
+<!-- KÉSZSÉGEK -->
+<section id="keszsegek">
+  <div class="szekc-eyebrow">Tudás</div>
+  <h2 class="szekc-cim">Készségek</h2>
+  <div class="keszs-grid">
+<!-- KESZSEGEK START --><!-- KESZSEGEK END -->
+  </div>
+</section>
+
+<div class="elvalaszto"></div>
+
+<!-- SZAKMA_MODUL START --><!-- SZAKMA_MODUL END -->
+
+<!-- NYELVEK START --><!-- NYELVEK END -->
+
+<!-- CÉL & BEMUTATKOZÁS -->
+<section id="cel">
+  <div class="szekc-eyebrow">Rólam</div>
+  <h2 class="szekc-cim">Célok & Motiváció</h2>
+  <div class="cel-box">
+    <div class="cel-bal">
+      <h3 class="cel-cim">{{CEL_CIM}}</h3>
+      <p class="cel-leiras">{{CEL_SZOVEG}}</p>
+    </div>
+    <div class="cel-jobb">
+      <div class="cel-szam">{{STAT1}}</div>
+      <div class="cel-szam-label">{{STAT1_LABEL}}</div>
+<!-- STAT2 START -->
+      <div class="cel-szam" style="margin-top:20px;">{{STAT2}}</div>
+      <div class="cel-szam-label">{{STAT2_LABEL}}</div>
+<!-- STAT2 END -->
+    </div>
+  </div>
+</section>
+
+<!-- PROBALD_KI START --><!-- PROBALD_KI END -->
+
+<!-- DOKUMENTUMOK START --><!-- DOKUMENTUMOK END -->
+
+<div class="elvalaszto"></div>
+
+<!-- KONTAKT -->
+<section id="kontakt">
+  <div class="kontakt-grid">
+    <div class="kontakt-bal">
+      <h2>{{KONTAKT_CIM}} <em>{{KONTAKT_CIM_2}}</em></h2>
+      <p>{{KONTAKT_SZOVEG}}</p>
+      <div class="kontakt-linkek">
+        <a href="mailto:{{EMAIL}}" class="kontakt-link">
+          <div class="fa-icon"><i class="fa-regular fa-envelope"></i></div>{{EMAIL}}
+        </a>
+        <!-- TELEFON START -->
+        <a href="tel:{{TELEFON}}" class="kontakt-link">
+          <div class="fa-icon"><i class="fa-solid fa-phone-volume"></i></div>{{TELEFON}}
+        </a>
+        <!-- TELEFON END -->
+        <div class="kontakt-link" style="cursor:default;">
+          <div class="fa-icon"><i class="fa-solid fa-location-dot"></i></div>{{VAROS}}
+        </div>
+        <!-- LINKEDIN START -->
+        <a href="{{LINKEDIN_LINK}}" target="_blank" class="kontakt-link">
+          <div class="fa-icon"><i class="fa-brands fa-linkedin-in"></i></div>{{LINKEDIN_LINK_ROVID}}
+        </a>
+        <!-- LINKEDIN END -->
+        <!-- GITHUB START -->
+        <a href="{{GITHUB_LINK}}" target="_blank" class="kontakt-link">
+          <div class="fa-icon"><i class="fa-brands fa-github"></i></div>{{GITHUB_LINK_ROVID}}
+        </a>
+        <!-- GITHUB END -->
+        <!-- DEMO START -->
+        <a href="{{DEMO_LINK}}" target="_blank" class="kontakt-link">
+          <div class="fa-icon"><i class="fa-solid fa-arrow-up-right-from-square"></i></div>{{DEMO_NEV}}
+        </a>
+        <!-- DEMO END -->
+      </div>
+    </div>
+    <div style="background:var(--dark2); border:1px solid var(--border); border-radius:8px; padding:36px;">
+      <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--accent); letter-spacing:2px; margin-bottom:20px;">KERESETT POZÍCIÓK</div>
+      <div class="pozicio-lista">
+<!-- POZICIOK START --><!-- POZICIOK END -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>© {{EV}} {{NEV}} — {{POZICIO}} &nbsp;·&nbsp; {{VAROS}} &nbsp;·&nbsp; Minden jog fenntartva</p>
+</footer>
+
+</body>
+</html>
