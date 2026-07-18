@@ -83,21 +83,24 @@ Cég neve: {ceg_nev}
 Internetes találatok a cégről:
 {osszes_info}
 
-Ha nincs elég adat → Claude saját tudásából egészítsd ki amit tudsz erről a cégről.
+SZIGORÚ SZABÁLY — CSAK MEGERŐSÍTETT ADAT:
+- KIZÁRÓLAG a fenti internetes találatokból dolgozz, plusz abból, amit KONKRÉTAN erről a cégről biztosan tudsz.
+- TILOS bérszámot kitalálni vagy "tipikus/iparági" bérsávot írni! Ha a találatokban nincs konkrét bér erről a cégről, a bersav mező legyen PONTOSAN: "Nincs megerősített béradat".
+- Fluktuáció: ha nincs valódi adat, írd: "Nincs megerősített adat". Iparági általánosítás TILOS.
+- A pozíció szintjét nem ismered — pozíciófüggő találgatás is TILOS.
 
-Adj RÖVID, ŐSZINTE összefoglalót. Válaszolj KIZÁRÓLAG JSON formátumban:
+Válaszolj KIZÁRÓLAG JSON formátumban:
 
 {{
-  "bersav": "Konkrét összeg pl. 300.000-380.000 Ft/hó — NE írj 'piaci bérezés'-t!",
-  "fluktuacio": "Magas / Közepes / Alacsony — és egy mondat miért",
-  "velemenyek": "1-2 mondatos ŐSZINTE összefoglaló — ha szar hely akkor azt írd!",
-  "figyelmeztetes": "Ha van komoly negatívum — null ha nincs"
+  "bersav": "csak a találatokból; ha nincs: 'Nincs megerősített béradat'",
+  "fluktuacio": "Magas / Közepes / Alacsony + 1 mondat — csak valódi adat alapján; ha nincs: 'Nincs megerősített adat'",
+  "velemenyek": "1-2 mondat ŐSZINTÉN, a TALÁLATOK alapján; ha nincs találat: 'Nincs elérhető vélemény erről a cégről.'",
+  "figyelmeztetes": "csak a találatokból kiderülő KONKRÉT negatívum — null ha nincs"
 }}
 
 FONTOS:
-- Legyél ŐSZINTE — ha rossz hely dolgozni, mondd ki!
-- Konkrét bérek kellenek — ne általánosságok
-- Ha magas a fluktuáció — írd ki egyértelműen
+- Legyél ŐSZINTE — ha a találatok szerint rossz hely, mondd ki!
+- De SOHA ne találj ki számot, és ne írj általános iparági tippet.
 - Maximum 2-2 mondat minden mezőben"""
 
     response = client.messages.create(

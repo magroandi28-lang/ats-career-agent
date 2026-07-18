@@ -16,12 +16,12 @@ jobs:
           python-version: "3.11"
 
       - name: Csomagok telepitese
-        run: pip install requests anthropic supabase python-dotenv beautifulsoup4
+        run: pip install requests supabase python-dotenv
 
       - name: Gyujtes futtatasa
         env:
           JOOBLE_API_KEY: ${{ secrets.JOOBLE_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/jooble_gyujto.py

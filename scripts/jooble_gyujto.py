@@ -13,6 +13,7 @@ Futtatás a projekt gyökeréből:
 Később GitHub Actions futtatja majd naponta — addig kézzel indítod.
 """
 
+import json
 import os
 import re
 import sys
@@ -24,13 +25,18 @@ from dotenv import load_dotenv
 # A projekt gyökerét a path-ra tesszük, hogy az agents/utils importok működjenek
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.karrier_ugynok import keszsegek_kinyerese  # noqa: E402
 from utils.adatbazis import gyujtes_mentese, kliens, letezo_linkek  # noqa: E402
 
 load_dotenv()
 
 JOOBLE_API_KEY = os.getenv("JOOBLE_API_KEY", "")
 JOOBLE_URL = "https://hu.jooble.org/api/"
+
+# A készség-kinyerést a Google Gemini INGYENES szintje végzi — 0 Ft.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODELL = "gemini-2.5-flash"
+GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
+              f"{GEMINI_MODELL}:generateContent")
 
 # ── GYŰJTÖTT SZAKMÁK (név, kategória) — bővítsd bátran! ──────
 SZAKMAK = [
@@ -74,6 +80,61 @@ SZINONIMAK = {
     "ügyfélszolgálati munkatárs": ["call center munkatárs"],
     "adminisztratív asszisztens": ["irodai asszisztens"],
 }
+
+
+def keszsegek_kinyerese(allasok: list) -> list:
+    """Készség-kinyerés a Google Gemini INGYENES API-jával (nem Claude!).
+    Visszatérés: listák listája, az allasok sorrendjében."""
+    if not allasok:
+        return []
+    if not GEMINI_API_KEY:
+        print("  FIGYELEM: GEMINI_API_KEY hianyzik — keszsegek nelkul mentunk.")
+        return [[] for _ in allasok]
+
+    lista = "\n\n".join([
+        f"[{i}] {a.get('cim','')} — {a.get('ceg','')}\n{a.get('snippet','')}"
+        for i, a in enumerate(allasok)
+    ])
+
+    prompt = f"""Álláshirdetésekből kell strukturáltan kinyerned a készségeket és elvárásokat.
+
+HIRDETÉSEK (sorszámmal):
+{lista}
+
+Minden hirdetéshez add meg a benne szereplő készségeket SZAKMAI néven:
+- tipus lehet: "elvaras" (elvárt tudás/tapasztalat/végzettség), "feladat" (a munkakörben végzendő tevékenység), "eszkoz" (szoftver, gép, technológia), "soft" (személyes készség, pl. csapatmunka)
+- A pongyola megfogalmazást fordítsd szakmaira (pl. "kassza" → "pénztárgép kezelése").
+- A nevet kisbetűvel írd, KIVÉVE a rövidítéseket és tulajdonneveket (HACCP, SQL, Python).
+- Hirdetésenként 3-8 elem. Helyszínt, bért, munkaidőt, juttatást NE adj meg készségként.
+
+Válaszolj KIZÁRÓLAG JSON-tömbként, minden más szöveg nélkül:
+[
+  {{"index": 0, "keszsegek": [{{"nev": "pénztárgép kezelése", "tipus": "feladat"}}]}}
+]"""
+
+    try:
+        r = requests.post(
+            GEMINI_URL,
+            params={"key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+            timeout=60,
+        )
+        r.raise_for_status()
+        t = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if "```json" in t:
+            t = t.split("```json")[1].split("```")[0].strip()
+        elif "```" in t:
+            t = t.split("```")[1].split("```")[0].strip()
+        adat = json.loads(t)
+        eredmeny = [[] for _ in allasok]
+        for elem in adat:
+            idx = elem.get("index")
+            if isinstance(idx, int) and 0 <= idx < len(allasok):
+                eredmeny[idx] = elem.get("keszsegek", [])
+        return eredmeny
+    except Exception as e:
+        print(f"  Gemini hiba (keszseg-kinyeres): {e}")
+        return [[] for _ in allasok]
 
 
 def _tisztit(szoveg: str) -> str:
@@ -155,6 +216,7 @@ def szakma_gyujtes(szakma: str, kategoria: str) -> int:
         csomag = ujak[i:i + CSOMAG_MERET]
         keszsegek = keszsegek_kinyerese(csomag)
         mentve += gyujtes_mentese(szakma_info, csomag, keszsegek)
+        time.sleep(5)  # a Gemini ingyenes szint perc-limitje miatt
     return mentve
 
 

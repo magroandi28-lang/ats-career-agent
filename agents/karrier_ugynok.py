@@ -15,6 +15,7 @@ from utils.adatbazis import (
     gyujtes_mentese,
     ceginfo_cache_lekerdez,
     ceginfo_cache_ment,
+    friss_hirdetesek,
 )
 
 load_dotenv()
@@ -318,6 +319,14 @@ def allasok_keresese(szakma: str, helyszin: str = "Budapest", ajanlott_cegek: li
                 print(f"Mock: {len(allasok)} allas")
                 return allasok
         return list(MOCK_ALLASOK.values())[0]
+
+    # ── DB-FIRST: előbb a SAJÁT adatbázisunkból ajánlunk ─────
+    # Ha az adott szakmából van elég friss (30 napnál újabb) hirdetésünk,
+    # onnan adjuk — nincs SerpAPI-költség, és azonnali a válasz.
+    sajat = friss_hirdetesek(szakma, helyszin=helyszin, max_nap=30, limit=15)
+    if len(sajat) >= 5:
+        print(f"DB-FIRST: {len(sajat)} allas a sajat adatbazisbol — nincs netes kereses.")
+        return sajat
 
     # ── Éles mód: SerpAPI forrás-keresés + SCRAPER ágens (konkrét állások) ──
     # Külön gyűjtjük a PORTÁL-forrásokat és a CÉGES oldalakat, hogy MINDKETTŐ
@@ -849,8 +858,11 @@ def run(cv_szoveg: str = "", szakma_megadva: str = "",
     # beállítva vagy bármi hiba van, az alkalmazás zavartalanul megy tovább.
     if not TESZT_MOD:
         try:
-            keszsegek = keszsegek_kinyerese(nyers_allasok)
-            gyujtes_mentese(szakma_info, nyers_allasok, keszsegek)
+            # Ami a saját adatbázisunkból jött, azt NEM mentjük újra
+            mentendo = [a for a in nyers_allasok if not a.get("adatbazisbol")]
+            if mentendo:
+                keszsegek = keszsegek_kinyerese(mentendo)
+                gyujtes_mentese(szakma_info, mentendo, keszsegek)
         except Exception as e:
             print(f"[adatbazis] Gyujtes kihagyva: {e}")
 
@@ -876,6 +888,8 @@ def run(cv_szoveg: str = "", szakma_megadva: str = "",
         "cim": a.get("cim", ""),
         "ceg": a.get("ceg", ""),
         "link": a.get("link", ""),
+        "forras_tipus": a.get("forras_tipus", ""),
+        "adatbazisbol": a.get("adatbazisbol", False),
         "illeszkedes": a.get("illeszkedes", 0),
         "indoklas": a.get("indoklas", ""),
         "cv": "",

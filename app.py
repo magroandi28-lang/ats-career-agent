@@ -616,6 +616,19 @@ with tab_ugynok:
 
                     with st.expander(f"🏢 {i+1}. {ceg} — {cim}", expanded=True):
 
+                        # ── FORRÁS-JELZÉS: honnan jött ez az ajánlat ──
+                        _fnev = {"portal": "állásportál", "ceges": "céges karrieroldal",
+                                 "jooble": "Jooble"}.get(csomag.get("forras_tipus", ""), "")
+                        _fdom = ""
+                        if link:
+                            _fm = re.search(r"https?://(?:www\.)?([^/]+)", link)
+                            _fdom = _fm.group(1) if _fm else ""
+                        _freszek = [r for r in [_fdom, _fnev] if r]
+                        if csomag.get("adatbazisbol"):
+                            _freszek.append("a saját adatbázisunkból ✅")
+                        if _freszek:
+                            st.caption("📌 Forrás: " + " · ".join(_freszek))
+
                         if ceginfo_key not in st.session_state.tab1_ceginfo:
                             if st.button("🔎 Mutasd a cégadatokat", key=f"ceginfo_gomb_{i}"):
                                 with st.spinner("Cégadatok lekérése..."):

@@ -129,6 +129,56 @@ def ceginfo_cache_ment(ceg_nev: str, info: dict):
         print(f"[adatbazis] Ceginfo mentes hiba: {e}")
 
 
+def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
+                     max_nap: int = 30, limit: int = 15) -> list:
+    """DB-FIRST: friss hirdetések a SAJÁT adatbázisunkból az adott szakmához.
+    Ha van elég, nem kell internetes keresés — gyorsabb és ingyenes."""
+    db = kliens()
+    if not db or not szakma_nev:
+        return []
+    try:
+        r = db.table("szakmak").select("id").ilike("nev", szakma_nev.strip()).limit(1).execute()
+        if not r.data:
+            return []
+        szakma_id = r.data[0]["id"]
+
+        hatar = (datetime.datetime.now(datetime.timezone.utc)
+                 - datetime.timedelta(days=max_nap)).isoformat()
+        q = (db.table("hirdetesek")
+               .select("cim, snippet, link, helyszin, datum_szoveg, bersav, forras_tipus, ceg_id")
+               .eq("szakma_id", szakma_id)
+               .gte("letrehozva", hatar))
+        if helyszin:
+            q = q.ilike("helyszin", f"%{helyszin}%")
+        r = q.order("letrehozva", desc=True).limit(limit).execute()
+        sorok = r.data or []
+
+        # Cégnevek egyetlen lekérdezéssel
+        ceg_idk = list({s["ceg_id"] for s in sorok if s.get("ceg_id")})
+        cegnev = {}
+        if ceg_idk:
+            rc = db.table("cegek").select("id, nev").in_("id", ceg_idk).execute()
+            cegnev = {c["id"]: c["nev"] for c in (rc.data or [])}
+
+        allasok = []
+        for s in sorok:
+            allasok.append({
+                "cim": s.get("cim", ""),
+                "ceg": cegnev.get(s.get("ceg_id"), ""),
+                "snippet": s.get("snippet", ""),
+                "link": s.get("link", ""),
+                "helyszin": s.get("helyszin", ""),
+                "datum": s.get("datum_szoveg", ""),
+                "bersav": s.get("bersav", ""),
+                "forras_tipus": s.get("forras_tipus", "egyeb"),
+                "adatbazisbol": True,   # jelzés: ezt NEM kell újra menteni
+            })
+        return allasok
+    except Exception as e:
+        print(f"[adatbazis] Friss hirdetesek lekerdezese hiba: {e}")
+        return []
+
+
 def letezo_linkek(linkek: list) -> set:
     """Megadja, mely linkek vannak MÁR az adatbázisban.
     A gyűjtő script ezzel szűri ki a duplikátumokat MÉG a (pénzbe kerülő)
