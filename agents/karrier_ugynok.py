@@ -24,6 +24,11 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 JOOBLE_API_KEY = os.getenv("JOOBLE_API_KEY")
 
+# A készség-kinyerés (adatgyűjtés) a Gemini INGYENES API-ján fut — 0 Ft
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
+              "gemini-2.5-flash:generateContent")
+
 # ── TESZT KAPCSOLÓ ───────────────────────────────────────────
 # True  = mock adatok (ingyenes, teszteléshez)
 # False = éles SerpAPI keresés
@@ -815,12 +820,19 @@ Válaszolj KIZÁRÓLAG JSON-tömbként:
   {{"index": 0, "keszsegek": [{{"nev": "pénztárgép kezelése", "tipus": "feladat"}}]}}
 ]"""
 
+    # GEMINI (ingyenes) — ha nincs kulcs, készségek nélkül mentünk, Claude-ot NEM hívunk
+    if not GEMINI_API_KEY:
+        print("[adatbazis] GEMINI_API_KEY hianyzik — keszsegek nelkul mentunk.")
+        return [[] for _ in allasok]
     try:
-        resp = client.messages.create(
-            model="claude-haiku-4-5", max_tokens=2000, temperature=0,
-            messages=[{"role": "user", "content": prompt}]
+        r = requests.post(
+            GEMINI_URL,
+            params={"key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+            timeout=60,
         )
-        t = resp.content[0].text.strip()
+        r.raise_for_status()
+        t = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
         if "```json" in t:
             t = t.split("```json")[1].split("```")[0].strip()
         elif "```" in t:
@@ -833,7 +845,7 @@ Válaszolj KIZÁRÓLAG JSON-tömbként:
                 eredmeny[idx] = elem.get("keszsegek", [])
         return eredmeny
     except Exception as e:
-        print(f"[adatbazis] Keszseg-kinyeres hiba: {e}")
+        print(f"[adatbazis] Keszseg-kinyeres hiba (Gemini): {e}")
         return [[] for _ in allasok]
 
 
