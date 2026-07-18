@@ -198,31 +198,60 @@ def ats_gauge_html(before: int, after: int = None) -> str:
     </div>"""
 
 
+# ── SEGÉD: LOGÓ BETÖLTÉSE (logo.png / logo.jpg a projektmappából) ──
+def logo_base64():
+    mappa = os.path.dirname(os.path.abspath(__file__))
+    for ln, lm in [("logo.png", "png"), ("logo.jpg", "jpeg"), ("logo.jpeg", "jpeg")]:
+        ut = os.path.join(mappa, ln)
+        if os.path.exists(ut):
+            with open(ut, "rb") as f:
+                return lm, base64.b64encode(f.read()).decode()
+    return None, None
+
+
 # ── GDPR ──────────────────────────────────────────────────────
 if "gdpr_elfogadva" not in st.session_state:
     st.session_state.gdpr_elfogadva = False
 
 if not st.session_state.gdpr_elfogadva:
-    st.markdown("""
-    <div style="max-width:780px; margin:16px auto; text-align:center;">
-        <div style="font-size:42px; margin-bottom:6px;">🕵️</div>
-        <h1 style="font-size:30px; font-weight:800; color:#D4A843; margin-bottom:10px;">
+    # Ha van logo.png / logo.jpg a projektmappában, azt mutatjuk — különben a régi fejléc
+    _mappa = os.path.dirname(os.path.abspath(__file__))
+    _logo_ut, _logo_mime = None, "png"
+    for _ln, _lm in [("logo.png", "png"), ("logo.jpg", "jpeg"), ("logo.jpeg", "jpeg")]:
+        if os.path.exists(os.path.join(_mappa, _ln)):
+            _logo_ut, _logo_mime = os.path.join(_mappa, _ln), _lm
+            break
+    if _logo_ut:
+        with open(_logo_ut, "rb") as _lf:
+            _logo64 = base64.b64encode(_lf.read()).decode()
+        _fejlec = ('<img src="data:image/' + _logo_mime + ';base64,' + _logo64 + '" '
+                   'style="width:400px; max-width:92%;" alt="Karrier-Ügynökség"/>'
+                   '<div style="color:#94a3b8; font-size:13px; letter-spacing:5px; '
+                   'margin:6px 0 30px;">&mdash;&nbsp; AI-ASSZISZTÁLT KARRIERFEJLESZTÉS '
+                   '&nbsp;&mdash;</div>')
+    else:
+        _fejlec = """<div style="font-size:48px; margin-bottom:6px;">🕵️</div>
+        <h1 style="font-size:36px; font-weight:800; color:#D4A843; margin-bottom:12px;">
             Karrier-Ügynökség
-        </h1>
-        <div style="font-family:'Georgia',serif; font-size:22px; margin-bottom:8px;">
+        </h1>"""
+
+    st.markdown(f"""
+    <div style="max-width:1050px; margin:12px auto; text-align:center;">
+        {_fejlec}
+        <div style="font-family:'Georgia',serif; font-size:27px; margin-bottom:10px;">
             <span style="color:#D4A843; font-weight:700;">Más CV-k elvesznek a robotszűrőn.</span>
             <em style="color:#e2e8f4;"> A tiéd nem fog.</em>
         </div>
-        <p style="color:#94a3b8; font-size:14px; margin-bottom:16px;">
+        <p style="color:#94a3b8; font-size:16px; margin-bottom:18px;">
             ✓ ATS-ellenőrzés &nbsp;·&nbsp; ✓ állásra szabott CV és motivációs levél
             &nbsp;·&nbsp; ✓ több ezer valódi hirdetés adataiból
         </p>
         <div style="background:#111827; border:1px solid rgba(212,168,67,0.3);
-                    border-radius:12px; padding:16px 22px; text-align:left;">
-            <div style="color:#D4A843; font-weight:700; font-size:14px; margin-bottom:8px;">
+                    border-radius:12px; padding:20px 26px; text-align:left;">
+            <div style="color:#D4A843; font-weight:700; font-size:15px; margin-bottom:8px;">
                 🔒 Adatkezelési nyilatkozat
             </div>
-            <p style="color:#94a3b8; font-size:12.5px; line-height:1.7; margin:0;">
+            <p style="color:#94a3b8; font-size:14px; line-height:1.7; margin:0;">
                 A feltöltött CV-d elemzés céljából az
                 <strong style="color:#f1f5f9;">Anthropic Claude API</strong>-ra kerül továbbításra —
                 <strong style="color:#f1f5f9;">a CV-d és személyes adataid nem tárolódnak.</strong>
@@ -234,7 +263,7 @@ if not st.session_state.gdpr_elfogadva:
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1, 6, 1])
     with col2:
         gdpr = st.checkbox("Elolvastam és elfogadom az adatkezelési nyilatkozatot", key="gdpr_checkbox")
         st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
@@ -247,17 +276,28 @@ if not st.session_state.gdpr_elfogadva:
     st.stop()
 
 # ── FŐ ALKALMAZÁS ─────────────────────────────────────────────
-st.markdown("""
+_vcol, _ = st.columns([1.4, 8])
+with _vcol:
+    if st.button("← Kezdőoldal", key="vissza_kezdo"):
+        st.session_state.gdpr_elfogadva = False
+        st.rerun()
+
+_flm, _fl64 = logo_base64()
+if _fl64:
+    _fej_logo = ('<img src="data:image/' + _flm + ';base64,' + _fl64 + '" '
+                 'style="height:96px;" alt="Karrier-Ügynökség"/>')
+else:
+    _fej_logo = """<span style="font-size:40px;">🕵️</span>
+        <div style="font-size:26px; font-weight:800; color:#D4A843;">Karrier-Ügynökség</div>"""
+
+st.markdown(f"""
 <div style="background:linear-gradient(135deg,#1C2540 0%,#0A1628 100%);
-            padding:24px 32px; border-radius:12px; margin-bottom:24px;
+            padding:16px 32px; border-radius:12px; margin-bottom:24px;
             border-bottom:3px solid #D4A843;">
-    <div style="display:flex; align-items:center; gap:16px;">
-        <span style="font-size:40px;">🕵️</span>
-        <div>
-            <div style="font-size:26px; font-weight:800; color:#D4A843;">Karrier-Ügynökség</div>
-            <div style="font-size:13px; color:#94a3b8; margin-top:4px;">
-                Claude API · ATS optimalizálás · Személyre szabott dokumentumok
-            </div>
+    <div style="display:flex; align-items:center; gap:18px;">
+        {_fej_logo}
+        <div style="font-size:13px; color:#94a3b8;">
+            Claude API · ATS optimalizálás · Személyre szabott dokumentumok
         </div>
         <div style="margin-left:auto;">
             <span style="background:rgba(212,168,67,0.1); border:1px solid rgba(212,168,67,0.3);
