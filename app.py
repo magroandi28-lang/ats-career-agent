@@ -18,7 +18,7 @@ st.set_page_config(
 st.markdown("""
 <style>
 .stApp { background-color: #0a0e1a !important; }
-.block-container { padding: 2rem 3rem; max-width: 1100px; margin: 0 auto; }
+.block-container { padding: 1.2rem 3rem; max-width: 1500px; margin: 0 auto; }
 .stMarkdown, .stMarkdown p, .stMarkdown li { color: #e2e8f4 !important; }
 label, .stRadio label, .stCheckbox label, .stSelectbox label,
 .stTextInput label, .stTextArea label, .stFileUploader label {
@@ -204,23 +204,31 @@ if "gdpr_elfogadva" not in st.session_state:
 
 if not st.session_state.gdpr_elfogadva:
     st.markdown("""
-    <div style="max-width:700px; margin:80px auto; text-align:center;">
-        <div style="font-size:64px; margin-bottom:24px;">🕵️</div>
-        <h1 style="font-size:36px; font-weight:800; color:#D4A843; margin-bottom:12px;">
+    <div style="max-width:780px; margin:16px auto; text-align:center;">
+        <div style="font-size:42px; margin-bottom:6px;">🕵️</div>
+        <h1 style="font-size:30px; font-weight:800; color:#D4A843; margin-bottom:10px;">
             Karrier-Ügynökség
         </h1>
-        <p style="color:#94a3b8; font-size:16px; line-height:1.8; margin-bottom:40px;">
-            MI-alapú személyes álláskeresési asszisztens.
+        <div style="font-family:'Georgia',serif; font-size:22px; margin-bottom:8px;">
+            <span style="color:#D4A843; font-weight:700;">Más CV-k elvesznek a robotszűrőn.</span>
+            <em style="color:#e2e8f4;"> A tiéd nem fog.</em>
+        </div>
+        <p style="color:#94a3b8; font-size:14px; margin-bottom:16px;">
+            ✓ ATS-ellenőrzés &nbsp;·&nbsp; ✓ állásra szabott CV és motivációs levél
+            &nbsp;·&nbsp; ✓ több ezer valódi hirdetés adataiból
         </p>
         <div style="background:#111827; border:1px solid rgba(212,168,67,0.3);
-                    border-radius:12px; padding:28px; text-align:left; margin-bottom:32px;">
-            <div style="color:#D4A843; font-weight:700; font-size:15px; margin-bottom:12px;">
+                    border-radius:12px; padding:16px 22px; text-align:left;">
+            <div style="color:#D4A843; font-weight:700; font-size:14px; margin-bottom:8px;">
                 🔒 Adatkezelési nyilatkozat
             </div>
-            <p style="color:#94a3b8; font-size:13px; line-height:1.8; margin:0;">
-                A feltöltött CV-d és személyes adataid az álláskereső elemzés céljából
-                az <strong style="color:#f1f5f9;">Anthropic Claude API</strong>-ra kerülnek továbbításra.
-                <strong style="color:#f1f5f9;">A feldolgozott adatok nem tárolódnak.</strong>
+            <p style="color:#94a3b8; font-size:12.5px; line-height:1.7; margin:0;">
+                A feltöltött CV-d elemzés céljából az
+                <strong style="color:#f1f5f9;">Anthropic Claude API</strong>-ra kerül továbbításra —
+                <strong style="color:#f1f5f9;">a CV-d és személyes adataid nem tárolódnak.</strong>
+                A szolgáltatás fejlesztéséhez anonim álláspiaci adatokat (nyilvános hirdetések
+                szövegét) gyűjtünk és tárolunk; ezek feldolgozásában a
+                <strong style="color:#f1f5f9;">Google Gemini API</strong> is részt vesz.
             </p>
         </div>
     </div>
@@ -272,18 +280,7 @@ tab_ugynok, tab_portfolio, tab_kepzes, tab_kulfoldi = st.tabs([
 # ══════════════════════════════════════════════════════════════
 with tab_ugynok:
 
-    st.markdown("""
-    <div style="text-align:center; padding:28px 0 16px;">
-        <div style="font-family:'Georgia',serif; font-size:26px;
-                    color:#D4A843; font-weight:700; margin-bottom:8px;">
-            Más CV-k elvesznek a robotszűrőn.
-        </div>
-        <div style="font-family:'Georgia',serif; font-size:26px;
-                    color:#e2e8f4; font-weight:400; font-style:italic;">
-            A tiéd nem fog.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     if "belepo_mod" not in st.session_state:
         st.session_state.belepo_mod = None
