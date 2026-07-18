@@ -59,8 +59,21 @@ SZAKMAK = [
 ]
 
 HELYSZIN = ""                    # üres = egész Magyarország (lehet pl. "Budapest")
-MAX_HIRDETES_SZAKMANKENT = 20    # ennyi friss hirdetést nézünk szakmánként
+MAX_OLDAL = 3                    # ennyi oldalt lapozunk kulcsszavanként (~20 hirdetés/oldal)
 CSOMAG_MERET = 10                # ennyit adunk egyszerre a készség-kinyerőnek
+
+# Szinonimák: ugyanazt a szakmát több kulcsszóval is keressük,
+# így szélesebb a merítés (a duplikátumokat a rendszer kiszűri).
+SZINONIMAK = {
+    "szoftvertesztelő": ["QA engineer", "tesztautomatizálás", "manuális tesztelő"],
+    "Python fejlesztő": ["Python developer", "backend fejlesztő"],
+    "AI mérnök": ["machine learning engineer", "AI fejlesztő", "gépi tanulás"],
+    "adatelemző": ["data analyst"],
+    "bolti eladó": ["eladó-pénztáros", "áruházi eladó"],
+    "raktáros": ["komissiózó", "raktári munkatárs"],
+    "ügyfélszolgálati munkatárs": ["call center munkatárs"],
+    "adminisztratív asszisztens": ["irodai asszisztens"],
+}
 
 
 def _tisztit(szoveg: str) -> str:
@@ -70,35 +83,44 @@ def _tisztit(szoveg: str) -> str:
     return " ".join(szoveg.split())
 
 
-def jooble_kereses(szakma: str) -> list:
-    """Egy szakma friss hirdetései a Jooble API-ból, egységes formára hozva."""
-    try:
-        r = requests.post(
-            JOOBLE_URL + JOOBLE_API_KEY,
-            json={"keywords": szakma, "location": HELYSZIN},
-            timeout=20,
-        )
-        r.raise_for_status()
-        jobs = r.json().get("jobs", [])
-    except Exception as e:
-        print(f"  Jooble hiba ({szakma}): {e}")
-        return []
-
+def jooble_kereses(kulcsszo: str) -> list:
+    """Egy kulcsszó friss hirdetései a Jooble API-ból — LAPOZÁSSAL:
+    a 'page' paraméterrel több oldalt kérünk le (oldalanként ~20 hirdetés)."""
     allasok = []
-    for j in jobs[:MAX_HIRDETES_SZAKMANKENT]:
-        cim = _tisztit(j.get("title", ""))
-        if not cim:
-            continue
-        allasok.append({
-            "cim": cim,
-            "ceg": _tisztit(j.get("company", "")),
-            "snippet": _tisztit(j.get("snippet", ""))[:500],
-            "link": (j.get("link") or "").strip(),
-            "helyszin": _tisztit(j.get("location", "")),
-            "datum": (j.get("updated") or "")[:10],
-            "bersav": _tisztit(j.get("salary", "")),
-            "forras_tipus": "jooble",
-        })
+    for oldal in range(1, MAX_OLDAL + 1):
+        try:
+            r = requests.post(
+                JOOBLE_URL + JOOBLE_API_KEY,
+                json={"keywords": kulcsszo, "location": HELYSZIN, "page": oldal},
+                timeout=20,
+            )
+            r.raise_for_status()
+            jobs = r.json().get("jobs", [])
+        except Exception as e:
+            print(f"  Jooble hiba ({kulcsszo}, {oldal}. oldal): {e}")
+            break
+
+        if not jobs:
+            break
+
+        for j in jobs:
+            cim = _tisztit(j.get("title", ""))
+            if not cim:
+                continue
+            allasok.append({
+                "cim": cim,
+                "ceg": _tisztit(j.get("company", "")),
+                "snippet": _tisztit(j.get("snippet", ""))[:500],
+                "link": (j.get("link") or "").strip(),
+                "helyszin": _tisztit(j.get("location", "")),
+                "datum": (j.get("updated") or "")[:10],
+                "bersav": _tisztit(j.get("salary", "")),
+                "forras_tipus": "jooble",
+            })
+
+        if len(jobs) < 15:  # ennél kevesebb találat = ez volt az utolsó oldal
+            break
+        time.sleep(1)
     return allasok
 
 
@@ -106,8 +128,16 @@ def szakma_gyujtes(szakma: str, kategoria: str) -> int:
     """Egy szakma teljes feldolgozása: keresés → duplikátum-szűrés →
     készség-kinyerés → mentés. Visszaadja az új hirdetések számát."""
     print(f"\n=== {szakma} ===")
-    allasok = jooble_kereses(szakma)
-    print(f"  Jooble talalat: {len(allasok)}")
+    # A szakma neve + a szinonimái — minden kulcsszóra keresünk,
+    # az átfedéseket link alapján helyben kiszűrjük.
+    kulcsszavak = [szakma] + SZINONIMAK.get(szakma, [])
+    egyedi = {}
+    for k in kulcsszavak:
+        for a in jooble_kereses(k):
+            azonosito = a["link"] or (a["cim"] + a["ceg"])
+            egyedi.setdefault(azonosito, a)
+    allasok = list(egyedi.values())
+    print(f"  Jooble talalat: {len(allasok)} ({len(kulcsszavak)} kulcsszoval)")
     if not allasok:
         return 0
 
