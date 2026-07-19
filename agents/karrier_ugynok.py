@@ -810,8 +810,14 @@ HIRDETÉSEK (sorszámmal):
 {lista}
 
 Minden hirdetéshez add meg a benne szereplő készségeket SZAKMAI néven:
-- tipus lehet: "elvaras" (elvárt tudás/tapasztalat/végzettség), "feladat" (a munkakörben végzendő tevékenység), "eszkoz" (szoftver, gép, technológia), "soft" (személyes készség, pl. csapatmunka)
+- tipus lehet (PONTOSAN így válaszd szét!):
+  "elvaras" = amit a jelölttől MEGKÖVETELNEK: végzettség, tapasztalat, nyelvtudás, bizonyítvány, jogosítvány
+  "feladat" = amit a munkakörben CSINÁLNI kell: tevékenység (pl. tesztek írása, árufeltöltés)
+  "eszkoz" = konkrét szoftver, technológia vagy gép NEVE (Python, SAP, targonca)
+  "soft" = személyes készség (csapatmunka, precizitás)
+  "iparag" = terület/szektor, ami NEM készség (autóipar, fintech, egészségügy)
 - A pongyola megfogalmazást fordítsd szakmaira (pl. "kassza" → "pénztárgép kezelése").
+- Ugyanazt a fogalmat MINDIG ugyanazzal a névvel add vissza (egységes elnevezés).
 - A nevet kisbetűvel írd, KIVÉVE a rövidítéseket és tulajdonneveket (HACCP, SQL, Python).
 - Hirdetésenként 3-8 elem. Helyszínt, bért, munkaidőt, juttatást NE adj meg készségként.
 
@@ -847,6 +853,84 @@ Válaszolj KIZÁRÓLAG JSON-tömbként:
     except Exception as e:
         print(f"[adatbazis] Keszseg-kinyeres hiba (Gemini): {e}")
         return [[] for _ in allasok]
+
+
+def skill_gap_elemzes(cv_szoveg: str, keszsegek: list) -> dict:
+    """GEMINI (ingyenes): mely piaci elvárások vannak meg a CV-ben, melyek hiányoznak.
+    Visszatérés: {"megvan": [...], "hianyzik": [...]}"""
+    if not cv_szoveg or not keszsegek or not GEMINI_API_KEY:
+        return {}
+
+    lista = ", ".join([k for k in keszsegek if k][:20])
+    prompt = f"""A jelölt CV-je alapján döntsd el, mely piaci elvárások vannak meg neki.
+
+CV:
+{cv_szoveg[:4000]}
+
+PIACI ELVÁRÁSOK (valódi hirdetésekből): {lista}
+
+Jelentés alapján dolgozz: a szinonima is találat (pl. "kasszáztam" = "pénztárgép kezelése",
+"árut pakoltam" = "árufeltöltés"). Egy elvárás VAGY megvan, VAGY hiányzik — soha mindkettő.
+
+Válaszolj KIZÁRÓLAG JSON-ként, az elvárásokat a fenti eredeti nevükön:
+{{"megvan": ["..."], "hianyzik": ["..."]}}"""
+
+    try:
+        r = requests.post(
+            GEMINI_URL, params={"key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=60,
+        )
+        r.raise_for_status()
+        t = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if "```json" in t:
+            t = t.split("```json")[1].split("```")[0].strip()
+        elif "```" in t:
+            t = t.split("```")[1].split("```")[0].strip()
+        return json.loads(t)
+    except Exception as e:
+        print(f"Skill-gap hiba (Gemini): {e}")
+        return {}
+
+
+def tanacsado_velemeny(szakma: str, stat: dict) -> str:
+    """GEMINI (ingyenes): rövid, közérthető karrier-tanács a piaci adatokból.
+    Csak a kapott statisztikából dolgozik, nem talál ki semmit."""
+    if not GEMINI_API_KEY or not stat:
+        return ""
+
+    kesz = stat.get("keszsegek", [])[:20]
+    sorok = "\n".join([
+        f"- {k.get('keszseg', '')} ({k.get('tipus', '')}, a hirdetések "
+        f"{k.get('hirdetesek_szazaleka', 0)}%-ában)"
+        for k in kesz
+    ])
+    berek = "; ".join(stat.get("bersavok", [])[:6]) or "nincs béradat"
+
+    prompt = f"""Tapasztalt, őszinte magyar karrier-tanácsadó vagy.
+KIZÁRÓLAG az alábbi valós piaci adatokból dolgozz — semmit ne találj ki.
+
+Szakma: {szakma}
+Elemzett hirdetések száma: {stat.get('hirdetesek_szama', 0)}
+A hirdetésekben kért készségek:
+{sorok}
+Bérinfók a hirdetésekből: {berek}
+
+Írj rövid, tegező, közérthető tanácsot PONTOSAN 3 bekezdésben, felsorolás nélkül:
+1. bekezdés — Mire van most valódi kereslet ebben a szakmában.
+2. bekezdés — Mivel kezdjen / mit tanuljon meg először, aki erre a pályára lép vagy fejlődne.
+3. bekezdés — Mit mutatnak a bérek, mire számíthat reálisan.
+Összesen maximum 10 mondat. Ha valamihez kevés az adat, mondd ki őszintén."""
+
+    try:
+        r = requests.post(
+            GEMINI_URL, params={"key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=60,
+        )
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except Exception as e:
+        print(f"Tanacsado velemeny hiba (Gemini): {e}")
+        return ""
 
 
 def run(cv_szoveg: str = "", szakma_megadva: str = "",

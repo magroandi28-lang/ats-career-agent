@@ -225,9 +225,9 @@ if not st.session_state.gdpr_elfogadva:
         with open(_logo_ut, "rb") as _lf:
             _logo64 = base64.b64encode(_lf.read()).decode()
         _fejlec = ('<img src="data:image/' + _logo_mime + ';base64,' + _logo64 + '" '
-                   'style="width:400px; max-width:92%;" alt="Karrier-Ügynökség"/>'
+                   'style="width:400px; max-width:92%; margin-top:-14px;" alt="Karrier-Ügynökség"/>'
                    '<div style="color:#94a3b8; font-size:13px; letter-spacing:5px; '
-                   'margin:6px 0 30px;">&mdash;&nbsp; AI-ASSZISZTÁLT KARRIERFEJLESZTÉS '
+                   'margin:14px 0 34px;">&mdash;&nbsp; AI-ASSZISZTÁLT KARRIERFEJLESZTÉS '
                    '&nbsp;&mdash;</div>')
     else:
         _fejlec = """<div style="font-size:48px; margin-bottom:6px;">🕵️</div>
@@ -308,8 +308,9 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-tab_ugynok, tab_portfolio, tab_kepzes, tab_kulfoldi = st.tabs([
+tab_ugynok, tab_tanacsado, tab_portfolio, tab_kepzes, tab_kulfoldi = st.tabs([
     "🕵️ Karrier Ügynök",
+    "🧭 Karrier Tanácsadó",
     "🌟 Portfólió Generátor",
     "📚 Képzések",
     "✈️ Külföldi Lehetőségek"
@@ -405,6 +406,9 @@ with tab_ugynok:
                     cv_szoveg=st.session_state.get("cv_szoveg_global", ""),
                     szakma_megadva="", helyszin="Budapest")
                 st.session_state.belepo_mod_aktiv = "elemez"
+                st.session_state.ugorj_elemzesre = True
+                st.session_state.tan_kovesse_cv = True
+                st.session_state.pop("tan_gap_eredmeny", None)
 
         if st.session_state.get("tab1_eredmeny") and st.session_state.get("belepo_mod_aktiv") == "elemez":
             er = st.session_state.tab1_eredmeny
@@ -413,6 +417,12 @@ with tab_ugynok:
             else:
                 _diag = er.get("diagnozis", {})
                 _szi = er.get("szakma_info", {})
+                st.markdown("<div id='elemzes-eredmeny'></div>", unsafe_allow_html=True)
+                if st.session_state.pop("ugorj_elemzesre", False):
+                    components.html("""<script>
+                        const el = window.parent.document.getElementById('elemzes-eredmeny');
+                        if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+                    </script>""", height=0)
                 st.markdown("---")
                 st.markdown(f"### 🔍 Azonosított szakma: `{_szi.get('szakma','')}`")
                 if _diag:
@@ -427,7 +437,7 @@ with tab_ugynok:
                     if _me:
                         m_html = "".join([f"<div style='color:#94a3b8;font-size:13px;padding:4px 0;'>\u2713 <strong style='color:#4ade80;'>{k}</strong></div>" for k in _me[:5]])
                         st.markdown(f"""<div style="background:#0a1a0a;border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:16px;margin:12px 0;"><div style="color:#4ade80;font-weight:700;margin-bottom:8px;">\u2705 Ezek m\u00e1r szerepelnek a CV-dben:</div>{m_html}</div>""", unsafe_allow_html=True)
-                st.markdown("""<div style="background:linear-gradient(135deg,#1a1500,#0a0e1a);border:1px solid rgba(212,168,67,0.5);border-radius:12px;padding:24px;text-align:center;margin-top:16px;"><div style="color:#D4A843;font-weight:800;font-size:17px;margin-bottom:6px;">Szeretnéd, hogy átjusson a szűrőn?</div><div style="color:#e2e8f4;font-size:14px;">Válaszd fent a <strong>„✨ Van CV-m — írd át”</strong> kártyát – elkészítjük a robotbarát CV-det, és akár 5 állásra szabott jelentkezést is. A CV-det már nem kell újra feltöltened.</div></div>""", unsafe_allow_html=True)
+                st.markdown("""<div style="background:linear-gradient(135deg,#1a1500,#0a0e1a);border:1px solid rgba(212,168,67,0.5);border-radius:12px;padding:24px;text-align:center;margin-top:16px;"><div style="color:#D4A843;font-weight:800;font-size:17px;margin-bottom:6px;">Szeretnéd, hogy átjusson a szűrőn?</div><div style="color:#e2e8f4;font-size:14px;">Válaszd fent a <strong>„✨ Van CV-m — írd át”</strong> kártyát – elkészítjük a robotbarát CV-det, és akár 5 állásra szabott jelentkezést is. A CV-det már nem kell újra feltöltened.</div><div style="color:#e2e8f4;font-size:14px;margin-top:12px;border-top:1px solid rgba(212,168,67,0.25);padding-top:12px;">🧭 <strong>Vagy előbb tanács kellene?</strong> A felső <strong>„🧭 Karrier Tanácsadó”</strong> fülön megmutatjuk, mit kér most a piac a szakmádban, mennyit fizet, és a CV-d alapján személyre szabott tervet is kapsz — merre érdemes fejlődnöd vagy akár átképzened magad.</div></div>""", unsafe_allow_html=True)
                 st.caption("📚 Tipp: a felső „Képzések” fülön piacképes képzéseket ajánlunk, amivel erősebb lehetsz.")
 
     # ════════════════════════════════════════════════════════
@@ -472,6 +482,8 @@ with tab_ugynok:
                     cv_szoveg=st.session_state.get("cv_szoveg_global", ""),
                     szakma_megadva="", helyszin="Budapest")
                 st.session_state.belepo_mod_aktiv = "atir"
+                st.session_state.tan_kovesse_cv = True
+                st.session_state.pop("tan_gap_eredmeny", None)
 
     # ════════════════════════════════════════════════════════
     # K3 — NINCS CV-M  (csak űrlap, nincs feltöltő)
@@ -1064,11 +1076,56 @@ Válaszolj röviden, őszintén, személyre szabottan. Maximum 3-4 mondat."""
 # ══════════════════════════════════════════════════════════════
 with tab_kepzes:
     st.markdown("### 📚 Képzések, amivel erősebb leszel a piacon")
-    st.caption("Piacképes, valós képzések – a szakmádhoz válogatva.")
+    st.caption("Piacképes, valós képzések – a szakmádhoz válogatva. Nem kell hozzá CV!")
+
+    # Ha már volt keresés, a felismert szakmát ajánljuk fel alapnak
     _er = st.session_state.get("tab1_eredmeny")
-    _kepz = _er.get("kepzesek", []) if _er else []
-    if not _kepz:
-        st.info("Előbb a **Karrier Ügynök** fülön vizsgáltasd át vagy készíttesd el a CV-det – utána itt a szakmádhoz illő képzéseket ajánlunk.")
+    _alap_szakma = (_er.get("szakma_info", {}) or {}).get("szakma", "") if _er else ""
+
+    kp_szakma = st.text_input(
+        "Melyik szakmához keresel képzést?",
+        value=_alap_szakma, key="kepzes_szakma_input",
+        placeholder="pl. bolti eladó, szoftvertesztelő, ápoló"
+    )
+
+    _kepz = []
+    if kp_szakma.strip():
+        from agents.kepzes_db import terulet_felismeres, kepzesek_szakmahoz
+        from utils.adatbazis import kepzesek_lekerdez
+
+        _fo_terulet = terulet_felismeres(kp_szakma)
+        _sorrend = ([_fo_terulet] if _fo_terulet else []) + ["nyelvi", "altalanos"]
+
+        # 1) Adatbázisból (Supabase 'kepzesek' tábla — Table Editorban bővítheted)
+        _sorok = kepzesek_lekerdez(_sorrend)
+        _latott = set()
+        for _ter in _sorrend:
+            for _s in _sorok:
+                if _s.get("terulet") == _ter and _s.get("nev") not in _latott:
+                    _latott.add(_s.get("nev"))
+                    _kepz.append({
+                        "nev": _s.get("nev", ""), "szolgaltato": _s.get("szolgaltato", ""),
+                        "link": _s.get("link", ""), "idotartam": _s.get("idotartam", ""),
+                        "ar": _s.get("ar", ""), "miert_fontos": _s.get("miert_jo", ""),
+                    })
+                if len(_kepz) >= 6:
+                    break
+            if len(_kepz) >= 6:
+                break
+
+        # 2) Ha az adatbázis üres/elérhetetlen: beépített kurált lista
+        if not _kepz:
+            for _k in kepzesek_szakmahoz(kp_szakma, "", max_db=6):
+                _kepz.append({
+                    "nev": _k.get("nev", ""), "szolgaltato": _k.get("szolgaltato", ""),
+                    "link": _k.get("link", ""), "idotartam": _k.get("idotartam", ""),
+                    "ar": _k.get("ar", ""), "miert_fontos": _k.get("miert_jo", ""),
+                })
+
+    if not kp_szakma.strip():
+        st.info("👆 Írd be a szakmád (vagy amire váltanál), és listázzuk a képzéseket.")
+    elif not _kepz:
+        st.warning("Ehhez a szakmához most nem találtunk képzést — nézd meg az általánosakat: írd be pl. „általános”.")
     else:
         for kp in _kepz:
             with st.expander(f"📖 {kp.get('nev','')} — {kp.get('ar','')}"):
@@ -1329,3 +1386,255 @@ with tab_kulfoldi:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════
+# TAB: KARRIER TANÁCSADÓ — a saját adatbázisunk piaci adataiból
+# ══════════════════════════════════════════════════════════════
+with tab_tanacsado:
+    st.markdown("### 🧭 Karrier Tanácsadó")
+    st.caption("Valódi, általunk gyűjtött álláshirdetések adataiból — nem általánosságok.")
+
+    from utils.adatbazis import szakmak_lista, szakma_statisztika
+
+    _szl = szakmak_lista()
+    if not _szl:
+        st.info("Még nincs elég adat az adatbázisban — futtasd a gyűjtőt, vagy nézz vissza később.")
+    else:
+        _nevek = [s["szakma"] for s in _szl]
+        _er_t = st.session_state.get("tab1_eredmeny")
+        _felismert = (_er_t.get("szakma_info", {}) or {}).get("szakma", "") if _er_t else ""
+
+        def _szakma_talalat(felismert, nevek):
+            """A felismert szakmához legjobban illő név a listából — szavak
+            egyezése alapján ('Python backend fejlesztő' -> 'Python fejlesztő')."""
+            if not felismert:
+                return None
+            import re as _re
+            fsz = set(_re.findall(r"\w+", felismert.lower()))
+            legjobb, pont = None, 0.0
+            for n in nevek:
+                nsz = set(_re.findall(r"\w+", n.lower()))
+                if not nsz:
+                    continue
+                kozos = len(fsz & nsz)
+                if not kozos:
+                    continue
+                p = kozos / len(nsz) + (0.5 if n.lower() == felismert.lower() else 0.0)
+                if p > pont:
+                    pont, legjobb = p, n
+            return legjobb
+
+        # FRISS CV-elemzés után automatikusan a felismert szakmára ugrunk,
+        # felülírva a korábban kiválasztottat
+        if st.session_state.pop("tan_kovesse_cv", False):
+            _talalt = _szakma_talalat(_felismert, _nevek)
+            if _talalt:
+                st.session_state["tan_szakma"] = _talalt
+
+        _idx = 0
+        _talalt_idx = _szakma_talalat(_felismert, _nevek)
+        if _talalt_idx:
+            _idx = _nevek.index(_talalt_idx)
+
+        _valasztott = st.selectbox("Melyik szakma érdekel?", _nevek, index=_idx, key="tan_szakma")
+        _stat = szakma_statisztika(_valasztott)
+
+        if not _stat or not _stat.get("keszsegek"):
+            st.warning("Ehhez a szakmához még kevés az adat — pár nap gyűjtés után térj vissza.")
+        else:
+            st.markdown(f"#### {_valasztott} — {_stat.get('hirdetesek_szama', 0)} valódi hirdetés elemzése alapján")
+
+            # ── A TANÁCSADÓ VÉLEMÉNYE — kizárólag a saját adatbázisunk számaiból írva ──
+            _tkulcs = f"tan_velemeny_{_valasztott}"
+            if _tkulcs not in st.session_state:
+                with st.spinner("A tanácsadó összegzi a piaci adatokat..."):
+                    from agents.karrier_ugynok import tanacsado_velemeny
+                    st.session_state[_tkulcs] = tanacsado_velemeny(_valasztott, _stat)
+            if not st.session_state.get(_tkulcs):
+                # TARTALÉK: ha az AI most nem elérhető, a nyers számokból írunk körképet
+                _top3 = ", ".join([k.get("keszseg", "") for k in _stat["keszsegek"][:3]
+                                   if k.get("keszseg")])
+                st.session_state[_tkulcs] = (
+                    f"A(z) {_valasztott} szakmában {_stat.get('hirdetesek_szama', 0)} valódi "
+                    f"hirdetést elemeztünk. A leggyakrabban kért készségek: {_top3}. "
+                    f"A béradatokat lejjebb, a piaci részleteknél találod."
+                )
+                st.session_state[_tkulcs + "_ai_nelkul"] = True
+            if st.session_state.get(_tkulcs):
+                _tszoveg = st.session_state[_tkulcs].replace("\n", "<br>")
+                st.markdown(f"""<div style="background:#111827; border:1px solid rgba(212,168,67,0.4);
+                    border-radius:12px; padding:18px 22px; margin:8px 0 18px; color:#e2e8f4;
+                    font-size:14px; line-height:1.8;">
+                    <span style="color:#D4A843; font-weight:700;">🧭 Mit mond a piac?</span><br><br>
+                    {_tszoveg}</div>""", unsafe_allow_html=True)
+                if st.session_state.get(_tkulcs + "_ai_nelkul"):
+                    st.caption("ℹ️ Gyors összefoglaló a nyers számokból — a részletes elemzés "
+                               "a napi AI-keret visszatöltődése után (holnap) automatikusan elérhető.")
+
+            # ── PIACI RÉSZLETEK — a kincsesbánya, jól láthatóan ──
+            st.markdown("### 📊 Mit kérnek a hirdetések?")
+            if _stat.get("hirdetesek_szama", 0) < 40:
+                st.caption(f"⚠️ Ennél a szakmánál még kevés a hirdetés "
+                           f"({_stat.get('hirdetesek_szama', 0)} db) — a kép a napi "
+                           f"gyűjtéssel egyre pontosabb lesz.")
+            _blokkok = [
+                ("eszkoz", "🛠 Eszközök, technológiák"),
+                ("feladat", "📋 Tipikus feladatok"),
+                ("elvaras", "🎓 Elvárások"),
+                ("iparag", "🏭 Iparágak, ahol keresik"),
+                ("soft", "🤝 Emberi készségek"),
+            ]
+            for _tip, _cim in _blokkok:
+                _elemek = [k for k in _stat["keszsegek"]
+                           if k.get("tipus") == _tip and (k.get("elofordulas") or 0) >= 2][:8]
+                if not _elemek:
+                    continue
+                st.markdown(f"**{_cim}**")
+                _chips = " ".join([
+                    f"<span style='display:inline-block; background:#1e2d45; border:1px solid #2e5080; "
+                    f"border-radius:16px; padding:4px 12px; margin:3px 4px 3px 0; font-size:13px; "
+                    f"color:#e2e8f4;'>{k.get('keszseg', '')} "
+                    f"<span style='color:#D4A843; font-weight:700;'>{k.get('hirdetesek_szazaleka', 0)}%</span></span>"
+                    for k in _elemek
+                ])
+                st.markdown(_chips, unsafe_allow_html=True)
+
+            # ── BÉREK: egységesen havi bruttó forintra átszámítva ──
+            _berek = _stat.get("bersavok", [])
+            _havi = []
+            for _b in _berek:
+                _bs = str(_b)
+                _szamok = [int(x.replace(" ", "").replace("\xa0", ""))
+                           for x in re.findall(r"\d[\d \xa0]{3,}\d|\d{4,}", _bs)]
+                _euro = "€" in _bs or "eur" in _bs.lower()
+                _eves = "év" in _bs.lower() and "hó" not in _bs.lower()
+                for _x in _szamok:
+                    if _euro:
+                        _x = _x * 400          # hozzávetőleges árfolyam
+                    if _eves or _x > 6_000_000:
+                        _x = _x // 12
+                    if 150_000 <= _x <= 5_000_000:
+                        _havi.append(_x)
+            if _havi:
+                _also = f"{min(_havi):,}".replace(",", " ")
+                _felso = f"{max(_havi):,}".replace(",", " ")
+                st.markdown(f"**💰 Bérek a hirdetésekben:** jellemzően "
+                            f"**{_also} – {_felso} Ft/hó** (bruttó)")
+                st.caption(f"{len([b for b in _berek if b])} hirdetés béradata alapján; "
+                           "az éves és eurós béreket havi forintra számítottuk át.")
+
+            # ── HIVATALOS KSH-ÁTLAG + összevetés a hirdetésekkel ──
+            from utils.adatbazis import ksh_kereset
+            _ksh = ksh_kereset(_valasztott)
+            if _ksh and _ksh.get("ertek"):
+                _kv = f"{int(_ksh['ertek']):,}".replace(",", " ")
+                st.markdown(f"**🏛 Hivatalos átlagkereset (KSH, {_ksh.get('idoszak', '')}):** "
+                            f"**{_kv} Ft/hó** (bruttó) — a legközelebbi KSH-foglalkozás: "
+                            f"„{_ksh.get('megnevezes', '')}”")
+                if _havi:
+                    import statistics as _stx
+                    _med = _stx.median(_havi)
+                    if _med > int(_ksh["ertek"]) * 1.1:
+                        st.caption("📈 A hirdetések a hivatalos átlag FELETT ígérnek — "
+                                   "keresett a szakma, jó az alkupozíciód.")
+                    elif _med < int(_ksh["ertek"]) * 0.9:
+                        st.caption("📉 A hirdetések a hivatalos átlag ALATT ígérnek — "
+                                   "bértárgyalásnál hivatkozz a KSH-átlagra.")
+                    else:
+                        st.caption("⚖️ A hirdetések nagyjából a hivatalos átlagnak "
+                                   "megfelelő bért ígérnek.")
+
+            st.markdown("---")
+            _cv_t = st.session_state.get("cv_szoveg_global", "")
+            if not _cv_t:
+                st.info("💡 Ha a Karrier Ügynök fülön betöltöd a CV-det, itt megmutatjuk, "
+                        "MELY piaci elvárások hiányoznak belőle — és mivel pótolhatod.")
+            else:
+                if st.button("🧭 Vessük össze a CV-mmel!", key="tan_gap_gomb", use_container_width=True):
+                    with st.spinner("Összevetés a piaci elvárásokkal..."):
+                        from agents.karrier_ugynok import skill_gap_elemzes
+                        _ksz = [_k.get("keszseg", "") for _k in _stat["keszsegek"][:15]]
+                        st.session_state.tan_gap_eredmeny = skill_gap_elemzes(_cv_t, _ksz)
+                        st.session_state.tan_gap_szakma = _valasztott
+                    if not st.session_state.get("tan_gap_eredmeny"):
+                        st.error("Az összevetés most nem sikerült (a Gemini nem válaszolt "
+                                 "— valószínűleg perc-limit). Várj fél percet, és nyomd meg újra.")
+
+                _gap = st.session_state.get("tan_gap_eredmeny")
+                if _gap and st.session_state.get("tan_gap_szakma") == _valasztott:
+                    _c1, _c2 = st.columns(2)
+                    with _c1:
+                        st.markdown("**✅ Ez már megvan benned:**")
+                        for _m in _gap.get("megvan", []):
+                            st.markdown(f"<div style='color:#4ade80; font-size:13px; "
+                                        f"padding:2px 0;'>✓ {_m}</div>", unsafe_allow_html=True)
+                    with _c2:
+                        st.markdown("**❌ Ez hiányzik a CV-dből:**")
+                        for _h in _gap.get("hianyzik", []):
+                            st.markdown(f"<div style='color:#ef4444; font-size:13px; "
+                                        f"padding:2px 0;'>✗ {_h}</div>", unsafe_allow_html=True)
+                    if _gap.get("hianyzik"):
+                        st.caption("📚 Ha a tudás megvan, csak a CV-dből hiányzik: a Karrier Ügynök "
+                                   "fülön az „✨ Írd át” beépíti. Ha tanulni kell: a Képzések fülön "
+                                   "találsz hozzá minőségi képzést.")
+
+            # ── ÁTJÁRÁSI TÉRKÉP — CSAK KÉRÉSRE (váltást nem tukmálunk!) ──
+            st.markdown("---")
+            st.markdown("### 🔀 Gondolkodsz szakmaváltáson?")
+            st.caption("Ha igen, megmutatjuk, hova vihető át a tudásod — a piac valós adatai alapján.")
+            if st.button("🔀 Igen, mutasd az átjárási lehetőségeket", key="atjaras_gomb"):
+                st.session_state["atjaras_szakma"] = _valasztott
+            _atj = []
+            if st.session_state.get("atjaras_szakma") == _valasztott:
+                from utils.adatbazis import szakma_atjaras
+                _atj = szakma_atjaras(_valasztott)
+            if st.session_state.get("atjaras_szakma") == _valasztott and not _atj:
+                st.info("🔧 A megbízható számításhoz még érik az adatbázis — "
+                        "amint elég közös adat gyűlik össze, itt jelennek meg a rokon szakmák.")
+            if _atj:
+                for _a in _atj:
+                    _szin = ("#4ade80" if _a["atfedes"] >= 60
+                             else "#D4A843" if _a["atfedes"] >= 35 else "#94a3b8")
+                    _hi = ", ".join(_a["hianyzo"]) if _a["hianyzo"] else "nincs jelentős hiány"
+                    st.markdown(f"""<div style="background:#111827; border:1px solid #1e3a5f;
+                        border-radius:10px; padding:12px 16px; margin:8px 0;">
+                        <div style="display:flex; justify-content:space-between;">
+                          <span style="color:#e2e8f4; font-weight:700;">{_a['szakma']}</span>
+                          <span style="color:{_szin}; font-weight:800;">{_a['atfedes']}% átfedés</span>
+                        </div>
+                        <div style="color:#94a3b8; font-size:13px; margin-top:4px;">
+                          {_a['kozos']} közös készség · amit pótolni kellene:
+                          <span style="color:#e2e8f4;">{_hi}</span>
+                        </div></div>""", unsafe_allow_html=True)
+
+            # ── AKCIÓTERV — 3 konkrét lépés ──
+            st.markdown("### ✅ Akcióterv")
+            _lepesek = []
+            _gap2 = (st.session_state.get("tan_gap_eredmeny")
+                     if st.session_state.get("tan_gap_szakma") == _valasztott else None)
+            if _gap2 and _gap2.get("hianyzik"):
+                _lepesek.append("Tanuld meg / pótold: <strong>"
+                                + ", ".join(_gap2["hianyzik"][:2])
+                                + "</strong> → a 📚 Képzések fülön találsz hozzá minőségi képzést")
+                _lepesek.append("Ami megvan, de a CV-d nem mutatja: a 🕵️ Karrier Ügynök fülön "
+                                "az „✨ Írd át” beépíti")
+            else:
+                _top2 = [k.get("keszseg") for k in _stat["keszsegek"][:2] if k.get("keszseg")]
+                _lepesek.append("A piac két legkeresettebb készsége: <strong>"
+                                + ", ".join(_top2)
+                                + "</strong> — ha megvannak, emeld ki a CV-dben; ha nincsenek, "
+                                  "a 📚 Képzések fülön indulj")
+                _lepesek.append("Tölts fel CV-t a 🕵️ Karrier Ügynök fülön — utána itt személyre "
+                                "szabott hiánylistát és tervet kapsz")
+            if _atj:
+                _lepesek.append(f"Rokon szakma {_atj[0]['atfedes']}% átfedéssel: "
+                                f"<strong>{_atj[0]['szakma']}</strong> — érdemes arra is nézelődnöd")
+            _lep_html = "".join([
+                f"<div style='margin:7px 0;'><span style='color:#D4A843; "
+                f"font-weight:800;'>{_ix+1}.</span> {_l}</div>"
+                for _ix, _l in enumerate(_lepesek)
+            ])
+            st.markdown(f"""<div style="background:linear-gradient(135deg,#1a1500,#0a0e1a);
+                border:1px solid rgba(212,168,67,0.5); border-radius:12px;
+                padding:16px 20px; color:#e2e8f4; font-size:14px;">{_lep_html}</div>""",
+                unsafe_allow_html=True)

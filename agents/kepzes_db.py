@@ -7,14 +7,6 @@ KEPZES_DB = {
     # ── IT / FEJLESZTŐ / MESTERSÉGES INTELLIGENCIA ──────────────
     "it": [
         {
-            "nev": "Mesterséges Intelligencia – ingyenes magyar MI/Python kurzus",
-            "szolgaltato": "mesterin.hu (Baráth András)",
-            "link": "https://mesterin.hu/",
-            "idotartam": "3 nap, napi ~10 perc (alapozó)",
-            "ar": "Ingyenes",
-            "miert_jo": "Magyar nyelvű, gyakorlatias bevezető a Python + gépi tanulás világába, valós üzleti példákkal."
-        },
-        {
             "nev": "Microsoft Azure AI Fundamentals (AI-900 / AI-901)",
             "szolgaltato": "Microsoft Learn (hivatalos)",
             "link": "https://learn.microsoft.com/hu-hu/credentials/certifications/azure-ai-fundamentals/",
@@ -137,6 +129,15 @@ _TERULET_KULCSOK = {
     "kereskedelem": ["keresked", "eladó", "pénztáros", "bolti", "értékesít",
                      "ügyfél", "vevő", "shop", "retail"],
 }
+
+
+def terulet_felismeres(szakma: str, szakma_kategoria: str = "") -> str:
+    """Megmondja, melyik képzés-terület illik a szakmához (vagy None)."""
+    szoveg = f"{szakma} {szakma_kategoria}".lower()
+    for terulet, kulcsok in _TERULET_KULCSOK.items():
+        if any(k in szoveg for k in kulcsok):
+            return terulet
+    return None
 
 
 def kepzesek_szakmahoz(szakma: str, szakma_kategoria: str = "", max_db: int = 4) -> list:

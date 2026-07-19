@@ -25,7 +25,12 @@ from dotenv import load_dotenv
 # A projekt gyökerét a path-ra tesszük, hogy az agents/utils importok működjenek
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.adatbazis import gyujtes_mentese, kliens, letezo_linkek  # noqa: E402
+from utils.adatbazis import (  # noqa: E402
+    gyujtes_mentese,
+    keszsegnev_normalizalas,
+    kliens,
+    letezo_linkek,
+)
 
 load_dotenv()
 
@@ -102,8 +107,14 @@ HIRDETÉSEK (sorszámmal):
 {lista}
 
 Minden hirdetéshez add meg a benne szereplő készségeket SZAKMAI néven:
-- tipus lehet: "elvaras" (elvárt tudás/tapasztalat/végzettség), "feladat" (a munkakörben végzendő tevékenység), "eszkoz" (szoftver, gép, technológia), "soft" (személyes készség, pl. csapatmunka)
+- tipus lehet (PONTOSAN így válaszd szét!):
+  "elvaras" = amit a jelölttől MEGKÖVETELNEK: végzettség, tapasztalat, nyelvtudás, bizonyítvány, jogosítvány
+  "feladat" = amit a munkakörben CSINÁLNI kell: tevékenység (pl. tesztek írása, árufeltöltés)
+  "eszkoz" = konkrét szoftver, technológia vagy gép NEVE (Python, SAP, targonca)
+  "soft" = személyes készség (csapatmunka, precizitás)
+  "iparag" = terület/szektor, ami NEM készség (autóipar, fintech, egészségügy)
 - A pongyola megfogalmazást fordítsd szakmaira (pl. "kassza" → "pénztárgép kezelése").
+- Ugyanazt a fogalmat MINDIG ugyanazzal a névvel add vissza (egységes elnevezés).
 - A nevet kisbetűvel írd, KIVÉVE a rövidítéseket és tulajdonneveket (HACCP, SQL, Python).
 - Hirdetésenként 3-8 elem. Helyszínt, bért, munkaidőt, juttatást NE adj meg készségként.
 
@@ -242,6 +253,9 @@ def main():
         except Exception as e:
             print(f"  VARATLAN HIBA ({szakma}): {e} — megyunk tovabb.")
         time.sleep(2)  # kíméletes tempó az API-k felé
+
+    # Automatikus névegyesítés minden gyűjtés végén — nincs több kézi tisztítás
+    keszsegnev_normalizalas()
 
     print(f"\nKESZ! Osszesen {osszes} uj hirdetes mentve.")
 

@@ -28,7 +28,7 @@ SUPABASE_SERVICE_KEY = (
 
 _kliens = None
 
-ERVENYES_KESZSEG_TIPUSOK = ("elvaras", "feladat", "eszkoz", "soft")
+ERVENYES_KESZSEG_TIPUSOK = ("elvaras", "feladat", "eszkoz", "soft", "iparag")
 ERVENYES_FORRAS_TIPUSOK = ("portal", "ceges", "jooble")
 
 
@@ -176,6 +176,232 @@ def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
         return allasok
     except Exception as e:
         print(f"[adatbazis] Friss hirdetesek lekerdezese hiba: {e}")
+        return []
+
+
+def osszes_sor(tabla: str, oszlopok: str) -> list:
+    """MINDEN sor lekérése lapozva — a Supabase egy hívásban max 1000-et ad!"""
+    db = kliens()
+    if not db:
+        return []
+    gyujto, start = [], 0
+    while True:
+        r = (db.table(tabla).select(oszlopok)
+               .order("id").range(start, start + 999).execute())
+        adag = r.data or []
+        gyujto.extend(adag)
+        if len(adag) < 1000:
+            return gyujto
+        start += 1000
+
+
+# Kézi összevonások a névegyesítéshez: (ebből) -> (ebbe). Bővíthető bátran.
+KEZI_OSSZEVONAS = {
+    "Python programozás": "Python fejlesztés",
+    "Java programozás": "Java",
+    "fullstack fejlesztés": "full-stack fejlesztés",
+    "full stack fejlesztés": "full-stack fejlesztés",
+    "angol nyelv": "angol nyelvtudás",
+    "angol nyelvismeret": "angol nyelvtudás",
+    "német nyelv": "német nyelvtudás",
+    "német nyelvismeret": "német nyelvtudás",
+}
+
+
+def _nevkulcs(nev: str) -> str:
+    """Összehasonlító kulcs: minden szóköz-, kötőjel-változat és kis-nagybetű
+    különbség eltűnik (a tipográfiai – — ‐ jeleket is kezeli)."""
+    import re as _re
+    return _re.sub(r"[\s \-‐‑‒–—_/]+", "", (nev or "").lower())
+
+
+def keszsegnev_normalizalas() -> int:
+    """Automatikus névegyesítés: írásváltozatok + kézi lista. AI nélkül,
+    determinisztikusan. A gyűjtő minden futás végén meghívja."""
+    db = kliens()
+    if not db:
+        return 0
+    try:
+        from collections import Counter, defaultdict
+        sorok = osszes_sor("keszsegek", "id, nev, kanonikus")
+        aktualis = [(s.get("kanonikus") or s.get("nev") or "").strip() for s in sorok]
+
+        csoportok = defaultdict(list)
+        for c in aktualis:
+            if c:
+                csoportok[_nevkulcs(c)].append(c)
+
+        terkep = {}
+        for _, lista in csoportok.items():
+            egyedi = set(lista)
+            if len(egyedi) > 1:
+                vegleges = Counter(lista).most_common(1)[0][0]
+                for valtozat in egyedi:
+                    if valtozat != vegleges:
+                        terkep[valtozat] = vegleges
+
+        for k, v in KEZI_OSSZEVONAS.items():
+            if k not in terkep and k in aktualis:
+                terkep[k] = v
+
+        for rol, ra in terkep.items():
+            db.table("keszsegek").update({"kanonikus": ra}).eq("kanonikus", rol).execute()
+            db.table("keszsegek").update({"kanonikus": ra}).is_("kanonikus", "null").eq("nev", rol).execute()
+
+        if terkep:
+            print(f"[adatbazis] Nevegyesites: {len(terkep)} valtozat osszevonva.")
+        return len(terkep)
+    except Exception as e:
+        print(f"[adatbazis] Nevegyesites hiba: {e}")
+        return 0
+
+
+def szakmak_lista() -> list:
+    """Szakmák, amikről már van hirdetésünk (a Tanácsadó választójához)."""
+    db = kliens()
+    if not db:
+        return []
+    try:
+        r = (db.table("v_szakma_attekintes")
+               .select("szakma, hirdetesek_szama")
+               .gt("hirdetesek_szama", 0)
+               .order("hirdetesek_szama", desc=True).execute())
+        return r.data or []
+    except Exception as e:
+        print(f"[adatbazis] Szakmalista hiba: {e}")
+        return []
+
+
+def szakma_statisztika(szakma_nev: str) -> dict:
+    """Egy szakma piaci képe a saját adatainkból: hirdetésszám,
+    leggyakoribb elvárások (százalékkal), bérinfók."""
+    db = kliens()
+    if not db or not szakma_nev:
+        return {}
+    try:
+        r = db.table("szakmak").select("id").ilike("nev", szakma_nev.strip()).limit(1).execute()
+        if not r.data:
+            return {}
+        szid = r.data[0]["id"]
+
+        rh = db.table("hirdetesek").select("id", count="exact").eq("szakma_id", szid).execute()
+        rk = (db.table("v_szakma_keszsegek")
+                .select("keszseg, tipus, elofordulas, hirdetesek_szazaleka")
+                .eq("szakma_id", szid)
+                .order("elofordulas", desc=True).limit(25).execute())
+        rb = (db.table("hirdetesek").select("bersav")
+                .eq("szakma_id", szid).neq("bersav", "").limit(30).execute())
+
+        return {
+            "hirdetesek_szama": rh.count or 0,
+            "keszsegek": rk.data or [],
+            "bersavok": [s["bersav"] for s in (rb.data or []) if s.get("bersav")],
+        }
+    except Exception as e:
+        print(f"[adatbazis] Szakma-statisztika hiba: {e}")
+        return {}
+
+
+def szakma_atjaras(szakma_nev: str, top_n: int = 5) -> list:
+    """ÁTJÁRÁSI TÉRKÉP: mely szakmákba vihető át a tudás?
+    Készség-átfedést számol a kiválasztott és az összes többi szakma között,
+    kizárólag a saját adatbázisunk hirdetéseiből."""
+    db = kliens()
+    if not db or not szakma_nev:
+        return []
+    try:
+        from collections import defaultdict
+
+        # A FOGALOM-nézet összes sora, lapozva (gyűjtőfogalmak szintjén hasonlítunk!)
+        sorok, start = [], 0
+        while True:
+            r = (db.table("v_szakma_fogalmak")
+                   .select("szakma, fogalom, hirdetesek_szazaleka")
+                   .order("szakma_id").order("fogalom")
+                   .range(start, start + 999).execute())
+            adag = r.data or []
+            sorok.extend(adag)
+            if len(adag) < 1000:
+                break
+            start += 1000
+
+        # Szakmánként a jellemző fogalmak (ami a hirdetések min. 3%-ában kell)
+        keszsegek = defaultdict(dict)
+        for s in sorok:
+            if (s.get("hirdetesek_szazaleka") or 0) >= 3:
+                keszsegek[s["szakma"]][s["fogalom"]] = s["hirdetesek_szazaleka"]
+
+        alap = next((n for n in keszsegek if n.lower() == szakma_nev.lower()), None)
+        if not alap:
+            return []
+        sajat = set(keszsegek[alap])
+
+        eredmeny = []
+        for masik, mk in keszsegek.items():
+            if masik == alap or len(mk) < 5:
+                continue
+            kozos = sajat & set(mk)
+            if len(kozos) < 3:
+                continue  # kevés közös adat = megbízhatatlan, inkább nem mutatjuk
+            atfedes = round(100 * len(kozos) / len(mk))
+            hianyzo = sorted(set(mk) - sajat, key=lambda k: -mk[k])[:3]
+            eredmeny.append({
+                "szakma": masik,
+                "atfedes": atfedes,
+                "kozos": len(kozos),
+                "hianyzo": hianyzo,
+            })
+        eredmeny.sort(key=lambda e: -e["atfedes"])
+        return eredmeny[:top_n]
+    except Exception as e:
+        print(f"[adatbazis] Atjaras-szamitas hiba: {e}")
+        return []
+
+
+def ksh_kereset(szakma_nev: str):
+    """Hivatalos KSH-átlagkereset a szakmához — a foglalkozásnevek
+    szótő-egyezése alapján keresi meg a legjobban illő KSH-sort."""
+    db = kliens()
+    if not db or not szakma_nev:
+        return None
+    try:
+        import re as _re
+        r = (db.table("piaci_statisztikak")
+               .select("megnevezes, ertek, idoszak")
+               .eq("forras", "KSH mun0208").execute())
+
+        def tovek(szoveg):
+            return {w[:6] for w in _re.findall(r"\w+", szoveg.lower()) if len(w) > 3}
+
+        fsz = tovek(szakma_nev)
+        legjobb, pont = None, 0.0
+        for s in (r.data or []):
+            nsz = tovek(s.get("megnevezes") or "")
+            if not nsz:
+                continue
+            kozos = len(fsz & nsz)
+            if not kozos:
+                continue
+            p = kozos / len(fsz) + kozos / len(nsz)
+            if p > pont:
+                pont, legjobb = p, s
+        return legjobb if pont >= 0.5 else None
+    except Exception as e:
+        print(f"[adatbazis] KSH-lekerdezes hiba: {e}")
+        return None
+
+
+def kepzesek_lekerdez(teruletek: list) -> list:
+    """Képzések a Supabase 'kepzesek' táblájából, terület szerint."""
+    db = kliens()
+    if not db or not teruletek:
+        return []
+    try:
+        r = (db.table("kepzesek").select("*")
+               .in_("terulet", teruletek).eq("aktiv", True).execute())
+        return r.data or []
+    except Exception as e:
+        print(f"[adatbazis] Kepzesek lekerdezese hiba: {e}")
         return []
 
 
