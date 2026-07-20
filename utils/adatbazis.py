@@ -54,11 +54,17 @@ def kliens():
 # ── SZAKMA ───────────────────────────────────────────────────
 
 def szakma_ment(szakma_info: dict):
-    """Név alapján upsert; visszaadja a szakma id-jét (vagy None-t)."""
+    """Név alapján upsert; visszaadja a szakma id-jét (vagy None-t).
+    KISBETŰ-NAGYBETŰ ÉRZÉKETLEN: ha a név már létezik más írásmóddal
+    (pl. 'Bolti eladó' vs 'bolti eladó'), NEM hoz létre duplikátumot."""
     db = kliens()
     nev = (szakma_info.get("szakma") or "").strip()
     if not db or not nev:
         return None
+    # Van-e már ilyen név bármilyen írásmóddal?
+    r = db.table("szakmak").select("id").ilike("nev", nev).limit(1).execute()
+    if r.data:
+        return r.data[0]["id"]
     r = db.table("szakmak").upsert(
         {"nev": nev, "kategoria": szakma_info.get("szakma_kategoria", "")},
         on_conflict="nev",
