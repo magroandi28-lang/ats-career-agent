@@ -25,3 +25,20 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/jooble_gyujto.py
+
+      # A cimke nelkul maradt hirdetesek potlasa (a friss napi Gemini-kerettel)
+      - name: Keszseg-potlo futtatasa
+        if: always()
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/keszseg_potlo.py
+
+      # Adatminoseg-jelentes minden nap — az Actions naplojaban olvashato
+      - name: Adator (adatminoseg-jelentes)
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/adat_or.py
