@@ -159,6 +159,11 @@ def osszeallit_cv_urlapbol() -> str:
 # ── SEGÉD: ATS-PONT VIZUÁLIS KIJELZŐ (before / after) ─────────
 def ats_gauge_html(before: int, after: int = None) -> str:
     """Látványos ATS-illeszkedés kijelző. Ha 'after' is van, before → after formában."""
+    def _tomorit(h):
+        # A soreleji behúzásokat kiszedjük, különben a Markdown KÓDKÉNT
+        # jelenítené meg a HTML-t (4+ szóközzel kezdődő sor = kódblokk!)
+        return re.sub(r"\n\s*", " ", h).strip()
+
     def _szin(p):
         if p >= 75:
             return "#4ade80"   # zöld
@@ -187,16 +192,16 @@ def ats_gauge_html(before: int, after: int = None) -> str:
         </div>"""
 
     if after is None:
-        return f"""<div style="display:flex; justify-content:center; padding:12px 0;">{_kor(before, "ATS-ILLESZKEDÉS")}</div>"""
+        return _tomorit(f"""<div style="display:flex; justify-content:center; padding:12px 0;">{_kor(before, "ATS-ILLESZKEDÉS")}</div>""")
 
     nyil = '<div style="font-size:34px; color:#D4A843; align-self:center; padding:0 8px;">&#10142;</div>'
-    return f"""
+    return _tomorit(f"""
     <div style="display:flex; align-items:center; justify-content:center; gap:8px;
                 background:#0d1117; border:1px solid rgba(212,168,67,0.25); border-radius:12px; padding:18px; margin:12px 0;">
       {_kor(before, "EREDETI CV", nagy=False)}
       {nyil}
       {_kor(after, "ROBOTBARÁT CV", nagy=False)}
-    </div>"""
+    </div>""")
 
 
 # ── SEGÉD: LOGÓ BETÖLTÉSE (logo.png / logo.jpg a projektmappából) ──
@@ -330,7 +335,8 @@ def _dlg_kisero():
         if not _p.get("szakma"):
             _hianyzik.append("egy **CV-elemzés** (Karrier Ügynök fül → 🔍 Átvizsgálom)")
         if not _p.get("holland_tipus"):
-            _hianyzik.append("a **teszt** (Karrier Tanácsadó fül)")
+            _hianyzik.append("az **5 perces tesztem** — a Karrier Tanácsadó fül "
+                             "tetején, a „🫶 Ismerd meg magad” blokkban vár")
         if _hianyzik:
             st.info("🧭 A teljes képhez még kérlek pótold: " +
                     " és ".join(_hianyzik) + ". Minél többet látok, annál "
@@ -339,10 +345,75 @@ def _dlg_kisero():
             st.success("✅ Megvan a teljes kép: a szakmai profilod ÉS a teszted. "
                        "A részletes kiértékelésem hamarosan itt olvashatod.")
     else:
-        st.info("Még nem ismerlek. Tölts fel egy CV-t a **Karrier Ügynök** fülön, "
-                "vagy nézz szét a **Karrier Tanácsadó**-ban — követem, mire jutsz.")
-    st.caption("💬 A kérdezés itt lesz elérhető hamarosan. · "
-               "Tájékozódást segítő eszköz, nem helyettesíti a szakembert.")
+        st.info("Még nem ismerlek — de ha végigjárod velem az utat, a végére "
+                "teljes kép áll össze rólad, és teljes körűen tudok segíteni:  \n\n"
+                "1️⃣ **Kezdd a Karrier Ügynök fülön:** töltsd fel a CV-d — akár "
+                "kézzel írtad egy papírra: fotózd le, és a képet is beolvassuk! "
+                "Átvizsgáljuk, vagy rögtön robotbaráttá írjuk.  \n"
+                "2️⃣ **Nézz körül a Karrier Tanácsadóban:** mit kér most a piac "
+                "a szakmádban, mennyit fizet, merre tart.  \n"
+                "3️⃣ **Zárd az 5 perces tesztemmel** (a Tanácsadó fül tetején) — "
+                "ekkor áll össze a teljes profilod, és megkapod a személyre "
+                "szabott kiértékelésem.  \n\n"
+                "Minél többet látok, annál pontosabban tudok segíteni — akár "
+                "váltást is mutatok, ha kiderül, hogy másban lennél boldogabb.")
+    # ── 💬 CHAT: kérdezz Flow-tól (profil + tudásbázis + app-ismeret) ──
+    st.markdown("---")
+    st.markdown("##### 💬 Kérdezz tőlem")
+    for _u in st.session_state.get("flow_chat", []):
+        with st.chat_message("user" if _u["szerep"] == "user" else "assistant",
+                             avatar="🙂" if _u["szerep"] == "user" else "🫶"):
+            st.markdown(_u["szoveg"])
+
+    def _flow_kerdez(_szoveg: str):
+        """Kérdés elküldése Flow-nak (gépelt vagy hangból átírt)."""
+        if "app_ismeret" not in st.session_state:
+            try:
+                _ai_ut = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                      "docs", "flow_app_ismeret.md")
+                with open(_ai_ut, encoding="utf-8") as _f:
+                    st.session_state.app_ismeret = _f.read()
+            except Exception:
+                st.session_state.app_ismeret = ""
+        _elozmeny = st.session_state.setdefault("flow_chat", [])
+        with st.spinner("Flow gondolkodik…"):
+            from utils.flow_agy import flow_valasz
+            from utils.profil import profil as _prof_chat
+            _valasz = flow_valasz(_szoveg, _prof_chat(),
+                                  st.session_state.app_ismeret, _elozmeny)
+        _elozmeny.append({"szerep": "user", "szoveg": _szoveg})
+        _elozmeny.append({"szerep": "flow", "szoveg": _valasz or
+                          "Most nem érlek el rendesen (talán elfogyott a napi "
+                          "AI-keret) — próbáld meg kicsit később újra."})
+        st.rerun(scope="fragment")
+
+    with st.form("flow_chat_form", clear_on_submit=True):
+        _kerdes = st.text_area("Kérdésed", label_visibility="collapsed",
+                               height=90,
+                               placeholder="Írd ide a kérdésed — pl.: Mi az a "
+                                           "karrierhorgony? Hol tudom átíratni "
+                                           "a CV-m?")
+        _kuld = st.form_submit_button("➤ Küldés", use_container_width=True)
+    if _kuld and _kerdes.strip():
+        _flow_kerdez(_kerdes.strip())
+
+    # 🎤 Hangalapú kérdezés: felvétel → Gemini-átirat → ugyanaz az út
+    _hang = st.audio_input("🎤 Vagy mondd el hangban:", key="flow_hang")
+    if _hang is not None:
+        _hang_bytes = _hang.getvalue()
+        _hang_jel = hash(_hang_bytes)
+        if st.session_state.get("flow_hang_utolso") != _hang_jel:
+            st.session_state.flow_hang_utolso = _hang_jel
+            with st.spinner("🎤 Hallgatlak — átírom a kérdésed…"):
+                from utils.flow_agy import hang_atiras
+                _atirat = hang_atiras(_hang_bytes)
+            if _atirat.strip():
+                _flow_kerdez(_atirat.strip())
+            else:
+                st.warning("Nem sikerült érteni a felvételt — próbáld újra, "
+                           "vagy írd be gépelve.")
+
+    st.caption("Tájékozódást segítő eszköz, nem helyettesíti a szakembert.")
 
 
 # Belépéskor EGYSZER magától előugrik, hogy a felhasználó tudjon Flow-ról
@@ -393,13 +464,77 @@ st.markdown("""<style>
 if st.button("🫶\n\nFlow", key="kisero_gomb"):
     _dlg_kisero()
 
-tab_ugynok, tab_tanacsado, tab_portfolio, tab_kepzes, tab_kulfoldi = st.tabs([
+tab_ugynok, tab_tanacsado, tab_korkep, tab_portfolio, tab_kepzes, tab_kulfoldi = st.tabs([
     "🕵️ Karrier Ügynök",
     "🧭 Karrier Tanácsadó",
+    "📊 Piaci Körkép",
     "🌟 Portfólió Generátor",
     "📚 Képzések",
     "✈️ Külföldi Lehetőségek"
 ])
+
+# ══════════════════════════════════════════════════════════════
+# TAB: 📊 PIACI KÖRKÉP — élő kereslet-mutató a saját gyűjtésből
+# ══════════════════════════════════════════════════════════════
+with tab_korkep:
+    st.markdown("### 📊 Piaci Körkép — élő kereslet-mutató")
+    st.caption("Saját, naponta frissülő álláshirdetés-gyűjtésünkből számolva — "
+               "nem évekkel ezelőtti kiadványokból. A KERESLET oldalát mutatjuk: "
+               "mennyire keresik az egyes szakmákat MOST.")
+
+    if st.button("🔄 Körkép frissítése", key="korkep_frissit") or \
+            "korkep_adat" not in st.session_state:
+        with st.spinner("Számoljuk a friss keresletet…"):
+            from utils.adatbazis import kereslet_korkep
+            st.session_state.korkep_adat = kereslet_korkep()
+
+    _kk = st.session_state.get("korkep_adat", [])
+    if not _kk:
+        st.info("Még nincs elég adat a körképhez — a napi gyűjtés töltögeti, "
+                "nézz vissza pár nap múlva.")
+    else:
+        # ── HÁROM TOPLISTA ──
+        _t1, _t2, _t3 = st.columns(3)
+        _novekvok = [e for e in _kk if e["trend"] is not None and e["trend"] >= 25
+                     and e["friss_30"] >= 5]
+        _csokkenok = [e for e in _kk if e["trend"] is not None and e["trend"] <= -25
+                      and (e["friss_30"] + e["elozo_30"]) >= 8]
+        with _t1:
+            st.markdown("#### 🔥 Most legkeresettebb")
+            for e in _kk[:5]:
+                st.markdown(f"**{e['szakma']}** — {e['friss_30']} friss hirdetés, "
+                            f"{e['cegek_30']} cég")
+        with _t2:
+            st.markdown("#### 📈 Növekvő kereslet")
+            if _novekvok:
+                for e in sorted(_novekvok, key=lambda x: -(x["trend"] or 0))[:5]:
+                    st.markdown(f"**{e['szakma']}** — +{e['trend']}% egy hónap alatt")
+            else:
+                st.caption("Ehhez még kevés a trend-adat — pár hét gyűjtés kell.")
+        with _t3:
+            st.markdown("#### 📉 Csökkenő kereslet")
+            if _csokkenok:
+                for e in sorted(_csokkenok, key=lambda x: (x["trend"] or 0))[:5]:
+                    st.markdown(f"**{e['szakma']}** — {e['trend']}% egy hónap alatt")
+            else:
+                st.caption("Jelenleg nincs megbízhatóan csökkenő szakma az adatban.")
+
+        # ── TELJES TÁBLÁZAT ──
+        st.markdown("---")
+        st.markdown("#### Minden követett szakma")
+        import pandas as _pd
+        _df = _pd.DataFrame([{
+            "Szakma": e["szakma"],
+            "Kereslet": e["kategoria"],
+            "Friss hirdetés (30 nap)": e["friss_30"],
+            "Kereső cégek": e["cegek_30"],
+            "Trend": (f"{'+' if e['trend'] > 0 else ''}{e['trend']}%"
+                      if e["trend"] is not None else "—"),
+        } for e in _kk])
+        st.dataframe(_df, use_container_width=True, hide_index=True)
+        st.caption("⚖️ Tisztesség: a túljelentkezést (hány ember pályázik egy "
+                   "helyre) hivatalos friss adat híján nem tudjuk mérni — "
+                   "amit itt látsz, az a hirdetői KERESLET, élőben.")
 
 # ══════════════════════════════════════════════════════════════
 # TAB 1: KARRIER ÜGYNÖK
@@ -417,26 +552,52 @@ with tab_ugynok:
         st.rerun()
 
     # ── FELUGRÓ ABLAK: CV-átvizsgálás (feltöltés + indítás + élő állapot) ──
+    def _cv_beolvas(feltoltott) -> str:
+        """CV-szöveg kinyerése: PDF-ből közvetlenül, képből (pl. kézzel írt
+        önéletrajz fotója) Gemini-átirattal."""
+        if feltoltott is None:
+            return ""
+        _nev = (feltoltott.name or "").lower()
+        if _nev.endswith(".pdf"):
+            with pdfplumber.open(feltoltott) as pdf:
+                return "".join([p.extract_text() or "" for p in pdf.pages])
+        from utils.flow_agy import kep_atiras
+        _mime = "image/png" if _nev.endswith(".png") else "image/jpeg"
+        return kep_atiras(feltoltott.getvalue(), _mime)
+
     @st.dialog("🔍 CV-átvizsgálás — robotszűrő (ATS)")
     def _dlg_elemez():
-        st.caption("Megnézzük, átmegy-e a robotszűrőn, és mi miatt szűrne ki. A CV-det nem írjuk át.")
+        st.caption("Megnézzük, átmegy-e a robotszűrőn, és mi miatt szűrne ki. "
+                   "A CV-det nem írjuk át. Kézzel írt önéletrajz fotóját is "
+                   "beolvassuk!")
         _van = bool(st.session_state.get("cv_szoveg_global", "").strip())
         cv_file = None
         if _van:
             st.success("A korábban feltöltött CV-det használjuk.")
             if st.checkbox("Másik CV-t töltök fel", key="dlg_csere_elemez"):
-                cv_file = st.file_uploader("CV (PDF)", type=["pdf"], key="dlg_cv_elemez")
+                cv_file = st.file_uploader("CV (PDF vagy fotó)",
+                                           type=["pdf", "png", "jpg", "jpeg"],
+                                           key="dlg_cv_elemez")
                 _van = cv_file is not None
         else:
-            cv_file = st.file_uploader("CV (PDF)", type=["pdf"], key="dlg_cv_elemez")
+            cv_file = st.file_uploader("CV (PDF vagy fotó)",
+                                       type=["pdf", "png", "jpg", "jpeg"],
+                                       key="dlg_cv_elemez")
             _van = cv_file is not None
         if st.button("🔍 Indítás", type="primary", use_container_width=True,
                      disabled=not _van, key="dlg_indit_elemez"):
-            if cv_file is not None:
-                with pdfplumber.open(cv_file) as pdf:
-                    st.session_state.cv_szoveg_global = "".join(
-                        [p.extract_text() or "" for p in pdf.pages])
             with st.status("🔍 Elemzés folyamatban…", expanded=True) as _a:
+                if cv_file is not None:
+                    if not cv_file.name.lower().endswith(".pdf"):
+                        st.write("✍️ Kézírás/kép beolvasása szöveggé…")
+                    _szoveg = _cv_beolvas(cv_file)
+                    if not _szoveg.strip():
+                        _a.update(label="❌ Nem sikerült kiolvasni a CV-t",
+                                  state="error")
+                        st.error("Nem tudtam szöveget kinyerni a fájlból. "
+                                 "Próbáld élesebb fotóval vagy PDF-ben.")
+                        st.stop()
+                    st.session_state.cv_szoveg_global = _szoveg
                 st.write("📄 CV beolvasva.")
                 st.write("🔎 Friss hirdetések keresése és összevetés — 1-2 perc, ne zárd be.")
                 from agents.karrier_ugynok import run as ugynok_run
@@ -577,7 +738,9 @@ function gomb(nev){
         cv_kell = not van_cv or st.session_state.get("csere_atir", False)
         cv_file = None
         if cv_kell:
-            cv_file = st.file_uploader("CV feltöltése (PDF)", type=["pdf"], key="cv_up_atir", label_visibility="collapsed")
+            cv_file = st.file_uploader("CV feltöltése (PDF vagy fotó — kézzel írt CV-t is beolvasunk)",
+                                       type=["pdf", "png", "jpg", "jpeg"],
+                                       key="cv_up_atir", label_visibility="collapsed")
         else:
             cc1, cc2 = st.columns([3, 1])
             with cc1:
@@ -591,12 +754,19 @@ function gomb(nev){
         if foto_file:
             st.session_state.foto_base64 = base64.b64encode(foto_file.read()).decode("utf-8")
 
-        indit = st.button("🔎 Keresés indítása (állások + ATS-elemzés)", type="primary", key="akcio_atir",
+        indit = st.button("✨ Írd át a CV-met és mutasd a rám illő állásokat",
+                          type="primary", key="akcio_atir",
                           disabled=(cv_kell and cv_file is None), use_container_width=True)
         if indit:
             if cv_file is not None:
-                with pdfplumber.open(cv_file) as pdf:
-                    st.session_state.cv_szoveg_global = "".join([p.extract_text() or "" for p in pdf.pages])
+                if not cv_file.name.lower().endswith(".pdf"):
+                    st.info("✍️ Kézírás/kép beolvasása szöveggé…")
+                _szoveg_a = _cv_beolvas(cv_file)
+                if not _szoveg_a.strip():
+                    st.error("Nem tudtam szöveget kinyerni a fájlból. "
+                             "Próbáld élesebb fotóval vagy PDF-ben.")
+                    st.stop()
+                st.session_state.cv_szoveg_global = _szoveg_a
                 st.session_state.csere_atir = False
             st.session_state.tab1_chat = {}
             st.session_state.tab1_dokumentumok = {}
@@ -947,6 +1117,10 @@ Válaszolj röviden, őszintén, személyre szabottan. Maximum 3-4 mondat."""
                                         uj_cv = st.session_state.get("tab1_general_cv", "")  # meglévő robotbarát CV, ha van
 
                                     uj_level = motivacios_level(cv_alap, allas, szakma_info, ceginfo, kiegeszites)
+
+                                    # ── PROFIL: aktívan pályázik — hova ──
+                                    from utils.profil import erdeklodes_jelzes as _ej2
+                                    _ej2(f"aktív pályázás: {allas.get('cim', '')} ({ceg})")
 
                                     st.session_state.tab1_dokumentumok[dok_key] = {
                                         "cv": uj_cv, "level": uj_level,
@@ -1564,11 +1738,30 @@ with tab_tanacsado:
             _valtas_ok = st.radio("Mi visz most leginkább az álláskeresés / "
                                   "váltás felé?", VALTAS_OKOK, index=None,
                                   key="teszt_valtasok")
+            _mas_ok = ""
+            if _valtas_ok == "Más okból":
+                _mas_ok = st.text_input("Írd le röviden, mi az:",
+                                        key="teszt_masok")
+                _valtas_ok = f"Más okból: {_mas_ok}" if _mas_ok.strip() else _valtas_ok
 
-            _kitoltve = (all(v > 0 for v in _h_pontok.values()) and _horgony1
-                         and _energia and _stressz and _valtas_ok)
+            _hianyzo_t = []
+            _ures_hollandok = [i + 1 for i, (_k, _sz) in enumerate(HOLLAND_KERDESEK)
+                               if _h_pontok.get(_k, 0) == 0]
+            if _ures_hollandok:
+                _hianyzo_t.append(f"1️⃣ blokk: {len(_ures_hollandok)} állítás")
+            if not _horgony1:
+                _hianyzo_t.append("2️⃣ legfontosabb érték")
+            if not _energia:
+                _hianyzo_t.append("3️⃣ energia-kérdés")
+            if not _stressz:
+                _hianyzo_t.append("3️⃣ stressz-kérdés")
+            if not _valtas_ok:
+                _hianyzo_t.append("3️⃣ váltás oka")
+            elif _valtas_ok == "Más okból" and not _mas_ok.strip():
+                _hianyzo_t.append("3️⃣ írd be, mi a más ok")
+            _kitoltve = not _hianyzo_t
             if not _kitoltve:
-                st.caption("👆 Válaszolj minden kérdésre, és megnyílik a kiértékelés.")
+                st.caption("👆 Még hiányzik: " + " · ".join(_hianyzo_t))
             if st.button("🫶 Kész vagyok — Flow, mit látsz?", type="primary",
                          disabled=not _kitoltve, use_container_width=True,
                          key="teszt_kesz"):
@@ -1591,9 +1784,39 @@ with tab_tanacsado:
             st.markdown(f"**⚓ Ami a legfontosabb neked:** {_te['horgony']}")
             if _te["jollet"]["figyelem"]:
                 st.warning(f"💛 {_te['jollet']['tamogato_uzenet']}")
-            st.info("🫶 Flow részletes, személyre szabott kiértékelése a "
-                    "tudásbázisból — **hamarosan itt**. A profilod már frissült: "
-                    "a Flow-karikára kattintva látod.")
+
+            # ── ③ FLOW RÉSZLETES KIÉRTÉKELÉSE (tudásbázisból) ──
+            if st.button("🫶 Kérem Flow részletes kiértékelését",
+                         use_container_width=True, key="flow_kiert_gomb"):
+                with st.spinner("Flow a tudásbázisban keres és fogalmaz…"):
+                    from utils.flow_agy import flow_kiertekeles
+                    from utils.profil import profil as _prof_leker
+                    st.session_state.flow_kiertekeles = flow_kiertekeles(_prof_leker())
+            _fk = st.session_state.get("flow_kiertekeles")
+            if _fk:
+                st.markdown(f"""<div style="background:#111827;
+                    border:1px solid rgba(212,168,67,0.4); border-radius:12px;
+                    padding:18px 22px; color:#e2e8f4; font-size:14px;
+                    line-height:1.8;">{_fk.replace(chr(10), "<br>")}</div>""",
+                    unsafe_allow_html=True)
+                # Kiégés/bántalmazás + ismert szakma → konkrét váltás-kapu
+                from utils.profil import profil as _prof_v
+                if (_te["jollet"]["figyelem"] and _prof_v().get("szakma")):
+                    st.info(f"🔀 **Ha váltáson gondolkodsz:** lejjebb válaszd ki "
+                            f"a szakmád ({_prof_v()['szakma']}), és a "
+                            f"„🔀 Igen, mutasd az átjárási lehetőségeket” gombbal "
+                            f"megnézzük, hova vihetnéd át a tudásod — bérrel és "
+                            f"hiányzó készségekkel együtt. Te döntesz.")
+                # Frissítés: ha azóta bővült a profil (pl. utólag jött CV)
+                if st.button("🔄 Kiértékelés frissítése az új adataimmal",
+                             key="flow_kiert_frissit", use_container_width=True):
+                    with st.spinner("Flow újraolvassa a teljes profilod…"):
+                        from utils.flow_agy import flow_kiertekeles as _fkier
+                        st.session_state.flow_kiertekeles = _fkier(_prof_v())
+                    st.rerun()
+            elif st.session_state.get("flow_kiert_gomb"):
+                st.warning("Flow most nem érhető el (valószínűleg elfogyott a napi "
+                           "AI-kvóta). A profilod megvan — próbáld újra később.")
 
     from utils.adatbazis import szakmak_lista, szakma_statisztika
 
@@ -1646,6 +1869,9 @@ with tab_tanacsado:
             st.warning("Ehhez a szakmához még kevés az adat — pár nap gyűjtés után térj vissza.")
         else:
             st.markdown(f"#### {_valasztott} — {_stat.get('hirdetesek_szama', 0)} valódi hirdetés elemzése alapján")
+            # ── PROFIL: viselkedési jel — ennek a szakmának a piacát nézi ──
+            from utils.profil import erdeklodes_jelzes as _ej3
+            _ej3(f"{_valasztott} piaci adatai")
 
             # ── A TANÁCSADÓ VÉLEMÉNYE — kizárólag a saját adatbázisunk számaiból írva ──
             _tkulcs = f"tan_velemeny_{_valasztott}"
@@ -1787,6 +2013,11 @@ with tab_tanacsado:
             if st.session_state.get("atjaras_szakma") == _valasztott:
                 from utils.adatbazis import szakma_atjaras
                 _atj = szakma_atjaras(_valasztott)
+                # ── PROFIL: váltáson gondolkodik + a céljai ──
+                from utils.profil import profil_frissit as _pf, erdeklodes_jelzes as _ej
+                _ej(f"szakmaváltás ({_valasztott} → máshova)")
+                if _atj:
+                    _pf(atjaras_celok=[a["szakma"] for a in _atj[:3]])
             if st.session_state.get("atjaras_szakma") == _valasztott and not _atj:
                 st.info("🔧 A megbízható számításhoz még érik az adatbázis — "
                         "amint elég közös adat gyűlik össze, itt jelennek meg a rokon szakmák.")

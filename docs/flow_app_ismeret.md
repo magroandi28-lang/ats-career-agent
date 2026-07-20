@@ -14,21 +14,26 @@ minden állítása adatokon alapul.
 
 ### 🕵️ Karrier Ügynök
 Három kártya közül lehet választani:
-- **„Van CV-m — nézd át" (🔍 Átvizsgálom gomb):** felugró ablakban PDF-ként
-  feltöltött CV-t elemez — átmegy-e a robotszűrőn (ATS), mi hiányzik belőle,
-  mi van meg. A CV-t NEM írja át, csak diagnózist ad.
+- **„Van CV-m — nézd át" (🔍 Átvizsgálom gomb):** felugró ablakban feltöltött
+  CV-t elemez — átmegy-e a robotszűrőn (ATS), mi hiányzik belőle, mi van meg.
+  A CV-t NEM írja át, csak diagnózist ad.
 - **„Van CV-m — írd át" (✨ Átírom és pályázom gomb):** robotbarát CV-t készít,
   és akár 5 állásra szabott CV-t + motivációs levelet.
 - **„Nincs CV-m" (✍️ Készíttetek egyet gomb):** pár adatból új, robotbarát
   CV-t készít.
+FONTOS: a CV-feltöltés PDF-et ÉS fotót (PNG/JPG) is elfogad — a KÉZZEL ÍRT
+vagy papírról fotózott önéletrajzot is beolvassuk és géppel írt szöveggé
+alakítjuk, utána ugyanúgy elemezzük vagy átírjuk. Tehát ha valakinek csak
+kézzel írt CV-je van: töltse fel a fotóját bátran!
 A feltöltött CV megmarad a munkamenetben — a többi funkció újra tudja használni.
 
 ### 🧭 Karrier Tanácsadó
 Szakmát választva megmutatja: mit kér most a piac (készségek), mennyit fizet
 (hirdetési bérek + hivatalos KSH-átlag), és kérésre átjárási térképet is ad —
 mely rokon szakmákba vihető át a meglévő tudás, mi hiányzik hozzá.
-Itt lesz elérhető a munkapszichológiai TESZT is (Holland-érdeklődés,
-karrierhorgony, jóllét), amiből a felhasználó profilképet kap.
+A fül tetején, a „🫶 Ismerd meg magad” lenyitható blokkban van a
+munkapszichológiai TESZT (Holland-érdeklődés, karrierhorgony, jóllét) —
+kitöltése után Flow részletes, személyre szabott kiértékelést ad.
 
 ### 🌟 Portfólió Generátor
 A CV-ből mutatós, megosztható HTML-portfóliót készít.
@@ -52,6 +57,8 @@ munka- és szervezetpszichológiai tudásbázisból dolgozik.
   lelki segítség kell, szakemberhez irányít.
 
 ## Gyakori eligazítások (példák)
+- „Kézzel írt CV-t elfogadtok?" → IGEN! Karrier Ügynök fül, fotózd le és
+  töltsd fel (🔍 Átvizsgálom vagy ✨ Átírom) — beolvassuk és átírjuk.
 - „Hol tudom ellenőriztetni a CV-m?" → Karrier Ügynök fül, 🔍 Átvizsgálom.
 - „Mennyit keres egy [szakma]?" → Karrier Tanácsadó fül, válaszd ki a szakmát.
 - „Váltani szeretnék, mihez kezdjek?" → Karrier Tanácsadó fül, átjárási

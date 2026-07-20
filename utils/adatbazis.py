@@ -272,6 +272,95 @@ def szakmak_lista() -> list:
         return []
 
 
+def kereslet_korkep() -> list:
+    """📊 ÉLŐ KERESLET-MUTATÓ szakmánként, a saját napi gyűjtésünkből.
+
+    Két 30 napos ablakot hasonlít össze:
+      friss_30  = hirdetések az utolsó 30 napban
+      elozo_30  = hirdetések az azt megelőző 30 napban
+      cegek_30  = hány KÜLÖNBÖZŐ cég keres most
+      trend     = változás %-ban (csak ha az előző ablakban volt elég adat)
+    Kategória (determinisztikus):
+      🔥 erős és növekvő | 📈 növekvő | ➡️ stabil | 📉 csökkenő | ⚠️ kevés adat
+    """
+    db = kliens()
+    if not db:
+        return []
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        most = datetime.now(timezone.utc)
+        h30 = most - timedelta(days=30)
+        h60 = most - timedelta(days=60)
+
+        # Az utolsó 60 nap hirdetései, lapozva (Supabase 1000-es limit!)
+        sorok, start = [], 0
+        while True:
+            r = (db.table("hirdetesek")
+                   .select("szakma_id, ceg_id, letrehozva")
+                   .gte("letrehozva", h60.isoformat())
+                   .range(start, start + 999).execute())
+            adag = r.data or []
+            sorok.extend(adag)
+            if len(adag) < 1000:
+                break
+            start += 1000
+
+        nevek = {s["id"]: s["nev"] for s in
+                 (db.table("szakmak").select("id, nev").execute().data or [])}
+
+        from collections import defaultdict
+        gyujto = defaultdict(lambda: {"friss": 0, "elozo": 0, "cegek": set()})
+        for s in sorok:
+            szid = s.get("szakma_id")
+            if not szid or szid not in nevek:
+                continue
+            try:
+                mikor = datetime.fromisoformat(
+                    s["letrehozva"].replace("Z", "+00:00"))
+            except (ValueError, KeyError, AttributeError):
+                continue
+            if mikor >= h30:
+                gyujto[szid]["friss"] += 1
+                if s.get("ceg_id"):
+                    gyujto[szid]["cegek"].add(s["ceg_id"])
+            else:
+                gyujto[szid]["elozo"] += 1
+
+        eredmeny = []
+        for szid, a in gyujto.items():
+            trend = None
+            if a["elozo"] >= 3:
+                trend = round(100 * (a["friss"] - a["elozo"]) / a["elozo"])
+            if a["friss"] < 5:
+                kategoria = "⚠️ kevés adat"
+            elif trend is None:
+                # még nincs két teljes 30 napos ablak — trendet nem állítunk
+                kategoria = ("🔥 élénk kereslet" if a["friss"] >= 20
+                             else "➡️ mérsékelt kereslet")
+            elif trend >= 25 and a["friss"] >= 10:
+                kategoria = "🔥 erős és növekvő"
+            elif trend >= 25:
+                kategoria = "📈 növekvő"
+            elif trend <= -25:
+                kategoria = "📉 csökkenő"
+            else:
+                kategoria = "➡️ stabil"
+            eredmeny.append({
+                "szakma": nevek[szid],
+                "friss_30": a["friss"],
+                "elozo_30": a["elozo"],
+                "cegek_30": len(a["cegek"]),
+                "trend": trend,
+                "kategoria": kategoria,
+            })
+        eredmeny.sort(key=lambda e: -e["friss_30"])
+        return eredmeny
+    except Exception as e:
+        print(f"[adatbazis] Kereslet-korkep hiba: {e}")
+        return []
+
+
 def szakma_statisztika(szakma_nev: str) -> dict:
     """Egy szakma piaci képe a saját adatainkból: hirdetésszám,
     leggyakoribb elvárások (százalékkal), bérinfók."""

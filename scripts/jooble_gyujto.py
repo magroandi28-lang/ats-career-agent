@@ -62,15 +62,52 @@ SZAKMAK = [
     ("sofőr", "Szolgáltatás"),
     # Egészségügy
     ("ápoló", "Egészségügy"),
+    ("egészségügyi asszisztens", "Egészségügy"),
     # IT
     ("szoftvertesztelő", "IT"),
     ("Python fejlesztő", "IT"),
     ("AI mérnök", "IT"),
     ("adatelemző", "IT"),
+    ("frontend fejlesztő", "IT"),
+    ("rendszergazda", "IT"),
+    ("DevOps mérnök", "IT"),
+    ("IT projektmenedzser", "IT"),
+    # Iroda, gazdaság
+    ("HR munkatárs", "Szolgáltatás"),
+    ("marketing munkatárs", "Szolgáltatás"),
+    ("pénzügyi ügyintéző", "Szolgáltatás"),
+    ("logisztikai koordinátor", "Szolgáltatás"),
+    ("recepciós", "Szolgáltatás"),
+    ("értékesítő", "Kereskedelem"),
+    # Ipar, építőipar, fizikai
+    ("targoncavezető", "Ipar"),
+    ("hegesztő", "Ipar"),
+    ("CNC gépkezelő", "Ipar"),
+    ("autószerelő", "Ipar"),
+    ("gyári operátor", "Ipar"),
+    ("kőműves", "Építőipar"),
+    # Szolgáltatás, egyéb
+    ("biztonsági őr", "Szolgáltatás"),
+    ("takarító", "Szolgáltatás"),
+    ("futár", "Szolgáltatás"),
+    ("óvodapedagógus", "Oktatás"),
+    # További bővítés — cél a széles lefedettség
+    ("gépészmérnök", "Ipar"),
+    ("villamosmérnök", "Ipar"),
+    ("minőségbiztosítási munkatárs", "Ipar"),
+    ("beszerző", "Szolgáltatás"),
+    ("bérszámfejtő", "Szolgáltatás"),
+    ("grafikus", "Szolgáltatás"),
+    ("fodrász", "Szolgáltatás"),
+    ("idősgondozó", "Egészségügy"),
+    ("kertész", "Szolgáltatás"),
+    ("cukrász", "Szolgáltatás"),
+    ("varrómunkás", "Ipar"),
+    ("festő-mázoló", "Építőipar"),
 ]
 
 HELYSZIN = ""                    # üres = egész Magyarország (lehet pl. "Budapest")
-MAX_OLDAL = 3                    # ennyi oldalt lapozunk kulcsszavanként (~20 hirdetés/oldal)
+MAX_OLDAL = 4                    # ennyi oldalt lapozunk kulcsszavanként (~20 hirdetés/oldal)
 CSOMAG_MERET = 10                # ennyit adunk egyszerre a készség-kinyerőnek
 
 # Szinonimák: ugyanazt a szakmát több kulcsszóval is keressük,
@@ -84,6 +121,16 @@ SZINONIMAK = {
     "raktáros": ["komissiózó", "raktári munkatárs"],
     "ügyfélszolgálati munkatárs": ["call center munkatárs"],
     "adminisztratív asszisztens": ["irodai asszisztens"],
+    "frontend fejlesztő": ["React fejlesztő", "webfejlesztő"],
+    "rendszergazda": ["IT support", "helpdesk munkatárs"],
+    "HR munkatárs": ["HR asszisztens", "toborzó"],
+    "marketing munkatárs": ["digitális marketing", "social media menedzser"],
+    "pénzügyi ügyintéző": ["pénzügyi asszisztens"],
+    "logisztikai koordinátor": ["fuvarszervező"],
+    "értékesítő": ["üzletkötő", "sales munkatárs"],
+    "CNC gépkezelő": ["CNC forgácsoló"],
+    "gyári operátor": ["betanított munkás", "összeszerelő"],
+    "targoncavezető": ["targoncás raktáros"],
 }
 
 

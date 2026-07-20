@@ -38,6 +38,8 @@ def profil_osszefoglalo() -> str:
         sorok.append(f"**Karrierhorgony:** {p['karrierhorgony']}")
     if p.get("jollet_jelzes"):
         sorok.append(f"**Jóllét:** {p['jollet_jelzes']}")
+    if p.get("atjaras_celok"):
+        sorok.append(f"**Váltási célok, amiket nézett:** {', '.join(p['atjaras_celok'])}")
     if p.get("erdeklodes"):
         sorok.append(f"**Épp foglalkoztatja:** {', '.join(sorted(set(p['erdeklodes']))[:3])}")
     return "\n\n".join(sorok)

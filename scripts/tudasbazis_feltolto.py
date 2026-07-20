@@ -21,35 +21,38 @@ from utils.adatbazis import kliens  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
-EMBED_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
-             "gemini-embedding-001:embedContent")
+# EMBEDDING: OpenAI text-embedding-3-small (768 dimenzióra vágva).
+# Ára: ~0,02 USD / 1M token — a teljes tudásbázis kb. 1 cent. Nincs napi kvóta.
+OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "")
+EMBED_URL = "https://api.openai.com/v1/embeddings"
 KOTEG = 50  # ennyi szakaszonként mentünk a Supabase-be
 
 
 def embeddingek(szovegek: list) -> list:
-    """Szövegek beágyazása egyesével (768 dimenzió). 429 esetén kivételt dob."""
-    vektorok = []
-    for s in szovegek:
-        r = requests.post(
-            EMBED_URL, params={"key": GEMINI_KEY},
-            json={"model": "models/gemini-embedding-001",
-                  "content": {"parts": [{"text": s[:9000]}]},
-                  "outputDimensionality": 768}, timeout=60,
-        )
-        if r.status_code == 429:
-            raise RuntimeError("GEMINI KVOTA ELFOGYOTT (429) — kesobb futtasd ujra, onnan folytatja.")
-        r.raise_for_status()
-        vektorok.append(r.json()["embedding"]["values"])
-        time.sleep(0.1)
-    return vektorok
+    """Szövegek beágyazása kötegben (768 dimenzió, OpenAI)."""
+    r = requests.post(
+        EMBED_URL,
+        headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+        json={"model": "text-embedding-3-small",
+              "input": [s[:9000] for s in szovegek],
+              "dimensions": 768}, timeout=120,
+    )
+    r.raise_for_status()
+    adatok = sorted(r.json()["data"], key=lambda d: d["index"])
+    return [d["embedding"] for d in adatok]
 
 
 def main():
     db = kliens()
-    if db is None or not GEMINI_KEY:
-        print("HIBA: Supabase vagy GEMINI_API_KEY hianyzik!")
+    if db is None or not OPENAI_KEY:
+        print("HIBA: Supabase vagy OPENAI_API_KEY hianyzik!")
         return
+
+    # --ujra kapcsoloval: mindent torol es tiszta lappal indul
+    # (kell az embedding-szolgaltato VALTASAKOR — a regi vektorok nem kompatibilisek)
+    if "--ujra" in sys.argv:
+        print("Korabbi sorok torlese (mas vektorterbe tartoztak)...")
+        db.table("tudasanyag").delete().gte("id", 0).execute()
 
     ut = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                       "db", "tudasbazis_nyers.json")

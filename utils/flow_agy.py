@@ -14,8 +14,8 @@ import requests
 from utils.adatbazis import kliens
 
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
-EMBED_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
-             "gemini-embedding-001:embedContent")
+OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "")
+EMBED_URL = "https://api.openai.com/v1/embeddings"  # ~0,000002 USD/kérdés
 SZOVEG_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
               "gemini-2.5-flash:generateContent")
 
@@ -24,12 +24,12 @@ SZOVEG_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
 
 def _embedding(szoveg: str):
     r = requests.post(
-        EMBED_URL, params={"key": GEMINI_KEY},
-        json={"model": "models/gemini-embedding-001",
-              "content": {"parts": [{"text": szoveg[:9000]}]},
-              "outputDimensionality": 768}, timeout=30)
+        EMBED_URL,
+        headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+        json={"model": "text-embedding-3-small",
+              "input": szoveg[:9000], "dimensions": 768}, timeout=30)
     r.raise_for_status()
-    return r.json()["embedding"]["values"]
+    return r.json()["data"][0]["embedding"]
 
 
 def _kulcsszo_kereses(kerdes: str, darab: int) -> list:
@@ -66,6 +66,58 @@ def tudas_kereses(kerdes: str, darab: int = 5) -> list:
     except Exception as e:
         print(f"[flow] Embedding-kereses nem ment ({e}) — kulcsszavas tartalek.")
     return _kulcsszo_kereses(kerdes, darab)
+
+
+# ── KÉP-BEOLVASÁS: kézzel írt / szkennelt CV átírása szöveggé ─
+
+def kep_atiras(kep_bytes: bytes, mime: str) -> str:
+    """Kézzel írt vagy fotózott önéletrajz átírása géppel írt szöveggé
+    (Gemini flash, ingyenes). Üres string, ha nem sikerül."""
+    if not GEMINI_KEY or not kep_bytes:
+        return ""
+    import base64
+    try:
+        r = requests.post(
+            SZOVEG_URL, params={"key": GEMINI_KEY},
+            json={"contents": [{"parts": [
+                {"inline_data": {"mime_type": mime,
+                                 "data": base64.b64encode(kep_bytes).decode()}},
+                {"text": "Ez egy önéletrajz fotója vagy szkennelt képe, "
+                         "valószínűleg kézzel írva. Írd át PONTOSAN géppel írt "
+                         "szöveggé, az eredeti tartalmat megőrizve — semmit ne "
+                         "egészíts ki és ne találj ki. Amit nem tudsz elolvasni, "
+                         "jelöld így: [olvashatatlan]. Csak az átiratot add "
+                         "vissza, magyarázat nélkül."}]}]},
+            timeout=120)
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except Exception as e:
+        print(f"[flow] Kep-atiras hiba: {e}")
+        return ""
+
+
+# ── HANG-BEOLVASÁS: kimondott kérdés átírása szöveggé ────────
+
+def hang_atiras(hang_bytes: bytes, mime: str = "audio/wav") -> str:
+    """Hangfelvétel átírása magyar szöveggé (Gemini flash, ingyenes)."""
+    if not GEMINI_KEY or not hang_bytes:
+        return ""
+    import base64
+    try:
+        r = requests.post(
+            SZOVEG_URL, params={"key": GEMINI_KEY},
+            json={"contents": [{"parts": [
+                {"inline_data": {"mime_type": mime,
+                                 "data": base64.b64encode(hang_bytes).decode()}},
+                {"text": "Írd át PONTOSAN szöveggé, amit a felvételen mondanak "
+                         "(magyarul). Csak az átiratot add vissza, magyarázat "
+                         "és kommentár nélkül."}]}]},
+            timeout=90)
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except Exception as e:
+        print(f"[flow] Hang-atiras hiba: {e}")
+        return ""
 
 
 # ── SZÖVEG-GENERÁLÁS ─────────────────────────────────────────
@@ -121,6 +173,12 @@ FELÉPÍTÉS (4 rövid bekezdés, felsorolás nélkül, max 14 mondat):
 3. Reflektálj a jóllét-jelzésére az előírt hangnemben.
 4. Egy bátorító, előremutató zárás: mi a következő jó lépés az oldalon
    (pl. a Karrier Tanácsadó piaci adatai, átjárási térkép — csak ha releváns).
+   KIVÉTEL — ha a jóllét-jelzés kimerülést vagy megterhelő munkahelyi közeget
+   mutat ÉS ismert a szakmája: itt KONKRÉTAN ajánld fel a váltás
+   megvizsgálását — ezen az oldalon (Karrier Tanácsadó fül) a szakmája
+   kiválasztása után a „🔀 átjárási lehetőségek” gombbal megnézheti, mely
+   rokon szakmákba vihető át a meglévő tudása. Hangsúlyozd: ez csak
+   lehetőség, nem elvárás — ő dönt.
 
 {FLOW_SZABALYOK}"""
     try:
