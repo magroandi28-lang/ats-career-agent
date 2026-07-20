@@ -54,10 +54,14 @@ def main():
         print("Korabbi sorok torlese (mas vektorterbe tartoztak)...")
         db.table("tudasanyag").delete().gte("id", 0).execute()
 
-    ut = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "db", "tudasbazis_nyers.json")
-    with open(ut, encoding="utf-8") as f:
-        szakaszok = json.load(f)
+    # Az OSSZES nyers fajlt felkuldjuk (tudasbazis_nyers.json, _nyers2.json, ...)
+    import glob
+    db_mappa = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "db")
+    szakaszok = []
+    for ut in sorted(glob.glob(os.path.join(db_mappa, "tudasbazis_nyers*.json"))):
+        with open(ut, encoding="utf-8") as f:
+            szakaszok.extend(json.load(f))
+        print(f"Beolvasva: {os.path.basename(ut)}")
 
     # Mi van mar fent? (forras + resz paros alapjan kihagyjuk)
     fent = set()
@@ -81,7 +85,8 @@ def main():
         except RuntimeError as e:
             print(f"\n{e}")
             return
-        sorok = [{"forras": s["forras"], "resz": s["resz"], "szoveg": s["szoveg"],
+        sorok = [{"forras": s["forras"], "resz": s["resz"],
+                  "szoveg": s["szoveg"].replace("\x00", ""),  # Postgres nem tur nullkaraktert
                   "embedding": v} for s, v in zip(koteg, vektorok)]
         db.table("tudasanyag").insert(sorok).execute()
         print(f"  Feltoltve: {min(i + KOTEG, len(varakozo))}/{len(varakozo)}")
