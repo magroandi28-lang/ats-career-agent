@@ -324,8 +324,20 @@ def _dlg_kisero():
     if _profil_szoveg:
         st.markdown("#### Amit eddig látok rólad")
         st.markdown(_profil_szoveg)
-        st.info("🧭 A teljes képedhez töltsd ki a tesztet a **Karrier Tanácsadó** "
-                "fülön. *(Hamarosan elérhető)*")
+        from utils.profil import profil as _profil_leker
+        _p = _profil_leker()
+        _hianyzik = []
+        if not _p.get("szakma"):
+            _hianyzik.append("egy **CV-elemzés** (Karrier Ügynök fül → 🔍 Átvizsgálom)")
+        if not _p.get("holland_tipus"):
+            _hianyzik.append("a **teszt** (Karrier Tanácsadó fül)")
+        if _hianyzik:
+            st.info("🧭 A teljes képhez még kérlek pótold: " +
+                    " és ".join(_hianyzik) + ". Minél többet látok, annál "
+                    "pontosabban tudok segíteni.")
+        else:
+            st.success("✅ Megvan a teljes kép: a szakmai profilod ÉS a teszted. "
+                       "A részletes kiértékelésem hamarosan itt olvashatod.")
     else:
         st.info("Még nem ismerlek. Tölts fel egy CV-t a **Karrier Ügynök** fülön, "
                 "vagy nézz szét a **Karrier Tanácsadó**-ban — követem, mire jutsz.")
@@ -1508,6 +1520,80 @@ with tab_kulfoldi:
 with tab_tanacsado:
     st.markdown("### 🧭 Karrier Tanácsadó")
     st.caption("Valódi, általunk gyűjtött álláshirdetések adataiból — nem általánosságok.")
+
+    # ══ MUNKAPSZICHOLÓGIAI TESZT (Flow) — lenyitható, nem tolakszik ══
+    from utils.teszt import (HOLLAND_KERDESEK, HOLLAND_SKALA, HORGONY_OPCIOK,
+                             ENERGIA_SKALA, STRESSZ_SKALA, VALTAS_OKOK,
+                             holland_tipus, jollet_jelzes)
+    from utils.profil import profil_frissit
+
+    with st.expander("🫶 Ismerd meg magad — 5 perces munkapszichológiai teszt (Flow)",
+                     expanded=False):
+        st.caption("A válaszaidból Flow teljes képet készít rólad: mi hajt, "
+                   "miben vagy erős, és merre érdemes menned. Tudományos alapokon, "
+                   "címkézés nélkül.")
+        _gdpr_t = st.checkbox(
+            "Elfogadom, hogy a válaszaimat a személyre szabott tanácshoz "
+            "felhasználjátok. A válaszok csak ebben a munkamenetben élnek, "
+            "nem tárolódnak el.", key="teszt_gdpr")
+
+        if _gdpr_t:
+            st.markdown("**1️⃣ Mennyire jellemzőek rád az alábbiak?**")
+            _h_pontok = {}
+            for _kod, _szoveg in HOLLAND_KERDESEK:
+                _valasz = st.radio(_szoveg, HOLLAND_SKALA, index=None,
+                                   horizontal=True, key=f"teszt_h_{_kod}")
+                _h_pontok[_kod] = HOLLAND_SKALA.index(_valasz) + 1 if _valasz else 0
+
+            st.markdown("**2️⃣ Mi a legfontosabb neked a munkában?**")
+            _horgony1 = st.radio("Válaszd ki az EGY legfontosabbat:",
+                                 HORGONY_OPCIOK, index=None, key="teszt_horgony1")
+            _horgony2 = st.selectbox("És a második legfontosabb?",
+                                     ["— válassz —"] + [o for o in HORGONY_OPCIOK
+                                                        if o != _horgony1],
+                                     key="teszt_horgony2")
+
+            st.markdown("**3️⃣ Hogy vagy mostanában?**")
+            _energia = st.radio("Egy átlagos nap végén hogyan érzed magad?",
+                                ENERGIA_SKALA, index=None, horizontal=True,
+                                key="teszt_energia")
+            _stressz = st.radio("Mennyire érzed magad feszültnek, nyomás alatt "
+                                "a munkád vagy az álláskeresésed miatt?",
+                                STRESSZ_SKALA, index=None, horizontal=True,
+                                key="teszt_stressz")
+            _valtas_ok = st.radio("Mi visz most leginkább az álláskeresés / "
+                                  "váltás felé?", VALTAS_OKOK, index=None,
+                                  key="teszt_valtasok")
+
+            _kitoltve = (all(v > 0 for v in _h_pontok.values()) and _horgony1
+                         and _energia and _stressz and _valtas_ok)
+            if not _kitoltve:
+                st.caption("👆 Válaszolj minden kérdésre, és megnyílik a kiértékelés.")
+            if st.button("🫶 Kész vagyok — Flow, mit látsz?", type="primary",
+                         disabled=not _kitoltve, use_container_width=True,
+                         key="teszt_kesz"):
+                _tipus = holland_tipus(_h_pontok)
+                _jollet = jollet_jelzes(ENERGIA_SKALA.index(_energia),
+                                        STRESSZ_SKALA.index(_stressz), _valtas_ok)
+                _horgony_szoveg = _horgony1 + (
+                    f" · {_horgony2}" if _horgony2 and "válassz" not in _horgony2 else "")
+                profil_frissit(holland_tipus=_tipus,
+                               karrierhorgony=_horgony_szoveg,
+                               jollet_jelzes=_jollet["cimke"],
+                               valtas_oka=_valtas_ok)
+                st.session_state.teszt_eredmeny = {
+                    "tipus": _tipus, "horgony": _horgony_szoveg, "jollet": _jollet}
+
+        _te = st.session_state.get("teszt_eredmeny")
+        if _te:
+            st.markdown("---")
+            st.markdown(f"**🧩 Érdeklődés-típusod:** {_te['tipus']}")
+            st.markdown(f"**⚓ Ami a legfontosabb neked:** {_te['horgony']}")
+            if _te["jollet"]["figyelem"]:
+                st.warning(f"💛 {_te['jollet']['tamogato_uzenet']}")
+            st.info("🫶 Flow részletes, személyre szabott kiértékelése a "
+                    "tudásbázisból — **hamarosan itt**. A profilod már frissült: "
+                    "a Flow-karikára kattintva látod.")
 
     from utils.adatbazis import szakmak_lista, szakma_statisztika
 
