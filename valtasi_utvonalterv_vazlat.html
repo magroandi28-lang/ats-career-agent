@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<title>TERV — Váltási útvonalterv + NFSZ hiányszakma-mutató</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background:#f4f6fa; color:#222; margin:0; padding:24px; }
+  h1 { font-size:22px; } h2 { font-size:17px; margin-top:36px; border-bottom:2px solid #3b6ea5; padding-bottom:6px;}
+  .mock { background:#fff; border:1px solid #d5dbe5; border-radius:12px; padding:18px 22px; max-width:680px;
+          box-shadow:0 2px 8px rgba(0,0,0,.06); margin:14px 0; }
+  .cetli { border-radius:8px; padding:10px 14px; margin:8px 0; font-size:14px; }
+  .zold { background:#e6f4e6; border-left:4px solid #3a9a3a; }
+  .sarga { background:#fdf6de; border-left:4px solid #d4a017; }
+  .kek  { background:#e8f0fb; border-left:4px solid #3b6ea5; }
+  .piros{ background:#fdeaea; border-left:4px solid #c0392b; }
+  .szurke{ background:#f0f1f3; border-left:4px solid #888; font-size:13px; color:#555;}
+  .gomb { display:inline-block; background:#3b6ea5; color:#fff; border-radius:6px; padding:6px 14px;
+          font-size:14px; margin:4px 0; }
+  .lepes { display:flex; gap:10px; align-items:flex-start; margin:12px 0; }
+  .szam { background:#3b6ea5; color:#fff; border-radius:50%; min-width:26px; height:26px; display:flex;
+          align-items:center; justify-content:center; font-size:13px; font-weight:bold; }
+  table { border-collapse:collapse; font-size:13px; margin:10px 0; }
+  td, th { border:1px solid #ccd3de; padding:6px 10px; text-align:left; }
+  th { background:#eef2f8; }
+  .megj { font-size:13px; color:#666; font-style:italic; }
+  .kerdes { background:#fff3f0; border:1px dashed #c0392b; border-radius:8px; padding:12px 16px; max-width:680px; }
+</style>
+</head>
+<body>
+
+<h1>📋 TERV — 🧭 Váltási útvonalterv + 🌡️ NFSZ hiányszakma-mutató</h1>
+<p class="megj">Csak vázlat — egyetlen sor kód sem készül, amíg jóvá nem hagyod. Minden adat az adatbázisból jön, az AI csak megfogalmaz.</p>
+
+<h2>1. RÉSZ — Váltási útvonalterv (a Tanácsadó fülön, CSAK gombnyomásra)</h2>
+
+<p>Az átjárási térkép meglévő találatainál minden cél-szakma mellé kerül egy gomb:</p>
+<div class="mock">
+  <b>Átjárási lehetőségek — Adminisztrátor</b>
+  <table>
+    <tr><th>Cél-szakma</th><th>Tudás-átfedés</th><th></th></tr>
+    <tr><td>HR-asszisztens</td><td>62% (8 közös fogalom)</td><td><span class="gomb">🧭 Útvonalterv</span></td></tr>
+    <tr><td>Pénzügyi asszisztens</td><td>55% (6 közös fogalom)</td><td><span class="gomb">🧭 Útvonalterv</span></td></tr>
+  </table>
+</div>
+
+<p>A gombra kattintva jelenik meg az útvonalterv-kártya, 5 lépésben:</p>
+
+<div class="mock">
+  <b>🧭 Útvonalterved: Adminisztrátor → HR-asszisztens</b>
+
+  <div class="lepes"><div class="szam">1</div><div>
+    <b>Honnan indulsz</b><br>
+    <span class="cetli zold" style="display:block">A HR-asszisztensi tudás <b>62%-a már megvan</b> neked: ügyfélkezelés, adminisztráció, Excel, precizitás… <span class="megj">(forrás: saját DB, v_szakma_fogalmak)</span></span>
+  </div></div>
+
+  <div class="lepes"><div class="szam">2</div><div>
+    <b>Megéri-e anyagilag?</b><br>
+    <span class="cetli kek" style="display:block">KSH-átlag: Adminisztrátor <b>520 e Ft</b> → HR-asszisztens <b>598 e Ft</b> (bruttó/hó) = <b>+15%</b>. A mi hirdetéseinkben a medián: 480 e → 560 e Ft. <span class="megj">(forrás: piaci_statisztikak + saját DB)</span></span>
+    <span class="cetli piros" style="display:block">Ha a váltás ROSSZABB bérrel járna, azt is őszintén kimondjuk — nem tukmálunk.</span>
+  </div></div>
+
+  <div class="lepes"><div class="szam">3</div><div>
+    <b>Mi hiányzik még?</b><br>
+    <span class="cetli sarga" style="display:block">A cél-szakma hirdetéseiben gyakran kért, de nálad hiányzó fogalmak: <b>munkajogi alapok</b> (41%), <b>toborzás</b> (36%), <b>bérszámfejtés</b> (28%). <span class="megj">(forrás: szakma_atjaras → hianyzo, már számolja!)</span></span>
+  </div></div>
+
+  <div class="lepes"><div class="szam">4</div><div>
+    <b>Hol tanulod meg?</b><br>
+    <span class="cetli zold" style="display:block">📚 Kurált képzés a listánkból: „HR-alapok" — XY Akadémia, 3 hónap, link. <span class="megj">(forrás: kepzesek tábla, terulet szerint)</span></span>
+    <span class="cetli szurke" style="display:block">Ha nincs rá kurált képzésünk: „Erre a területre még nincs ellenőrzött képzés a listánkban." — NEM találunk ki semmit.</span>
+  </div></div>
+
+  <div class="lepes"><div class="szam">5</div><div>
+    <b>Milyen ott a piac?</b><br>
+    <span class="cetli kek" style="display:block">A mi adatbázisunkban <b>34 friss hirdetés</b>, <b>21 különböző cég</b> keres HR-asszisztenst. 🌡️ NFSZ-barométer: <b>javuló pozíciójú foglalkozás</b> Fejér vármegyében. <span class="megj">(forrás: saját DB + 2. RÉSZ)</span></span>
+  </div></div>
+
+  <div class="cetli szurke">✍️ A kártya végén 2-3 mondatos összefoglaló — Gemini fogalmazza (0 Ft). Ha nincs kvóta: determinisztikus sablon-szöveg (mint a körkép-fallback).</div>
+</div>
+
+<h2>2. RÉSZ — 🌡️ NFSZ hiányszakma-mutató</h2>
+
+<div class="mock">
+  <b>Forrás (felderítve):</b> az NFSZ „Munkaerőpiaci prognózisok és barométer" oldala —
+  <b>javuló / romló pozíciójú foglalkozások</b> listája, megyénként ÉS országosan.
+  Hivatalos, ingyenes. <span class="megj">nfsz.munka.hu/tart/stat_prognozisok</span>
+  <div class="cetli sarga">⚠️ Az adat JavaScriptből töltődik az oldalon → az 1. lépés a pontos adat-végpont (JSON/XLS) felderítése. Ha nincs letölthető formátum, tartalék: MMPP lekérdezési rendszer (mmpp.hu), ill. a negyedéves munkaerő-gazdálkodási felmérés dokumentumai.</div>
+</div>
+
+<div class="mock">
+  <b>Hogyan épül be (a ksh_import.py mintájára):</b>
+  <div class="lepes"><div class="szam">1</div><div>Új script: <b>scripts/nfsz_import.py</b> — negyedévente futtatható, AI nélkül, újrafuttatható (mint a KSH-import).</div></div>
+  <div class="lepes"><div class="szam">2</div><div>A meglévő <b>piaci_statisztikak</b> táblába kerül: mutato = <b>'barometer_pozicio'</b>, ertek helyett szöveges jelzés (javuló/romló), regio = megye. <b>Nem kell új tábla.</b></div></div>
+  <div class="lepes"><div class="szam">3</div><div>A Tanácsadó fülön új cetli a KSH-bér mellett: <span class="cetli kek">🌡️ <b>Piaci helyzet:</b> ez a foglalkozás Fejér vármegyében <b>javuló pozíciójú</b> (NFSZ-prognózis) → kereslet nő, jó eséllyel indulsz.</span> Romló esetén: <span class="cetli sarga">itt erősödik a verseny — érdemes az átjárási lehetőségeket is megnézni <i>(de csak ha kéred)</i>.</span></div></div>
+  <div class="lepes"><div class="szam">4</div><div>Ha a foglalkozás nincs a barométer-listán: <b>„kiegyensúlyozott / nincs NFSZ-jelzés"</b> — semmit nem találunk ki.</div></div>
+</div>
+
+<h2>❓ Döntendő kérdések (mielőtt bármit építünk)</h2>
+<div class="kerdes">
+  <b>K1:</b> A hiányzó fogalom → képzési terület párosítás (3.→4. lépés): a kepzesek táblában most 5 terület van (it / data / kereskedelem / nyelvi / altalanos). Kézzel készítsünk egy kis fogalom→terület szótárt (determinisztikus, 0 Ft), vagy Gemini döntse el futáskor?<br><br>
+  <b>K2:</b> Az útvonalterv-kártya a megye kiválasztását honnan vegye? (Fejér legyen az alapértelmezett, választható legördülővel?)<br><br>
+  <b>K3:</b> Sorrend: előbb a 2. RÉSZ felderítése+importja (hogy az 5. lépés cetlije is éles adatból menjen), vagy előbb az útvonalterv a meglévő adatokból, NFSZ nélkül?
+</div>
+
+<p class="megj">Építési sorrend-javaslat: NFSZ-végpont felderítés → nfsz_import.py → Tanácsadó-cetli → útvonalterv-kártya. Minden lépés után: teszt Andi gépén + git commit.</p>
+
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<title>Demó — A vagy B?</title>
+<style>
+  body{font-family:'Segoe UI',sans-serif;background:#0a0e1a;color:#e2e8f4;margin:0;padding:20px;}
+  h2{color:#D4A843;font-size:16px;border-bottom:1px solid #2e5080;padding-bottom:6px;}
+  .sor{display:flex;gap:12px;margin:12px 0;}
+  .kartya{flex:1;background:#111827;border:1px solid rgba(212,168,67,.3);border-radius:12px;
+    padding:16px;text-align:center;cursor:pointer;transition:all .25s;}
+  .kartya:hover{transform:translateY(-3px);border-color:#D4A843;}
+  .ikon{font-size:26px;} .cim{color:#D4A843;font-weight:700;margin:6px 0;} .lei{color:#94a3b8;font-size:12px;}
+  /* A: modal */
+  .hatter{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10;}
+  .modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);opacity:0;
+    background:#111827;border:1px solid #D4A843;border-radius:14px;padding:26px;width:340px;
+    z-index:11;transition:all .25s;pointer-events:none;}
+  .modal.nyitva{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto;}
+  .gomb{background:#D4A843;color:#0a0e1a;border:none;border-radius:8px;padding:10px 16px;
+    font-weight:700;cursor:pointer;width:100%;margin-top:12px;}
+  .fajl{border:2px dashed #2e5080;border-radius:8px;padding:18px;color:#94a3b8;font-size:13px;margin-top:10px;}
+  .bezar{float:right;color:#94a3b8;cursor:pointer;font-size:18px;}
+  /* B: pill */
+  .pillsor{display:none;gap:8px;margin:12px 0;}
+  .pill{background:#111827;border:1px solid #2e5080;border-radius:20px;padding:8px 18px;
+    font-size:13px;cursor:pointer;transition:all .2s;}
+  .pill.aktiv{background:#D4A843;color:#0a0e1a;font-weight:700;}
+  .munkater{display:none;background:#111827;border:1px solid rgba(212,168,67,.4);border-radius:12px;
+    padding:20px;margin-top:8px;animation:be .3s;}
+  @keyframes be{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<h2>A) FELUGRÓ ABLAK — kattints egy kártyára</h2>
+<div class="sor">
+  <div class="kartya" onclick="nyisd('🔍 CV-átvizsgálás')"><div class="ikon">🔍</div><div class="cim">Van CV-m — nézd át</div><div class="lei">ATS-ellenőrzés</div></div>
+  <div class="kartya" onclick="nyisd('✨ CV-átírás')"><div class="ikon">✨</div><div class="cim">Van CV-m — írd át</div><div class="lei">Robotbarát CV</div></div>
+  <div class="kartya" onclick="nyisd('✍️ Új CV')"><div class="ikon">✍️</div><div class="cim">Nincs CV-m</div><div class="lei">Készítünk egyet</div></div>
+</div>
+<div class="hatter" id="hatter" onclick="csukd()"></div>
+<div class="modal" id="modal">
+  <span class="bezar" onclick="csukd()">✕</span>
+  <div class="cim" id="mcim">🔍 CV-átvizsgálás</div>
+  <div class="fajl">📄 Húzd ide a CV-t (PDF), vagy kattints</div>
+  <button class="gomb" onclick="alert('Itt indulna az elemzés, élő állapotjelzővel.')">Indítás</button>
+</div>
+
+<h2 style="margin-top:40px;">B) PILL-SOR — kattints egy kártyára</h2>
+<div class="sor" id="bkartyak">
+  <div class="kartya" onclick="pillre(0)"><div class="ikon">🔍</div><div class="cim">Van CV-m — nézd át</div><div class="lei">ATS-ellenőrzés</div></div>
+  <div class="kartya" onclick="pillre(1)"><div class="ikon">✨</div><div class="cim">Van CV-m — írd át</div><div class="lei">Robotbarát CV</div></div>
+  <div class="kartya" onclick="pillre(2)"><div class="ikon">✍️</div><div class="cim">Nincs CV-m</div><div class="lei">Készítünk egyet</div></div>
+</div>
+<div class="pillsor" id="pillsor">
+  <div class="pill" onclick="pillre(0)">🔍 Átvizsgálás</div>
+  <div class="pill" onclick="pillre(1)">✨ Átírás</div>
+  <div class="pill" onclick="pillre(2)">✍️ Új CV</div>
+</div>
+<div class="munkater" id="munkater">
+  <div class="cim" id="bcim"></div>
+  <div class="fajl">📄 Húzd ide a CV-t (PDF), vagy kattints</div>
+  <button class="gomb" onclick="alert('Itt indulna az elemzés, élő állapotjelzővel.')">Indítás</button>
+</div>
+
+<script>
+function nyisd(c){document.getElementById('mcim').textContent=c;
+  document.getElementById('hatter').style.display='block';
+  document.getElementById('modal').classList.add('nyitva');}
+function csukd(){document.getElementById('hatter').style.display='none';
+  document.getElementById('modal').classList.remove('nyitva');}
+const nevek=['🔍 CV-átvizsgálás','✨ CV-átírás','✍️ Új CV készítése'];
+function pillre(i){
+  document.getElementById('bkartyak').style.display='none';
+  document.getElementById('pillsor').style.display='flex';
+  document.getElementById('munkater').style.display='block';
+  document.getElementById('bcim').textContent=nevek[i];
+  document.querySelectorAll('.pill').forEach((p,j)=>p.classList.toggle('aktiv',i===j));}
+</script>
+</body>
+</html>

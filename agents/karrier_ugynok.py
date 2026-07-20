@@ -906,6 +906,18 @@ def tanacsado_velemeny(szakma: str, stat: dict) -> str:
     ])
     berek = "; ".join(stat.get("bersavok", [])[:6]) or "nincs béradat"
 
+    # Hivatalos KSH-átlag is bekerül a bemenetbe, hogy MINDIG legyen bér-mondat
+    ksh_sor = "nincs KSH-adat"
+    try:
+        from utils.adatbazis import ksh_kereset
+        _ksh = ksh_kereset(szakma)
+        if _ksh and _ksh.get("ertek"):
+            ksh_sor = (f"{int(_ksh['ertek'])} Ft/hó bruttó "
+                       f"(KSH {_ksh.get('idoszak', '')}, legközelebbi foglalkozás: "
+                       f"{_ksh.get('megnevezes', '')})")
+    except Exception as e:
+        print(f"[tanacsado] KSH-lekerdezes kihagyva: {e}")
+
     prompt = f"""Tapasztalt, őszinte magyar karrier-tanácsadó vagy.
 KIZÁRÓLAG az alábbi valós piaci adatokból dolgozz — semmit ne találj ki.
 
@@ -914,12 +926,24 @@ Elemzett hirdetések száma: {stat.get('hirdetesek_szama', 0)}
 A hirdetésekben kért készségek:
 {sorok}
 Bérinfók a hirdetésekből: {berek}
+Hivatalos átlagkereset: {ksh_sor}
 
 Írj rövid, tegező, közérthető tanácsot PONTOSAN 3 bekezdésben, felsorolás nélkül:
 1. bekezdés — Mire van most valódi kereslet ebben a szakmában.
-2. bekezdés — Mivel kezdjen / mit tanuljon meg először, aki erre a pályára lép vagy fejlődne.
-3. bekezdés — Mit mutatnak a bérek, mire számíthat reálisan.
-Összesen maximum 10 mondat. Ha valamihez kevés az adat, mondd ki őszintén."""
+2. bekezdés — Mit érdemes megtanulnia/erősítenie annak, aki ebben a szakmában fejlődne.
+3. bekezdés — Mit mutatnak a bérek: ha van hirdetési bérsáv, azt írd le havi bruttó
+   Ft-ban; a hivatalos átlagkeresetet pedig mindig említsd meg viszonyítási pontként.
+Összesen maximum 10 mondat.
+SZIGORÚ SZABÁLYOK:
+- IGAZODJ A SZAKMA SZINTJÉHEZ: ha a szakma nevében "senior", "vezető" vagy hasonló
+  szint szerepel, tapasztalt szakembernek írj (mivel emelkedhet ki, mi a következő
+  lépcső) — ilyenkor TILOS pályakezdőknek szóló tanács ("kezdd az alapokkal",
+  "ha most lépsz a pályára" és hasonlók). Szint-jelölés nélküli szakmánál szólhat
+  a tanács belépőknek is.
+- KIZÁRÓLAG arról írj, amiről a fenti adatokban van információ.
+- TILOS mentegetőzni vagy leírni, hogy mire NINCS adat. A "sajnos", "nem áll
+  rendelkezésre", "nem kapunk elegendő információt" és hasonló fordulatok TILTOTTAK.
+  Amiről nincs adat, arról egyszerűen NE ejts szót."""
 
     try:
         r = requests.post(

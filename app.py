@@ -12,7 +12,8 @@ load_dotenv()
 st.set_page_config(
     page_title="Karrier-Ügynökség",
     page_icon="🕵️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed",  # a Kísérő alapból csukva — nem nyomja össze az oldalt
 )
 
 st.markdown("""
@@ -308,6 +309,78 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+# ══ 🫶 KÍSÉRŐ — felugró ablakban, az oldal elrendezéséhez nem nyúl ══
+from utils.profil import profil_osszefoglalo
+
+
+@st.dialog("🫶 Flow — munkapszichológiai kísérőd")
+def _dlg_kisero():
+    st.caption("✨ Személyre szabott támogatás, amikor elakadsz.")
+    st.markdown("**Szia! Flow vagyok, munka- és szervezetpszichológiai kísérőd.** "
+                "Abban segítek, hogy tisztábban lásd, hol tartasz most, mi hajt "
+                "igazán, és merre érdemes továbbmenned — valós piaci tényekre és "
+                "munkapszichológiára építve. **Te döntesz. Én kísérlek.**")
+    _profil_szoveg = profil_osszefoglalo()
+    if _profil_szoveg:
+        st.markdown("#### Amit eddig látok rólad")
+        st.markdown(_profil_szoveg)
+        st.info("🧭 A teljes képedhez töltsd ki a tesztet a **Karrier Tanácsadó** "
+                "fülön. *(Hamarosan elérhető)*")
+    else:
+        st.info("Még nem ismerlek. Tölts fel egy CV-t a **Karrier Ügynök** fülön, "
+                "vagy nézz szét a **Karrier Tanácsadó**-ban — követem, mire jutsz.")
+    st.caption("💬 A kérdezés itt lesz elérhető hamarosan. · "
+               "Tájékozódást segítő eszköz, nem helyettesíti a szakembert.")
+
+
+# Belépéskor EGYSZER magától előugrik, hogy a felhasználó tudjon Flow-ról
+if not st.session_state.get("kisero_bemutatva"):
+    st.session_state.kisero_bemutatva = True
+    _dlg_kisero()
+
+# ── 🫶 FLOW LEBEGŐ KARIKA — a fülsor jobb végén, az üres sávban ──
+st.markdown("""<style>
+@keyframes flow-lebeges{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-5px); }
+}
+.st-key-kisero_gomb{
+    position:static !important; height:0 !important; min-height:0 !important;
+    margin:0 !important; padding:0 !important; z-index:100 !important;
+    overflow:visible !important;
+}
+.st-key-kisero_gomb button::after{
+    content:"✨ Személyre szabott támogatás, amikor elakadsz.";
+    position:absolute; right:calc(100% + 14px); top:50%;
+    transform:translateY(-50%);
+    background:rgba(10,14,26,0.96); color:#e2e8f4;
+    border:1px solid rgba(212,168,67,0.4);
+    padding:7px 14px; border-radius:10px; font-size:13px;
+    white-space:nowrap; opacity:0; pointer-events:none;
+    transition:opacity .25s;
+}
+.st-key-kisero_gomb button:hover::after{ opacity:1; }
+.st-key-kisero_gomb button{
+    position:absolute !important; right:4.5rem !important; margin-top:-16px !important;
+    width:74px !important; height:74px !important; border-radius:50% !important;
+    padding:0 !important;
+    background:#111827 !important;
+    border:2px solid rgba(212,168,67,0.85) !important;
+    box-shadow:0 0 14px rgba(212,168,67,0.35) !important;
+    animation:flow-lebeges 3s ease-in-out infinite !important;
+}
+.st-key-kisero_gomb button:hover{
+    box-shadow:0 0 24px rgba(212,168,67,0.65) !important;
+}
+.st-key-kisero_gomb button p{ margin:0 !important; line-height:1.1 !important; }
+.st-key-kisero_gomb button p:first-child{ font-size:18px !important; }
+.st-key-kisero_gomb button p:last-child{
+    font-size:10px !important; color:#D4A843 !important; font-weight:600 !important;
+}
+</style>""", unsafe_allow_html=True)
+if st.button("🫶\n\nFlow", key="kisero_gomb"):
+    _dlg_kisero()
+
 tab_ugynok, tab_tanacsado, tab_portfolio, tab_kepzes, tab_kulfoldi = st.tabs([
     "🕵️ Karrier Ügynök",
     "🧭 Karrier Tanácsadó",
@@ -329,14 +402,71 @@ with tab_ugynok:
     def _valt_mod(uj_mod):
         st.session_state.belepo_mod = uj_mod
         st.session_state.mutasd_allasok = False
+        st.rerun()
+
+    # ── FELUGRÓ ABLAK: CV-átvizsgálás (feltöltés + indítás + élő állapot) ──
+    @st.dialog("🔍 CV-átvizsgálás — robotszűrő (ATS)")
+    def _dlg_elemez():
+        st.caption("Megnézzük, átmegy-e a robotszűrőn, és mi miatt szűrne ki. A CV-det nem írjuk át.")
+        _van = bool(st.session_state.get("cv_szoveg_global", "").strip())
+        cv_file = None
+        if _van:
+            st.success("A korábban feltöltött CV-det használjuk.")
+            if st.checkbox("Másik CV-t töltök fel", key="dlg_csere_elemez"):
+                cv_file = st.file_uploader("CV (PDF)", type=["pdf"], key="dlg_cv_elemez")
+                _van = cv_file is not None
+        else:
+            cv_file = st.file_uploader("CV (PDF)", type=["pdf"], key="dlg_cv_elemez")
+            _van = cv_file is not None
+        if st.button("🔍 Indítás", type="primary", use_container_width=True,
+                     disabled=not _van, key="dlg_indit_elemez"):
+            if cv_file is not None:
+                with pdfplumber.open(cv_file) as pdf:
+                    st.session_state.cv_szoveg_global = "".join(
+                        [p.extract_text() or "" for p in pdf.pages])
+            with st.status("🔍 Elemzés folyamatban…", expanded=True) as _a:
+                st.write("📄 CV beolvasva.")
+                st.write("🔎 Friss hirdetések keresése és összevetés — 1-2 perc, ne zárd be.")
+                from agents.karrier_ugynok import run as ugynok_run
+                st.session_state.tab1_eredmeny = ugynok_run(
+                    cv_szoveg=st.session_state.get("cv_szoveg_global", ""),
+                    szakma_megadva="", helyszin="Budapest")
+                st.session_state.belepo_mod = "elemez"
+                st.session_state.belepo_mod_aktiv = "elemez"
+                st.session_state.tan_kovesse_cv = True
+                st.session_state.pop("tan_gap_eredmeny", None)
+                # ── PROFIL-ÉPÍTÉS: a kísérő innen tudja, kivel beszél ──
+                from utils.profil import profil_frissit
+                _er = st.session_state.tab1_eredmeny or {}
+                _szi_p = _er.get("szakma_info", {}) or {}
+                _diag_p = _er.get("diagnozis", {}) or {}
+                profil_frissit(
+                    szakma=_szi_p.get("szakma"),
+                    keszsegek=_diag_p.get("meglevo_kulcsszavak"),
+                    ats_illeszkedes=_diag_p.get("illeszkedes_szazalek"),
+                )
+                _a.update(label="✅ Kész!", state="complete")
+            st.session_state.ugorj_eredmenyre = True
+            st.rerun()  # az ablak becsukódik, az eredmény az oldalon jelenik meg
 
     van_cv = bool(st.session_state.get("cv_szoveg_global", "").strip())
 
-    # ── HÁROM BELÉPŐ KÁRTYA ───────────────────────────────────
+    mod = st.session_state.get("belepo_mod")
+
+    # ── HÁROM BELÉPŐ KÁRTYA — MINDIG láthatóak. A kiválasztott arany
+    #    kerettel kiemelve, a többi halványítva. Nincs eltűnés, nincs ugrálás,
+    #    bármikor át lehet kattintani a másikra. ──
+    def _kartya_stilus(sajat):
+        if mod == sajat:
+            return "border:2px solid #D4A843; box-shadow:0 0 16px rgba(212,168,67,0.35); opacity:1;"
+        if mod:
+            return "border:1px solid rgba(212,168,67,0.12); opacity:0.45;"
+        return "border:1px solid rgba(212,168,67,0.3); opacity:1;"
+
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("""
-        <div style="background:#111827; border:1px solid rgba(212,168,67,0.3);
+        st.markdown(f"""
+        <div style="background:#111827; {_kartya_stilus('elemez')}
                     border-radius:12px; padding:18px; text-align:center; min-height:140px;">
             <div style="font-size:28px; margin-bottom:6px;">🔍</div>
             <div style="color:#D4A843; font-weight:700; font-size:15px; margin-bottom:6px;">Van CV-m — nézd át</div>
@@ -344,10 +474,10 @@ with tab_ugynok:
         </div>
         """, unsafe_allow_html=True)
         if st.button("🔍 Átvizsgálom", key="mod_elemez", use_container_width=True):
-            _valt_mod("elemez")
+            _dlg_elemez()  # felugró ablak nyílik
     with c2:
-        st.markdown("""
-        <div style="background:#111827; border:1px solid rgba(212,168,67,0.3);
+        st.markdown(f"""
+        <div style="background:#111827; {_kartya_stilus('atir')}
                     border-radius:12px; padding:18px; text-align:center; min-height:140px;">
             <div style="font-size:28px; margin-bottom:6px;">✨</div>
             <div style="color:#D4A843; font-weight:700; font-size:15px; margin-bottom:6px;">Van CV-m — írd át</div>
@@ -357,8 +487,8 @@ with tab_ugynok:
         if st.button("✨ Átírom és pályázom", key="mod_atir", use_container_width=True):
             _valt_mod("atir")
     with c3:
-        st.markdown("""
-        <div style="background:#111827; border:1px solid rgba(212,168,67,0.15);
+        st.markdown(f"""
+        <div style="background:#111827; {_kartya_stilus('keszit')}
                     border-radius:12px; padding:18px; text-align:center; min-height:140px;">
             <div style="font-size:28px; margin-bottom:6px;">✍️</div>
             <div style="color:#e2e8f4; font-weight:700; font-size:15px; margin-bottom:6px;">Nincs CV-m</div>
@@ -368,7 +498,6 @@ with tab_ugynok:
         if st.button("✍️ Készíttetek egyet", key="mod_keszit", use_container_width=True):
             _valt_mod("keszit")
 
-    mod = st.session_state.get("belepo_mod")
     if van_cv:
         st.caption("✅ A CV-d betöltve – bármelyik kártyánál ezzel dolgozhatsz tovább, nem kell újra feltölteni.")
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
@@ -377,39 +506,8 @@ with tab_ugynok:
     # K1 — VAN CV-M, NÉZD ÁT (csak elemzés, nem ír át)
     # ════════════════════════════════════════════════════════
     if mod == "elemez":
-        st.markdown("---")
-        st.info("📄 Megnézzük, **átmegy-e a robotszűrőn (ATS)**, és mi miatt szűrne ki. A CV-det **nem** írjuk át.")
-
-        cv_kell = not van_cv or st.session_state.get("csere_elemez", False)
-        cv_file = None
-        if cv_kell:
-            cv_file = st.file_uploader("CV feltöltése (PDF)", type=["pdf"], key="cv_up_elemez", label_visibility="collapsed")
-        else:
-            cc1, cc2 = st.columns([3, 1])
-            with cc1:
-                st.success("A korábban feltöltött CV-det használjuk.")
-            with cc2:
-                if st.button("🔄 Másikat töltök fel", key="csere_elemez_gomb", use_container_width=True):
-                    st.session_state.csere_elemez = True
-                    st.rerun()
-
-        indit = st.button("🔍 Nézd át a CV-met", type="primary", key="akcio_elemez",
-                          disabled=(cv_kell and cv_file is None), use_container_width=True)
-        if indit:
-            if cv_file is not None:
-                with pdfplumber.open(cv_file) as pdf:
-                    st.session_state.cv_szoveg_global = "".join([p.extract_text() or "" for p in pdf.pages])
-                st.session_state.csere_elemez = False
-            with st.spinner("🔍 Robotszűrő-elemzés..."):
-                from agents.karrier_ugynok import run as ugynok_run
-                st.session_state.tab1_eredmeny = ugynok_run(
-                    cv_szoveg=st.session_state.get("cv_szoveg_global", ""),
-                    szakma_megadva="", helyszin="Budapest")
-                st.session_state.belepo_mod_aktiv = "elemez"
-                st.session_state.ugorj_elemzesre = True
-                st.session_state.tan_kovesse_cv = True
-                st.session_state.pop("tan_gap_eredmeny", None)
-
+        # A feltöltés + indítás a felugró ablakban történik (_dlg_elemez),
+        # itt már csak az eredmény jelenik meg.
         if st.session_state.get("tab1_eredmeny") and st.session_state.get("belepo_mod_aktiv") == "elemez":
             er = st.session_state.tab1_eredmeny
             if "hiba" in er:
@@ -418,11 +516,11 @@ with tab_ugynok:
                 _diag = er.get("diagnozis", {})
                 _szi = er.get("szakma_info", {})
                 st.markdown("<div id='elemzes-eredmeny'></div>", unsafe_allow_html=True)
-                if st.session_state.pop("ugorj_elemzesre", False):
-                    components.html("""<script>
-                        const el = window.parent.document.getElementById('elemzes-eredmeny');
+                if st.session_state.pop("ugorj_eredmenyre", False):
+                    components.html("""<script>setTimeout(function(){
+                        var el = window.parent.document.getElementById('elemzes-eredmeny');
                         if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
-                    </script>""", height=0)
+                    }, 300);</script>""", height=0)
                 st.markdown("---")
                 st.markdown(f"### 🔍 Azonosított szakma: `{_szi.get('szakma','')}`")
                 if _diag:
@@ -437,7 +535,24 @@ with tab_ugynok:
                     if _me:
                         m_html = "".join([f"<div style='color:#94a3b8;font-size:13px;padding:4px 0;'>\u2713 <strong style='color:#4ade80;'>{k}</strong></div>" for k in _me[:5]])
                         st.markdown(f"""<div style="background:#0a1a0a;border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:16px;margin:12px 0;"><div style="color:#4ade80;font-weight:700;margin-bottom:8px;">\u2705 Ezek m\u00e1r szerepelnek a CV-dben:</div>{m_html}</div>""", unsafe_allow_html=True)
-                st.markdown("""<div style="background:linear-gradient(135deg,#1a1500,#0a0e1a);border:1px solid rgba(212,168,67,0.5);border-radius:12px;padding:24px;text-align:center;margin-top:16px;"><div style="color:#D4A843;font-weight:800;font-size:17px;margin-bottom:6px;">Szeretnéd, hogy átjusson a szűrőn?</div><div style="color:#e2e8f4;font-size:14px;">Válaszd fent a <strong>„✨ Van CV-m — írd át”</strong> kártyát – elkészítjük a robotbarát CV-det, és akár 5 állásra szabott jelentkezést is. A CV-det már nem kell újra feltöltened.</div><div style="color:#e2e8f4;font-size:14px;margin-top:12px;border-top:1px solid rgba(212,168,67,0.25);padding-top:12px;">🧭 <strong>Vagy előbb tanács kellene?</strong> A felső <strong>„🧭 Karrier Tanácsadó”</strong> fülön megmutatjuk, mit kér most a piac a szakmádban, mennyit fizet, és a CV-d alapján személyre szabott tervet is kapsz — merre érdemes fejlődnöd vagy akár átképzened magad.</div></div>""", unsafe_allow_html=True)
+                components.html("""
+<div style="font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#1a1500,#0a0e1a);border:1px solid rgba(212,168,67,0.5);border-radius:12px;padding:24px;text-align:center;">
+<div style="color:#D4A843;font-weight:800;font-size:17px;margin-bottom:6px;">Szeretnéd, hogy átjusson a szűrőn?</div>
+<div style="color:#e2e8f4;font-size:14px;">Válaszd fent a <a style="color:#D4A843;font-weight:700;text-decoration:underline;cursor:pointer;" onclick="gomb('Átírom és pályázom')">„✨ Van CV-m — írd át”</a> kártyát – elkészítjük a robotbarát CV-det, és akár 5 állásra szabott jelentkezést is. A CV-det már nem kell újra feltöltened.</div>
+<div style="color:#e2e8f4;font-size:14px;margin-top:12px;border-top:1px solid rgba(212,168,67,0.25);padding-top:12px;">🧭 <strong>Vagy előbb tanács kellene?</strong> A felső <a style="color:#D4A843;font-weight:700;text-decoration:underline;cursor:pointer;" onclick="ful('Tanácsadó')">„🧭 Karrier Tanácsadó”</a> fülön megmutatjuk, mit kér most a piac a szakmádban, mennyit fizet, és a CV-d alapján személyre szabott tervet is kapsz — merre érdemes fejlődnöd vagy akár <a style="color:#D4A843;font-weight:700;text-decoration:underline;cursor:pointer;" onclick="ful('Képzések')">átképzened magad</a>.</div>
+</div>
+<script>
+function ful(nev){
+  var t = Array.from(window.parent.document.querySelectorAll('button[role=tab]'))
+               .find(function(x){return x.innerText.indexOf(nev) !== -1;});
+  if (t) { t.click(); window.parent.scrollTo({top:0, behavior:'smooth'}); }
+}
+function gomb(nev){
+  var b = Array.from(window.parent.document.querySelectorAll('button'))
+               .find(function(x){return x.innerText.indexOf(nev) !== -1;});
+  if (b) { b.click(); window.parent.scrollTo({top:0, behavior:'smooth'}); }
+}
+</script>""", height=250)
                 st.caption("📚 Tipp: a felső „Képzések” fülön piacképes képzéseket ajánlunk, amivel erősebb lehetsz.")
 
     # ════════════════════════════════════════════════════════
@@ -1431,15 +1546,17 @@ with tab_tanacsado:
             if _talalt:
                 st.session_state["tan_szakma"] = _talalt
 
-        _idx = 0
-        _talalt_idx = _szakma_talalat(_felismert, _nevek)
-        if _talalt_idx:
-            _idx = _nevek.index(_talalt_idx)
+        # Üres alapértelmezés: elemzés CSAK akkor indul, ha a felhasználó választott.
+        # (A CV-elemzés utáni automatikus átugrás maradt — azt a felhasználó indította.)
+        _URES = "— válassz szakmát —"
+        _opciok = [_URES] + _nevek
 
-        _valasztott = st.selectbox("Melyik szakma érdekel?", _nevek, index=_idx, key="tan_szakma")
-        _stat = szakma_statisztika(_valasztott)
+        _valasztott = st.selectbox("Melyik szakma érdekel?", _opciok, index=0, key="tan_szakma")
+        _stat = szakma_statisztika(_valasztott) if _valasztott != _URES else None
 
-        if not _stat or not _stat.get("keszsegek"):
+        if _valasztott == _URES:
+            st.info("👆 Válassz egy szakmát a listából — addig nem indítunk elemzést.")
+        elif not _stat or not _stat.get("keszsegek"):
             st.warning("Ehhez a szakmához még kevés az adat — pár nap gyűjtés után térj vissza.")
         else:
             st.markdown(f"#### {_valasztott} — {_stat.get('hirdetesek_szama', 0)} valódi hirdetés elemzése alapján")
@@ -1473,10 +1590,6 @@ with tab_tanacsado:
 
             # ── PIACI RÉSZLETEK — a kincsesbánya, jól láthatóan ──
             st.markdown("### 📊 Mit kérnek a hirdetések?")
-            if _stat.get("hirdetesek_szama", 0) < 40:
-                st.caption(f"⚠️ Ennél a szakmánál még kevés a hirdetés "
-                           f"({_stat.get('hirdetesek_szama', 0)} db) — a kép a napi "
-                           f"gyűjtéssel egyre pontosabb lesz.")
             _blokkok = [
                 ("eszkoz", "🛠 Eszközök, technológiák"),
                 ("feladat", "📋 Tipikus feladatok"),
@@ -1638,3 +1751,4 @@ with tab_tanacsado:
                 border:1px solid rgba(212,168,67,0.5); border-radius:12px;
                 padding:16px 20px; color:#e2e8f4; font-size:14px;">{_lep_html}</div>""",
                 unsafe_allow_html=True)
+
