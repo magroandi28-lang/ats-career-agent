@@ -35,6 +35,14 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/keszseg_potlo.py
 
+      # Ami a Gemini-keretbol kimaradt: szotar-cimkezes (0 Ft, AI nelkul)
+      - name: Szotar-cimkezo futtatasa
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/keszseg_szotaras.py
+
       # Adatminoseg-jelentes minden nap — az Actions naplojaban olvashato
       - name: Adator (adatminoseg-jelentes)
         if: always()

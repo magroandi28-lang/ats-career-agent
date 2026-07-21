@@ -64,11 +64,27 @@ KÜLÖN fogy; éjfél (US) után töltődik.
 9. "Kész" csak az, amire Andi mondja. Flow hangneme: informál, nem dönt; erősség-
    alapú; kiégettnek/bántalmazottnak támogató, sosem számonkérő.
 
+## ESTI HAJRÁ EREDMÉNYEI (még 07-20)
+- TUDÁSBÁZIS 2. KÖR: +1989 szakasz (Hajduska Krízislélektan!, Ivey, Selye,
+  Andi saját jegyzetei, mentálhigiénés kézikönyv, tanácsadás-jegyzetek) →
+  zajszűrés után 2735 TISZTA szakasz. Kereskedelmi könyvek (Máté G. stb.)
+  szerzői jog miatt KIHAGYVA. Gelsei szkennelt → OCR-listán.
+- scripts/tudas_zajszuro.py — tudásbázis-zajszűrő (előnézet + --torol)
+- scripts/adat_or.py — ADATŐR: teljes adatminőség-jelentés (csak jelent!)
+- Szakma-duplikátum javítva (Bolti/bolti eladó) + szakma_ment írásmód-érzéketlen
+- GitHub Actions bővítve: hajnali gyűjtés + keszseg_potlo + adat_or AUTOMATA —
+  a jelentés az Actions fülön olvasható, kézi futtatás nem kell!
+- RAG-jegyzet: morzsaszám-emelés (4→10) JÓVÁHAGYVA de a zajszűrés utánra
+  halasztva — MOST MÁR MEHET; később: multi-query RAG.
+
 ## ÁLLAPOT + NYITOTT FELADATOK (prioritás szerint)
-0. NAPI: python scripts/keszseg_potlo.py — ~315 hirdetés vár készség-címkére
-   (Gemini-kerettel megy, magától áll le, újrafuttatható)
-1. Cetli-százalékok fogalom-szintre (B opció, jóváhagyva) + összevonás-finomítás
-2. Szektor-körkép a Piaci Körkép fülre
+0. AUTOMATA (nem kell kézzel!): hajnali gyűjtés + készség-pótló + adatőr.
+   Adatőr-jelentés: GitHub → Actions fül → legutóbbi futás.
+1. Morzsaszám 4→10 a Flow-keresésben (jóváhagyva, zajszűrés kész — MEHET)
+2. Cetli-százalékok fogalom-szintre (B opció, jóváhagyva) + összevonás-finomítás
+3. Adatőr-jelzések rendezése: cég-névvariánsok összevonója (14 csoport),
+   rokonnév-szakmák (raktáros ~ Raktári kisegítő), 8 hosszú készségnév
+4. Szektor-körkép a Piaci Körkép fülre
 3. Tudásbázis-bővítés: krízis-anyag ÉLETSZAKASZOKRA bontva (forráskeresés,
    Andi kurálja!) — Delfi örökösei ELVETVE
 4. Tesztelési réteg + CI (pytest a determinisztikus függvényekre — Ruander

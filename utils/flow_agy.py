@@ -148,7 +148,7 @@ def flow_kiertekeles(profil: dict) -> str:
     kereso_szoveg = (f"karrier érdeklődés személyiségtípus {profil.get('holland_tipus', '')} "
                      f"karrierhorgony {profil.get('karrierhorgony', '')} "
                      f"munkahelyi jóllét kiégés motiváció")
-    szakaszok = tudas_kereses(kereso_szoveg, darab=5)
+    szakaszok = tudas_kereses(kereso_szoveg, darab=10)
     tudas = "\n\n".join(
         f"[{s['forras']}]\n{s['szoveg'][:1200]}" for s in szakaszok) or "nincs találat"
 
@@ -193,7 +193,7 @@ def flow_valasz(kerdes: str, profil: dict, app_ismeret: str = "",
     """Chat-válasz: profil + tudásbázis + app-ismeret alapján."""
     if not GEMINI_KEY or not kerdes:
         return ""
-    szakaszok = tudas_kereses(kerdes, darab=4)
+    szakaszok = tudas_kereses(kerdes, darab=10)
     tudas = "\n\n".join(
         f"[{s['forras']}]\n{s['szoveg'][:1000]}" for s in szakaszok) or "nincs találat"
     profil_sorok = "\n".join(f"- {k}: {v}" for k, v in (profil or {}).items() if v)
