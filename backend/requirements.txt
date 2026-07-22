@@ -3,3 +3,7 @@ uvicorn[standard]
 pytest
 httpx
 python-multipart
+requests
+beautifulsoup4
+python-dotenv
+supabase
