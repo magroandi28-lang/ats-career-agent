@@ -17,6 +17,7 @@ Utana a bongeszoben:
 """
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from agents.karrier_ugynok import (
@@ -36,6 +37,20 @@ from utils.flow_agy import flow_kiertekeles, flow_valasz
 from backend.auth import jelenlegi_felhasznalo, friss_auth_kliens
 
 app = FastAPI(title="Karrier-Ugynokseg API")
+
+# Enged: a Vercelen elo React/Next.js oldal (es a helyi fejlesztoi szerver is)
+# hivhassa ezt a backendet a bongeszobol. CORS nelkul a bongeszo blokkolna
+# a valaszt, meg akkor is, ha a szerver maga rendesen valaszolt.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://ats-career-agent-z3od.vercel.app",
+        "http://localhost:3000",
+    ],
+    allow_origin_regex=r"https://ats-career-agent-z3od.*\.vercel\.app",
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/healthz")
