@@ -1,4 +1,4 @@
-name: Jooble gyujto (napi)
+name: Napi gyujtes (Jooble + EURES)
 
 on:
   schedule:
@@ -25,6 +25,15 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/jooble_gyujto.py
+
+      # EURES (NFSZ-forras) - a Jooble-tol strukturalisan fuggetlen, ingyenes forras
+      - name: EURES-HU gyujtes futtatasa
+        if: always()
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/eures_gyujto.py
 
       # A cimke nelkul maradt hirdetesek potlasa (a friss napi Gemini-kerettel)
       - name: Keszseg-potlo futtatasa

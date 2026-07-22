@@ -2,7 +2,6 @@
 # Portfolio Generátor Ágens - agents/portfolio_generator.py
 # CV (PDF) → adatkinyerés → HTML portfólió generálás
 
-import anthropic
 import json
 import os
 import re
@@ -10,9 +9,9 @@ import base64
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv()
+from utils.openai_kliens import gpt, GYORS, MINOSEGI
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+load_dotenv()
 
 SABLON_UTVONAL = "templates/portfolio_sablon.html"
 
@@ -132,11 +131,8 @@ Válaszolj KIZÁRÓLAG ezzel a JSON struktúrával, semmi más szöveg ne legyen
 A "szakma_kiemelesek" mezőbe CSAK akkor tegyél elemeket, ha a CV-ben TÉNYLEGESEN szerepelnek
 ilyenek (publikációk, tanúsítványok, díjak, kiemelt eredmények, ügytípusok). Ha nincs ilyen, adj üres listát: []."""
 
-    response = client.messages.create(
-        model="claude-haiku-4-5", max_tokens=2000,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    szoveg = response.content[0].text.strip()
+    szoveg = gpt([{"role": "user", "content": prompt}],
+                 model=GYORS, max_tokens=2000, reasoning_effort="low")
     if "```json" in szoveg:
         szoveg = szoveg.split("```json")[1].split("```")[0].strip()
     elif "```" in szoveg:
@@ -177,11 +173,7 @@ A jelölt adatai:
   "kontakt_szoveg": "1-2 mondatos megszólítás a recruitereknek"
 }}"""
 
-    response = client.messages.create(
-        model="claude-sonnet-4-5", max_tokens=1200,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    szoveg = response.content[0].text.strip()
+    szoveg = gpt([{"role": "user", "content": prompt}], model=MINOSEGI, max_tokens=1200)
     if "```json" in szoveg:
         szoveg = szoveg.split("```json")[1].split("```")[0].strip()
     elif "```" in szoveg:
@@ -571,12 +563,9 @@ Szabályok:
 - A szövegeket MINDIG kész, magyaros, profi formában add (ne instrukciót)."""
 
     try:
-        resp = client.messages.create(
-            model="claude-sonnet-4-5", max_tokens=1200,
-            system=rendszer,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        t = resp.content[0].text.strip()
+        t = gpt([{"role": "system", "content": rendszer},
+                 {"role": "user", "content": prompt}],
+                model=MINOSEGI, max_tokens=1200)
         if "```json" in t:
             t = t.split("```json")[1].split("```")[0].strip()
         elif "```" in t:

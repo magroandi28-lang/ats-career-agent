@@ -13,3 +13,9 @@ Képernyőkép*
 
 # Kísérleti fájlok
 proba.py
+
+# Frontend (Next.js) — a géped generálja le magának `npm install`-lal,
+# soha nem kell szinkronizálni/committolni (nagyon sok apró fájl lenne)
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local

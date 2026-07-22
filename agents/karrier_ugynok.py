@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # Karrier Ügynök Ágens - agents/karrier_ugynok.py
 
-import anthropic
 import requests
 import os
 import re
@@ -16,11 +15,14 @@ from utils.adatbazis import (
     ceginfo_cache_lekerdez,
     ceginfo_cache_ment,
     friss_hirdetesek,
+    kereslet_korkep,
+    keszsegek_hirdetesekhez,
+    szakma_statisztika,
 )
+from utils.openai_kliens import gpt, GYORS, MINOSEGI
 
 load_dotenv()
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 JOOBLE_API_KEY = os.getenv("JOOBLE_API_KEY")
 
@@ -160,13 +162,8 @@ Szabályok:
 - IT-snél: Python, FastAPI, Docker, REST API, agilis módszertan
 - ajanlott_cegek: 5 KONKRÉT, VALÓDI, MAGYARORSZÁGON működő cég, amelyik ezt a szakmát foglalkoztatja ÉS valószínűleg van karrier/állás oldala. Példák az elvre: bolti eladónál Aldi, Lidl, SPAR, Tesco, Penny; szoftverfejlesztőnél EPAM, Cisco, Ericsson, Continental, LogMeIn. A szakmához illő, ismert munkáltatókat adj."""
 
-    response = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=600,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    szoveg = response.content[0].text.strip()
+    szoveg = gpt([{"role": "user", "content": prompt}],
+                 model=GYORS, max_tokens=600, reasoning_effort="low")
     if "```json" in szoveg:
         szoveg = szoveg.split("```json")[1].split("```")[0].strip()
     elif "```" in szoveg:
@@ -234,7 +231,7 @@ def oldal_letoltes(url: str) -> dict:
         return {"szoveg": "", "linkek": []}
 
 
-def allasok_kinyerese_oldalbol(szoveg: str, linkek: list, szakma: str, client) -> list:
+def allasok_kinyerese_oldalbol(szoveg: str, linkek: list, szakma: str) -> list:
     """A modell kiszedi a tiszta szövegből a konkrét, AKTUÁLIS állásokat (max 5/oldal),
     a lejárt hirdetéseket kihagyja, és — ha tudja — minden álláshoz a saját
     konkrét linkjét és dátumát párosítja a megadott link-listából."""
@@ -275,11 +272,8 @@ Válaszolj KIZÁRÓLAG JSON-tömbként:
 ]
 Ha nincs aktuális, konkrét állás a szövegben, adj vissza üres tömböt: []"""
     try:
-        resp = client.messages.create(
-            model="claude-haiku-4-5", max_tokens=1500, temperature=0,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        t = resp.content[0].text.strip()
+        t = gpt([{"role": "user", "content": prompt}],
+                model=GYORS, max_tokens=1500, reasoning_effort="low")
         if "```json" in t:
             t = t.split("```json")[1].split("```")[0].strip()
         elif "```" in t:
@@ -400,7 +394,7 @@ def allasok_keresese(szakma: str, helyszin: str = "Budapest", ajanlott_cegek: li
         oldal_linkek = letoltve.get("linkek", [])
         if not szoveg:
             continue
-        kinyert = allasok_kinyerese_oldalbol(szoveg, oldal_linkek, szakma, client)
+        kinyert = allasok_kinyerese_oldalbol(szoveg, oldal_linkek, szakma)
         for a in kinyert:
             # Lejárt szűrő minden forrásra
             if _lejart_e(a):
@@ -435,7 +429,7 @@ def allasok_keresese(szakma: str, helyszin: str = "Budapest", ajanlott_cegek: li
 def ceginfo_kereses(ceg_nev: str) -> dict:
     """
     TESZT_MOD = True  -> mock adat (ingyenes, azonnali)
-    TESZT_MOD = False -> éles SerpAPI + Claude (ceginfo_agensek)
+    TESZT_MOD = False -> éles SerpAPI + OpenAI (ceginfo_agensek)
     """
     if TESZT_MOD:
         print(f"  Céginfó (MOCK): {ceg_nev}")
@@ -515,14 +509,8 @@ SZIGORÚ szabályok:
 - Egy fogalom nem lehet egyszerre meglévő ÉS hiányzó.
 - Hiányzó csak az lehet, aminek jelentése sehogy sem szerepel a CV-ben."""
 
-    response = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=1000,
-        temperature=0,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    szoveg = response.content[0].text.strip()
+    szoveg = gpt([{"role": "user", "content": prompt}],
+                 model=GYORS, max_tokens=1000, reasoning_effort="low")
     if "```json" in szoveg:
         szoveg = szoveg.split("```json")[1].split("```")[0].strip()
     elif "```" in szoveg:
@@ -539,6 +527,115 @@ SZIGORÚ szabályok:
             "fo_problema": "",
             "kepzes_kell": False
         }
+
+
+# ── 4/B. ATS-DIAGNÓZIS — DETERMINISZTIKUS VÁLTOZAT ───────────
+
+KUSZOB_ATS_ESELYE = 50  # % — ez alatt "kepzes_kell" es "nincs sok eselye"
+
+
+def ats_diagnozis_determinisztikus(cv_szoveg: str, szakma_info: dict) -> dict:
+    """
+    NEM AI szamolja a szazalekot: a szakma mar osszegyujtott keszseg-
+    statisztikajabol dolgozik (v_szakma_keszsegek nezet, lasd
+    szakma_statisztika() az utils/adatbazis.py-ban).
+
+    Az AI szerepe egyetlen, hatarolt feladatra szukul: eldonteni, hogy egy
+    FIX listan szereplo keszsegnevek kozul melyik van meg a CV-ben (barmilyen,
+    akar pongyola megfogalmazasban -- pl. "kasszaztam" = "penztargep
+    kezelese"). Ez zart igen/nem osztalyozas, nem szabad szoveges kinyeres --
+    igy sokkal kevesebb ter marad AI-valtozekonysagnak, mint a regi
+    ats_diagnozis()-nal, ahol az AI a szazalekot ES a hianyzo-darabszamokat
+    is minden hivasnal ujra "kitalalta" (ez okozta, hogy ugyanaz a CV
+    haromszor feltoltve haromfele hianyzo-listat adott).
+
+    Ugyanazokat a kulcsokat adja vissza, mint a regi ats_diagnozis(), hogy a
+    kepzes_ajanlat()/cv_atiras() valtoztatas nelkul hasznalhassa majd.
+    """
+    szakma = szakma_info.get("szakma", "")
+    stat = szakma_statisztika(szakma)
+    keszsegek = (stat.get("keszsegek") or [])[:20]  # legfeljebb 20 leggyakoribb
+
+    if not keszsegek:
+        return {
+            "illeszkedes_szazalek": 0,
+            "van_eselye": True,
+            "hianyzo_kulcsszavak": [],
+            "meglevo_kulcsszavak": [],
+            "fo_problema": "Még nincs elég készség-adat ehhez a szakmához.",
+            "kepzes_kell": False,
+        }
+
+    if not cv_szoveg.strip():
+        hianyzo = [
+            {"szo": k["keszseg"], "hirdetesek_szama": k["elofordulas"],
+             "fontos": k["hirdetesek_szazaleka"] >= 50}
+            for k in keszsegek
+        ]
+        hianyzo.sort(key=lambda h: -h["hirdetesek_szama"])
+        return {
+            "illeszkedes_szazalek": 0,
+            "van_eselye": False,
+            "hianyzo_kulcsszavak": hianyzo,
+            "meglevo_kulcsszavak": [],
+            "fo_problema": "Nincs feltöltött CV, nincs mivel összevetni.",
+            "kepzes_kell": False,
+        }
+
+    nevek = [k["keszseg"] for k in keszsegek]
+    prompt = f"""Az alábbi listában szakmai készségek/elvárások nevei vannak.
+Döntsd el, MELYIK szerepel a CV-ben -- bármilyen, akár pongyola megfogalmazásban
+(pl. "kasszáztam" = "pénztárgép kezelése"). Csak azokat sorold fel, amik
+TÉNYLEG megvannak a CV alapján.
+
+Lista:
+{chr(10).join(f"- {n}" for n in nevek)}
+
+CV:
+{cv_szoveg}
+
+Válaszolj KIZÁRÓLAG JSON tömbként, a lista EREDETI nevein, más szöveg nélkül:
+["nev1", "nev2", ...]
+Ha semmi nem található meg, üres tömb: []"""
+
+    megvan_nevek = set()
+    try:
+        szoveg = gpt([{"role": "user", "content": prompt}],
+                      model=GYORS, max_tokens=400, reasoning_effort="low")
+        if "```json" in szoveg:
+            szoveg = szoveg.split("```json")[1].split("```")[0].strip()
+        elif "```" in szoveg:
+            szoveg = szoveg.split("```")[1].split("```")[0].strip()
+        megvan_nevek = {n.strip().lower() for n in json.loads(szoveg)}
+    except Exception as e:
+        print(f"[ats_diagnozis_determinisztikus] AI-kinyeres hiba: {e}")
+
+    meglevo, hianyzo = [], []
+    ossz_suly = sum(k["hirdetesek_szazaleka"] for k in keszsegek) or 1
+    talalt_suly = 0
+    for k in keszsegek:
+        if k["keszseg"].strip().lower() in megvan_nevek:
+            meglevo.append(k["keszseg"])
+            talalt_suly += k["hirdetesek_szazaleka"]
+        else:
+            hianyzo.append({
+                "szo": k["keszseg"],
+                "hirdetesek_szama": k["elofordulas"],
+                "fontos": k["hirdetesek_szazaleka"] >= 50,
+            })
+    hianyzo.sort(key=lambda h: -h["hirdetesek_szama"])
+
+    illeszkedes = round(100 * talalt_suly / ossz_suly)
+
+    return {
+        "illeszkedes_szazalek": illeszkedes,
+        "van_eselye": illeszkedes >= KUSZOB_ATS_ESELYE,
+        "hianyzo_kulcsszavak": hianyzo,
+        "meglevo_kulcsszavak": meglevo,
+        "fo_problema": (f"Leggyakrabban hiányzik: {hianyzo[0]['szo']}"
+                         if hianyzo else "Nincs jelentős hiány."),
+        "kepzes_kell": illeszkedes < KUSZOB_ATS_ESELYE,
+    }
 
 
 # ── 5. CV ÁTÍRÁS ─────────────────────────────────────────────
@@ -601,13 +698,7 @@ Készíts egy profi, magyaros CV-t:
 
 Csak a kész CV szövegét add vissza, Markdown formátumban."""
 
-    response = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=1500,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    return response.content[0].text.strip()
+    return gpt([{"role": "user", "content": prompt}], model=MINOSEGI, max_tokens=1500)
 
 
 # ── 6. MOTIVÁCIÓS LEVÉL ──────────────────────────────────────
@@ -664,13 +755,7 @@ FONTOS:
 
 Csak a kész levelet add vissza."""
 
-    response = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=800,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    return response.content[0].text.strip()
+    return gpt([{"role": "user", "content": prompt}], model=MINOSEGI, max_tokens=800)
 
 
 # ── 7. KÉPZÉS AJÁNLAT (kurált adatbázisból, API nélkül) ──────
@@ -759,13 +844,8 @@ Válaszolj KIZÁRÓLAG JSON-tömbként, a legjobbtól a leggyengébbig rendezve:
 Csak a hirdetések sorszámait (index) használd, semmi mást ne adj hozzá."""
 
     try:
-        response = client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=800,
-            temperature=0,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        szoveg = response.content[0].text.strip()
+        szoveg = gpt([{"role": "user", "content": prompt}],
+                     model=GYORS, max_tokens=800, reasoning_effort="low")
         if "```json" in szoveg:
             szoveg = szoveg.split("```json")[1].split("```")[0].strip()
         elif "```" in szoveg:
@@ -790,6 +870,132 @@ Csak a hirdetések sorszámait (index) használd, semmi mást ne adj hozzá."""
     if not eredmeny:
         eredmeny = [dict(a, illeszkedes=0, indoklas="") for a in allasok[:top_n]]
     return eredmeny
+
+
+# ── 7/B-2. DETERMINISZTIKUS RANGSOROLÁS (nem AI — halmaz-egyezés) ────────
+
+def allasok_rangsorolasa_determinisztikus(cv_kulcsszavak: list, allasok: list,
+                                           top_n: int = 5) -> list:
+    """
+    NEM AI-hívás: egyszerű halmaz-egyezés a CV kulcsszavai és a hirdetésekhez
+    MÁR elmentett készségek között (hirdetes_keszseg tábla, gyűjtéskor
+    töltődik). Tiszta Python, nulla API-hívás.
+
+    Ez váltja ki az allasok_rangsorolasa()-t (GPT-alapú) a minőségi-első
+    keresésben -- ugyanarra a bemenetre MINDIG ugyanazt az eredményt adja
+    (ellentétben az AI-verzióval, ami ugyanarra a CV-re eltérő válaszokat
+    adott -- ezt Andi vette észre).
+
+    Pontszám: a hirdetés kért készségeinek hány százaléka van meg a CV-ben.
+    """
+    if not allasok:
+        return []
+
+    cv_halmaz = {k.strip().lower() for k in (cv_kulcsszavak or []) if k and k.strip()}
+
+    ids = [a.get("id") for a in allasok if a.get("id")]
+    keszsegek_map = keszsegek_hirdetesekhez(ids)
+
+    eredmeny = []
+    for allas in allasok:
+        keszsegek = keszsegek_map.get(allas.get("id"), [])
+        uj = dict(allas)
+        if not keszsegek:
+            uj["illeszkedes"] = 0
+            uj["indoklas"] = "Nincs elég készség-adat ehhez a hirdetéshez."
+        else:
+            keszseg_halmaz = {k.strip().lower() for k in keszsegek}
+            egyezik = keszseg_halmaz & cv_halmaz
+            uj["illeszkedes"] = round(100 * len(egyezik) / len(keszseg_halmaz))
+            uj["indoklas"] = (f"Egyezik: {', '.join(sorted(egyezik))}" if egyezik
+                               else "Nincs egyező készség a CV-vel.")
+        eredmeny.append(uj)
+
+    eredmeny.sort(key=lambda a: -a["illeszkedes"])
+    return eredmeny[:top_n]
+
+
+# ── 7/C. MINŐSÉGI-ELSŐ ÁLLÁSKERESÉS (80%-os küszöb, "ne menjen üres kézzel") ──
+
+KUSZOB_JO_ILLESZKEDES = 80  # ez alatt mar nem szamit "jo talalatnak"
+
+
+def allasok_minosegi_kereses(cv_szoveg: str, szakma_info: dict,
+                              helyszin: str = "Budapest") -> dict:
+    """
+    Minosegi-elso allaskereses: nem azt nezi eloszor, VAN-E eleg talalat a
+    sajat adatbazisunkban, hanem hogy azok kozul JO-E eleg (80%+ illeszkedes
+    a CV-hez). Igy sose adunk vissza sok, de gyenge talalatot csak azert,
+    mert "van belole eleg" -- a mennyiseg helyett a minoseg dont.
+
+    Sorrend:
+    1. DB-bol candidatokat kerunk (friss_hirdetesek) -- ingyenes, gyors.
+    2. Rogton lerangsoroljuk MIND a CV-hez (allasok_rangsorolasa).
+    3. Ha van legalabb 5 db 80%+ -> ezekbol adjuk a top 5-ot, es jelezzuk,
+       ha van meg tobb 80%+ a top 5 alatt is (hogy Flow felajanlhassa).
+    4. Ha NINCS eleg 80%+ -> elo keresesre is megyunk (a meglevo
+       allasok_keresese() -- ez ujra megnezi a DB-t, de az ingyenes, nem
+       gond), es a bovebb keszletet ujra rangsoroljuk.
+    5. Ha MEG MINDIG nincs eleg 80%+ -> nem adunk vissza ures kezzel: a
+       kereslet_korkep()-bol kiolvassuk a szakma piaci trendjet, hogy Flow
+       ez alapjan tudja megfogalmazni az atjaras-ajanlast (hatarozottabban,
+       ha a trend csokkeno; puhabban, ha stabil/novekvo).
+    """
+    szakma = szakma_info.get("szakma", "")
+    ajanlott_cegek = szakma_info.get("ajanlott_cegek", [])
+    cv_kulcsszavak = szakma_info.get("utos_kulcsszavak", [])
+
+    # 1-2. DB-elso, azonnal rangsorolva -- nem a mennyiseg dont, a minoseg.
+    # A rangsorolas DETERMINISZTIKUS (halmaz-egyezes), nem AI-hivas -- lasd
+    # allasok_rangsorolasa_determinisztikus().
+    db_talalatok = friss_hirdetesek(szakma, helyszin=helyszin, max_nap=30, limit=15)
+    rangsorolt = allasok_rangsorolasa_determinisztikus(
+        cv_kulcsszavak, db_talalatok, top_n=max(len(db_talalatok), 1)
+    )
+    jok = [a for a in rangsorolt if a.get("illeszkedes", 0) >= KUSZOB_JO_ILLESZKEDES]
+    forras = "adatbazis"
+
+    if len(jok) < 5:
+        # 4. Nincs eleg jo talalat a DB-bol -> elo keresest is bevonjuk.
+        # FONTOS: az allasok_keresese()-nek megvan a SAJAT DB-first ellenorzese
+        # is (mennyisegi kuszob) -- lehet, hogy MEGINT csak DB-t ad vissza,
+        # ha abbol van eleg (csak eppen minoseg szerint nem 80%+). Ezert nem
+        # feltetelezzuk, hogy "elo" kereses tortent -- a visszakapott
+        # talalatok adatbazisbol jelzojebol allapitjuk meg tenylegesen.
+        osszes = allasok_keresese(szakma, helyszin, ajanlott_cegek)
+        rangsorolt = allasok_rangsorolasa_determinisztikus(
+            cv_kulcsszavak, osszes, top_n=max(len(osszes), 1)
+        )
+        jok = [a for a in rangsorolt if a.get("illeszkedes", 0) >= KUSZOB_JO_ILLESZKEDES]
+        volt_elo_kereses = any(not a.get("adatbazisbol") for a in osszes)
+        forras = "adatbazis+elo" if volt_elo_kereses else "adatbazis"
+
+    if jok:
+        return {
+            "van_jo_talalat": True,
+            "forras": forras,
+            "top_5": jok[:5],
+            "tovabbi_jo_talalat_szama": max(0, len(jok) - 5),
+        }
+
+    # 5. Meg mindig nincs jo talalat -> piaci trend, hogy legyen mit
+    # mondania Flow-nak (ez adja az atjaras-ajanlas hangnemet)
+    trend_kategoria = "ismeretlen"
+    try:
+        for sor in kereslet_korkep():
+            if sor.get("szakma", "").strip().lower() == szakma.strip().lower():
+                trend_kategoria = sor.get("kategoria", "ismeretlen")
+                break
+    except Exception:
+        pass
+
+    return {
+        "van_jo_talalat": False,
+        "forras": forras,
+        "legjobb_elerheto": rangsorolt[:5],
+        "szakma_piaci_trendje": trend_kategoria,
+        "atjaras_ajanlott": True,
+    }
 
 
 def keszsegek_kinyerese(allasok: list) -> list:
@@ -826,7 +1032,7 @@ Válaszolj KIZÁRÓLAG JSON-tömbként:
   {{"index": 0, "keszsegek": [{{"nev": "pénztárgép kezelése", "tipus": "feladat"}}]}}
 ]"""
 
-    # GEMINI (ingyenes) — ha nincs kulcs, készségek nélkül mentünk, Claude-ot NEM hívunk
+    # GEMINI (ingyenes) — ha nincs kulcs, készségek nélkül mentünk, nincs fizetős tartalék-hívás
     if not GEMINI_API_KEY:
         print("[adatbazis] GEMINI_API_KEY hianyzik — keszsegek nelkul mentunk.")
         return [[] for _ in allasok]

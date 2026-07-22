@@ -1,6 +1,5 @@
 streamlit
 crewai
-anthropic
 pdfplumber
 requests
 feedparser

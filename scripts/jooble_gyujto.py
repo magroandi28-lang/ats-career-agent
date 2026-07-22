@@ -104,6 +104,68 @@ SZAKMAK = [
     ("cukrász", "Szolgáltatás"),
     ("varrómunkás", "Ipar"),
     ("festő-mázoló", "Építőipar"),
+    # 07-21 BŐVÍTÉS — valós piaci kereslet alapján (saját hirdetés-adatból
+    # kigyűjtött gyakori címek + hiányzó szektorok lefedése)
+    # Egészségügy
+    ("orvos", "Egészségügy"),
+    ("gyógyszerész", "Egészségügy"),
+    ("szociális gondozó", "Egészségügy"),
+    ("mentőápoló", "Egészségügy"),
+    ("gyógytornász", "Egészségügy"),
+    ("dietetikus", "Egészségügy"),
+    # Oktatás
+    ("tanár", "Oktatás"),
+    ("nyelvtanár", "Oktatás"),
+    ("gyógypedagógus", "Oktatás"),
+    ("szociálpedagógus", "Oktatás"),
+    # Jog, közigazgatás
+    ("jogász", "Szolgáltatás"),
+    ("ügyvéd", "Szolgáltatás"),
+    ("közigazgatási ügyintéző", "Szolgáltatás"),
+    ("önkormányzati ügyintéző", "Szolgáltatás"),
+    # Pénzügy, bank
+    ("banki ügyintéző", "Szolgáltatás"),
+    ("biztosítási tanácsadó", "Szolgáltatás"),
+    ("kontroller", "Szolgáltatás"),
+    ("adótanácsadó", "Szolgáltatás"),
+    # Logisztika, szállítás
+    ("nemzetközi gépkocsivezető", "Szolgáltatás"),
+    ("vámügyintéző", "Szolgáltatás"),
+    ("szállítmányozó", "Szolgáltatás"),
+    ("anyagmozgató", "Ipar"),
+    # Kereskedelem, vendéglátás, turizmus
+    ("boltvezető", "Kereskedelem"),
+    ("szállodai recepciós", "Szolgáltatás"),
+    ("idegenvezető", "Szolgáltatás"),
+    # Épületgépészet, ipari szakma
+    ("lakatos", "Ipar"),
+    ("asztalos", "Ipar"),
+    ("víz-, gáz-, fűtésszerelő", "Építőipar"),
+    ("hűtő- és klímaberendezés-szerelő", "Ipar"),
+    ("esztergályos", "Ipar"),
+    ("ács", "Építőipar"),
+    ("tetőfedő", "Építőipar"),
+    ("burkoló", "Építőipar"),
+    # IT bővítés
+    ("mobilfejlesztő", "IT"),
+    ("adatbázis-adminisztrátor", "IT"),
+    ("UX/UI dizájner", "IT"),
+    ("kiberbiztonsági szakértő", "IT"),
+    ("data scientist", "IT"),
+    ("adatmérnök", "IT"),
+    # Média, nyelvi szakma
+    ("fordító", "Szolgáltatás"),
+    ("tolmács", "Szolgáltatás"),
+    ("újságíró", "Szolgáltatás"),
+    ("közösségimédia-menedzser", "Szolgáltatás"),
+    # Minőség, projekt, vezetői
+    ("minőségellenőr", "Ipar"),
+    ("projektvezető", "Szolgáltatás"),
+    ("key account manager", "Kereskedelem"),
+    ("betanított munkás", "Ipar"),
+    # Mezőgazdaság
+    ("mezőgazdasági gépkezelő", "Ipar"),
+    ("állattenyésztő", "Ipar"),
 ]
 
 HELYSZIN = ""                    # üres = egész Magyarország (lehet pl. "Budapest")

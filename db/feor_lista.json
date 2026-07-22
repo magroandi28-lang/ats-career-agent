@@ -1,0 +1,1942 @@
+[
+ {
+  "kod": "1110",
+  "nev": "Törvényhozó, miniszter, államtitkár"
+ },
+ {
+  "kod": "1121",
+  "nev": "Országos és területi közigazgatás, igazságszolgáltatás vezetője"
+ },
+ {
+  "kod": "1122",
+  "nev": "Helyi önkormányzat választott vezetője"
+ },
+ {
+  "kod": "1123",
+  "nev": "Helyi önkormányzat kinevezett vezetője"
+ },
+ {
+  "kod": "1131",
+  "nev": "Társadalmi (érdek-képviseleti) és egyéb szervezet vezetője"
+ },
+ {
+  "kod": "1132",
+  "nev": "Egyházi vezető"
+ },
+ {
+  "kod": "1210",
+  "nev": "Gazdasági, költségvetési szervezet vezetője (igazgató, elnök, ügyvezető igazgató)"
+ },
+ {
+  "kod": "1311",
+  "nev": "Mezőgazdasági, erdészeti, halászati és vadászati tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1312",
+  "nev": "Ipari tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1313",
+  "nev": "Építőipari tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1321",
+  "nev": "Szállítási, logisztikai és raktározási tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1322",
+  "nev": "Informatikai és telekommunikációs tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1323",
+  "nev": "Pénzintézeti tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1324",
+  "nev": "Szociális tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1325",
+  "nev": "Gyermekgondozási tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1326",
+  "nev": "Idősgondozási tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1327",
+  "nev": "Egészségügyi tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1328",
+  "nev": "Oktatási-nevelési tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1329",
+  "nev": "Egyéb szolgáltatást nyújtó egység vezetője"
+ },
+ {
+  "kod": "1331",
+  "nev": "Szálláshely-szolgáltatási tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1332",
+  "nev": "Vendéglátó tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1333",
+  "nev": "Kereskedelmi tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1334",
+  "nev": "Üzleti szolgáltatási tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1335",
+  "nev": "Kulturális tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1336",
+  "nev": "Sport- és rekreációs tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1339",
+  "nev": "Egyéb kereskedelmi, vendéglátó és hasonló szolgáltatási tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1411",
+  "nev": "Számviteli és pénzügyi tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1412",
+  "nev": "Személyzeti vezető, humánpolitikai egység vezetője"
+ },
+ {
+  "kod": "1413",
+  "nev": "Kutatási és fejlesztési tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1414",
+  "nev": "Vállalati stratégiatervezési egység vezetője"
+ },
+ {
+  "kod": "1415",
+  "nev": "Értékesítési és marketingtevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1416",
+  "nev": "Reklám-, pr- és egyéb kommunikációs tevékenységet folytató egység vezetője"
+ },
+ {
+  "kod": "1419",
+  "nev": "Egyéb gazdasági tevékenységet segítő egység vezetője"
+ },
+ {
+  "kod": "2111",
+  "nev": "Bányamérnök"
+ },
+ {
+  "kod": "2112",
+  "nev": "Kohó- és anyagmérnök"
+ },
+ {
+  "kod": "2113",
+  "nev": "Élelmiszer-ipari mérnök"
+ },
+ {
+  "kod": "2114",
+  "nev": "Fa- és könnyűipari mérnök"
+ },
+ {
+  "kod": "2115",
+  "nev": "Építészmérnök"
+ },
+ {
+  "kod": "2116",
+  "nev": "Építőmérnök"
+ },
+ {
+  "kod": "2117",
+  "nev": "Vegyészmérnök"
+ },
+ {
+  "kod": "2118",
+  "nev": "Gépészmérnök"
+ },
+ {
+  "kod": "2121",
+  "nev": "Villamosmérnök (energetikai mérnök)"
+ },
+ {
+  "kod": "2122",
+  "nev": "Villamosmérnök (elektronikai mérnök)"
+ },
+ {
+  "kod": "2123",
+  "nev": "Telekommunikációs mérnök"
+ },
+ {
+  "kod": "2131",
+  "nev": "Mezőgazdasági mérnök"
+ },
+ {
+  "kod": "2132",
+  "nev": "Erdő- és természetvédelmi mérnök"
+ },
+ {
+  "kod": "2133",
+  "nev": "Táj- és kertépítészmérnök"
+ },
+ {
+  "kod": "2134",
+  "nev": "Település- és közlekedéstervező mérnök"
+ },
+ {
+  "kod": "2135",
+  "nev": "Földmérő és térinformatikus"
+ },
+ {
+  "kod": "2136",
+  "nev": "Grafikus és multimédia-tervező"
+ },
+ {
+  "kod": "2137",
+  "nev": "Minőségbiztosítási mérnök"
+ },
+ {
+  "kod": "2139",
+  "nev": "Egyéb, máshova nem sorolható mérnök"
+ },
+ {
+  "kod": "2141",
+  "nev": "Rendszerelemző (informatikai)"
+ },
+ {
+  "kod": "2142",
+  "nev": "Szoftverfejlesztő"
+ },
+ {
+  "kod": "2143",
+  "nev": "Hálózat- és multimédia-fejlesztő"
+ },
+ {
+  "kod": "2144",
+  "nev": "Alkalmazásprogramozó"
+ },
+ {
+  "kod": "2149",
+  "nev": "Egyéb szoftver- és alkalmazásfejlesztő, -elemző"
+ },
+ {
+  "kod": "2151",
+  "nev": "Adatbázis-tervező és -üzemeltető"
+ },
+ {
+  "kod": "2152",
+  "nev": "Rendszergazda"
+ },
+ {
+  "kod": "2153",
+  "nev": "Számítógép-hálózati elemző, üzemeltető"
+ },
+ {
+  "kod": "2159",
+  "nev": "Egyéb adatbázis- és hálózati elemző, üzemeltető"
+ },
+ {
+  "kod": "2161",
+  "nev": "Fizikus"
+ },
+ {
+  "kod": "2162",
+  "nev": "Csillagász"
+ },
+ {
+  "kod": "2163",
+  "nev": "Meteorológus"
+ },
+ {
+  "kod": "2164",
+  "nev": "Kémikus"
+ },
+ {
+  "kod": "2165",
+  "nev": "Geológus"
+ },
+ {
+  "kod": "2166",
+  "nev": "Matematikus"
+ },
+ {
+  "kod": "2167",
+  "nev": "Biológus, botanikus, zoológus és rokon foglalkozású"
+ },
+ {
+  "kod": "2168",
+  "nev": "Környezetfelmérő, -tanácsadó"
+ },
+ {
+  "kod": "2169",
+  "nev": "Egyéb természettudományi foglalkozású"
+ },
+ {
+  "kod": "2211",
+  "nev": "Általános orvos"
+ },
+ {
+  "kod": "2212",
+  "nev": "Szakorvos"
+ },
+ {
+  "kod": "2213",
+  "nev": "Fogorvos, fogszakorvos"
+ },
+ {
+  "kod": "2214",
+  "nev": "Gyógyszerész, szakgyógyszerész"
+ },
+ {
+  "kod": "2221",
+  "nev": "Környezet- és foglalkozás-egészségügyi foglalkozású"
+ },
+ {
+  "kod": "2222",
+  "nev": "Optometrista"
+ },
+ {
+  "kod": "2223",
+  "nev": "Dietetikus és táplálkozási tanácsadó"
+ },
+ {
+  "kod": "2224",
+  "nev": "Gyógytornász"
+ },
+ {
+  "kod": "2225",
+  "nev": "Védőnő"
+ },
+ {
+  "kod": "2226",
+  "nev": "Mentőtiszt"
+ },
+ {
+  "kod": "2227",
+  "nev": "Hallás- és beszédterapeuta"
+ },
+ {
+  "kod": "2228",
+  "nev": "Alternatív gyógymódot alkalmazó"
+ },
+ {
+  "kod": "2229",
+  "nev": "Egyéb humán-egészségügyi (társ)foglalkozású"
+ },
+ {
+  "kod": "2231",
+  "nev": "Ápoló (felsőfokú képzettséghez kapcsolódó)"
+ },
+ {
+  "kod": "2232",
+  "nev": "Szülész(nő) (felsőfokú képzettséghez kapcsolódó)"
+ },
+ {
+  "kod": "2241",
+  "nev": "Állatorvos"
+ },
+ {
+  "kod": "2242",
+  "nev": "Növényorvos (növényvédelmi szakértő)"
+ },
+ {
+  "kod": "2311",
+  "nev": "Szociálpolitikus"
+ },
+ {
+  "kod": "2312",
+  "nev": "Szociális munkás és tanácsadó"
+ },
+ {
+  "kod": "2410",
+  "nev": "Egyetemi, főiskolai oktató, tanár"
+ },
+ {
+  "kod": "2421",
+  "nev": "Középiskolai tanár"
+ },
+ {
+  "kod": "2422",
+  "nev": "Középfokú nevelési-oktatási intézményi szakoktató, gyakorlati oktató"
+ },
+ {
+  "kod": "2431",
+  "nev": "Általános iskolai tanár, tanító"
+ },
+ {
+  "kod": "2432",
+  "nev": "Csecsemő- és kisgyermeknevelő, óvodapedagógus"
+ },
+ {
+  "kod": "2441",
+  "nev": "Gyógypedagógus"
+ },
+ {
+  "kod": "2442",
+  "nev": "Konduktor"
+ },
+ {
+  "kod": "2491",
+  "nev": "Pedagógiai szakértő, szaktanácsadó"
+ },
+ {
+  "kod": "2492",
+  "nev": "Nyelvtanár (iskolarendszeren kívül)"
+ },
+ {
+  "kod": "2493",
+  "nev": "Zenetanár (iskolarendszeren kívül)"
+ },
+ {
+  "kod": "2494",
+  "nev": "Egyéb művészetek tanára (iskolarendszeren kívül)"
+ },
+ {
+  "kod": "2495",
+  "nev": "Informatikatanár (iskolarendszeren kívül)"
+ },
+ {
+  "kod": "2499",
+  "nev": "Egyéb szakképzett oktató, nevelő"
+ },
+ {
+  "kod": "2511",
+  "nev": "Pénzügyi elemző és befektetési tanácsadó"
+ },
+ {
+  "kod": "2512",
+  "nev": "Adótanácsadó, adószakértő"
+ },
+ {
+  "kod": "2513",
+  "nev": "Könyvvizsgáló, könyvelő, könyvszakértő"
+ },
+ {
+  "kod": "2514",
+  "nev": "Kontroller"
+ },
+ {
+  "kod": "2521",
+  "nev": "Szervezetirányítási elemző, szervező"
+ },
+ {
+  "kod": "2522",
+  "nev": "Üzletpolitikai elemző, szervező"
+ },
+ {
+  "kod": "2523",
+  "nev": "Személyzeti és pályaválasztási szakértő"
+ },
+ {
+  "kod": "2524",
+  "nev": "Képzési és személyzetfejlesztési szakértő"
+ },
+ {
+  "kod": "2531",
+  "nev": "Piackutató, reklám- és marketingtevékenységet tervező, szervező"
+ },
+ {
+  "kod": "2532",
+  "nev": "Pr-tevékenységet tervező, szervező"
+ },
+ {
+  "kod": "2533",
+  "nev": "Kereskedelmi tervező, szervező"
+ },
+ {
+  "kod": "2534",
+  "nev": "Informatikai és telekommunikációs technológiai termékek értékesítését tervező, szervező"
+ },
+ {
+  "kod": "2611",
+  "nev": "Jogász, jogtanácsos"
+ },
+ {
+  "kod": "2612",
+  "nev": "Ügyész"
+ },
+ {
+  "kod": "2613",
+  "nev": "Bíró"
+ },
+ {
+  "kod": "2614",
+  "nev": "Közjegyző"
+ },
+ {
+  "kod": "2615",
+  "nev": "Ügyvéd"
+ },
+ {
+  "kod": "2619",
+  "nev": "Egyéb jogi foglalkozású"
+ },
+ {
+  "kod": "2621",
+  "nev": "Filozófus, politológus"
+ },
+ {
+  "kod": "2622",
+  "nev": "Történész, régész"
+ },
+ {
+  "kod": "2623",
+  "nev": "Néprajzkutató"
+ },
+ {
+  "kod": "2624",
+  "nev": "Elemző közgazdász"
+ },
+ {
+  "kod": "2625",
+  "nev": "Statisztikus"
+ },
+ {
+  "kod": "2626",
+  "nev": "Szociológus, demográfus"
+ },
+ {
+  "kod": "2627",
+  "nev": "Nyelvész, fordító, tolmács"
+ },
+ {
+  "kod": "2628",
+  "nev": "Pszichológus"
+ },
+ {
+  "kod": "2629",
+  "nev": "Egyéb társadalomtudományi foglalkozású"
+ },
+ {
+  "kod": "2711",
+  "nev": "Könyvtáros, informatikus könyvtáros"
+ },
+ {
+  "kod": "2712",
+  "nev": "Levéltáros"
+ },
+ {
+  "kod": "2713",
+  "nev": "Muzeológus, múzeumi gyűjteménygondnok"
+ },
+ {
+  "kod": "2714",
+  "nev": "Kulturális szervező"
+ },
+ {
+  "kod": "2715",
+  "nev": "Könyv- és lapkiadó szerkesztője"
+ },
+ {
+  "kod": "2716",
+  "nev": "Újságíró, rádióműsor-, televízióműsor-szerkesztő"
+ },
+ {
+  "kod": "2717",
+  "nev": "Szakképzett edző, sportszervező, -irányító"
+ },
+ {
+  "kod": "2719",
+  "nev": "Egyéb kulturális és sportfoglalkozású (felsőfokú képzettséghez kapcsolódó)"
+ },
+ {
+  "kod": "2721",
+  "nev": "Író (újságíró nélkül)"
+ },
+ {
+  "kod": "2722",
+  "nev": "Képzőművész"
+ },
+ {
+  "kod": "2723",
+  "nev": "Iparművész, gyártmány- és ruhatervező"
+ },
+ {
+  "kod": "2724",
+  "nev": "Zeneszerző, zenész, énekes"
+ },
+ {
+  "kod": "2725",
+  "nev": "Rendező, operatőr"
+ },
+ {
+  "kod": "2726",
+  "nev": "Színész, bábművész"
+ },
+ {
+  "kod": "2727",
+  "nev": "Táncművész, koreográfus"
+ },
+ {
+  "kod": "2728",
+  "nev": "Cirkuszi és hasonló előadóművész"
+ },
+ {
+  "kod": "2729",
+  "nev": "Egyéb alkotó- és előadó-művészi foglalkozású (felsőfokú képzettséghez kapcsolódó)"
+ },
+ {
+  "kod": "2730",
+  "nev": "Pap (lelkész), egyházi foglalkozású"
+ },
+ {
+  "kod": "2910",
+  "nev": "Egyéb magasan képzett ügyintéző"
+ },
+ {
+  "kod": "3111",
+  "nev": "Bányászati technikus"
+ },
+ {
+  "kod": "3112",
+  "nev": "Kohó- és anyagtechnikus"
+ },
+ {
+  "kod": "3113",
+  "nev": "Élelmiszer-ipari technikus"
+ },
+ {
+  "kod": "3114",
+  "nev": "Fa- és könnyűipari technikus"
+ },
+ {
+  "kod": "3115",
+  "nev": "Vegyésztechnikus"
+ },
+ {
+  "kod": "3116",
+  "nev": "Gépésztechnikus"
+ },
+ {
+  "kod": "3117",
+  "nev": "Építő- és építésztechnikus"
+ },
+ {
+  "kod": "3121",
+  "nev": "Villamosipari technikus (energetikai technikus)"
+ },
+ {
+  "kod": "3122",
+  "nev": "Villamosipari technikus (elektronikai technikus)"
+ },
+ {
+  "kod": "3131",
+  "nev": "Mezőgazdasági technikus"
+ },
+ {
+  "kod": "3132",
+  "nev": "Erdő- és természetvédelmi technikus"
+ },
+ {
+  "kod": "3133",
+  "nev": "Földmérő és térinformatikai technikus"
+ },
+ {
+  "kod": "3134",
+  "nev": "Környezetvédelmi technikus"
+ },
+ {
+  "kod": "3135",
+  "nev": "Minőségbiztosítási technikus"
+ },
+ {
+  "kod": "3136",
+  "nev": "Műszaki rajzoló, szerkesztő"
+ },
+ {
+  "kod": "3139",
+  "nev": "Egyéb, máshova nem sorolható technikus"
+ },
+ {
+  "kod": "3141",
+  "nev": "Informatikai és kommunikációs rendszereket kezelő technikus"
+ },
+ {
+  "kod": "3142",
+  "nev": "Informatikai és kommunikációs rendszerek felhasználóit támogató technikus"
+ },
+ {
+  "kod": "3143",
+  "nev": "Számítógéphálózat- és rendszertechnikus"
+ },
+ {
+  "kod": "3144",
+  "nev": "Webrendszer- (hálózati) technikus"
+ },
+ {
+  "kod": "3145",
+  "nev": "Műsorszóró és audiovizuális technikus"
+ },
+ {
+  "kod": "3146",
+  "nev": "Telekommunikációs technikus"
+ },
+ {
+  "kod": "3151",
+  "nev": "Energetikai (erőművi) berendezés vezérlője"
+ },
+ {
+  "kod": "3152",
+  "nev": "Égető-, víz- és csatornaművi berendezés vezérlője"
+ },
+ {
+  "kod": "3153",
+  "nev": "Vegyipari alapanyag-feldolgozó berendezés vezérlője"
+ },
+ {
+  "kod": "3154",
+  "nev": "Kőolaj- és földgázfinomító berendezés vezérlője"
+ },
+ {
+  "kod": "3155",
+  "nev": "Fémgyártási berendezés vezérlője"
+ },
+ {
+  "kod": "3159",
+  "nev": "Egyéb folyamatirányító berendezés vezérlője"
+ },
+ {
+  "kod": "3161",
+  "nev": "Munka- és termelésszervező"
+ },
+ {
+  "kod": "3162",
+  "nev": "Energetikus"
+ },
+ {
+  "kod": "3163",
+  "nev": "Munkavédelmi és üzembiztonsági foglalkozású"
+ },
+ {
+  "kod": "3171",
+  "nev": "Tengeri és belvízi hajóparancsnok, fedélzeti tiszt"
+ },
+ {
+  "kod": "3172",
+  "nev": "Légijármű-vezető, hajózómérnök"
+ },
+ {
+  "kod": "3173",
+  "nev": "Légiforgalmi irányító"
+ },
+ {
+  "kod": "3174",
+  "nev": "Légiforgalmi irányítástechnikai berendezések üzemeltetője"
+ },
+ {
+  "kod": "3190",
+  "nev": "Egyéb műszaki foglalkozású"
+ },
+ {
+  "kod": "3211",
+  "nev": "Bányászati szakmai irányító, felügyelő"
+ },
+ {
+  "kod": "3212",
+  "nev": "Feldolgozóipari szakmai irányító, felügyelő"
+ },
+ {
+  "kod": "3213",
+  "nev": "Építőipari szakmai irányító, felügyelő"
+ },
+ {
+  "kod": "3221",
+  "nev": "Irodai szakmai irányító, felügyelő"
+ },
+ {
+  "kod": "3222",
+  "nev": "Konyhafőnök, séf"
+ },
+ {
+  "kod": "3311",
+  "nev": "Ápoló, szakápoló"
+ },
+ {
+  "kod": "3312",
+  "nev": "Szülész(nő)i tevékenység segítője"
+ },
+ {
+  "kod": "3321",
+  "nev": "Általános egészségügyi asszisztens"
+ },
+ {
+  "kod": "3322",
+  "nev": "Egészségügyi dokumentátor"
+ },
+ {
+  "kod": "3323",
+  "nev": "Orvosi képalkotó diagnosztikai és terápiás berendezések kezelője"
+ },
+ {
+  "kod": "3324",
+  "nev": "Orvosi laboratóriumi asszisztens"
+ },
+ {
+  "kod": "3325",
+  "nev": "Fogászati asszisztens"
+ },
+ {
+  "kod": "3326",
+  "nev": "Gyógyszertári és gyógyszerellátási asszisztens"
+ },
+ {
+  "kod": "3327",
+  "nev": "Alternatív gyógymódok alkalmazásának segítője"
+ },
+ {
+  "kod": "3331",
+  "nev": "Környezet- és foglalkozás-egészségügyi kiegészítő foglalkozású"
+ },
+ {
+  "kod": "3332",
+  "nev": "Fizioterápiás asszisztens, masszőr"
+ },
+ {
+  "kod": "3333",
+  "nev": "Fogtechnikus"
+ },
+ {
+  "kod": "3334",
+  "nev": "Ortopédiai eszközkészítő"
+ },
+ {
+  "kod": "3335",
+  "nev": "Látszerész"
+ },
+ {
+  "kod": "3339",
+  "nev": "Egyéb, humánegészségügyhöz kapcsolódó foglalkozású"
+ },
+ {
+  "kod": "3341",
+  "nev": "Állatorvosi asszisztens"
+ },
+ {
+  "kod": "3342",
+  "nev": "Növényorvosi (növényvédelmi) asszisztens"
+ },
+ {
+  "kod": "3410",
+  "nev": "Oktatási asszisztens"
+ },
+ {
+  "kod": "3511",
+  "nev": "Szociális segítő"
+ },
+ {
+  "kod": "3512",
+  "nev": "Hivatásos nevelőszülő, főállású anya"
+ },
+ {
+  "kod": "3513",
+  "nev": "Szociális gondozó, szakgondozó"
+ },
+ {
+  "kod": "3514",
+  "nev": "Jelnyelvi tolmács"
+ },
+ {
+  "kod": "3515",
+  "nev": "Ifjúságsegítő"
+ },
+ {
+  "kod": "3520",
+  "nev": "Munkaerő-piaci szolgáltatási ügyintéző"
+ },
+ {
+  "kod": "3611",
+  "nev": "Pénzügyi ügyintéző (a pénzintézeti ügyintéző kivételével)"
+ },
+ {
+  "kod": "3612",
+  "nev": "Pénzintézeti ügyintéző"
+ },
+ {
+  "kod": "3613",
+  "nev": "Tőzsde- és pénzügyi ügynök, bróker"
+ },
+ {
+  "kod": "3614",
+  "nev": "Számviteli ügyintéző"
+ },
+ {
+  "kod": "3615",
+  "nev": "Statisztikai ügyintéző"
+ },
+ {
+  "kod": "3616",
+  "nev": "Értékbecslő, kárbecslő, kárszakértő"
+ },
+ {
+  "kod": "3621",
+  "nev": "Biztosítási ügynök, ügyintéző"
+ },
+ {
+  "kod": "3622",
+  "nev": "Kereskedelmi ügyintéző"
+ },
+ {
+  "kod": "3623",
+  "nev": "Anyaggazdálkodó, felvásárló"
+ },
+ {
+  "kod": "3624",
+  "nev": "Ügynök (a biztosítási ügynök kivételével)"
+ },
+ {
+  "kod": "3631",
+  "nev": "Konferencia- és rendezvényszervező"
+ },
+ {
+  "kod": "3632",
+  "nev": "Marketing- és pr-ügyintéző"
+ },
+ {
+  "kod": "3633",
+  "nev": "Ingatlanügynök, ingatlanforgalmazási ügyintéző"
+ },
+ {
+  "kod": "3639",
+  "nev": "Egyéb, máshova nem sorolható üzleti jellegű szolgáltatás ügyintézője"
+ },
+ {
+  "kod": "3641",
+  "nev": "Személyi asszisztens"
+ },
+ {
+  "kod": "3642",
+  "nev": "Jogi asszisztens"
+ },
+ {
+  "kod": "3649",
+  "nev": "Egyéb igazgatási és jogi asszisztens"
+ },
+ {
+  "kod": "3651",
+  "nev": "Vám- és pénzügyőr"
+ },
+ {
+  "kod": "3652",
+  "nev": "Adó- és illetékhivatali ügyintéző"
+ },
+ {
+  "kod": "3653",
+  "nev": "Társadalombiztosítási és segélyezési hatósági ügyintéző"
+ },
+ {
+  "kod": "3654",
+  "nev": "Hatósági engedélyek kiadásával foglalkozó ügyintéző"
+ },
+ {
+  "kod": "3655",
+  "nev": "Nyomozó"
+ },
+ {
+  "kod": "3656",
+  "nev": "Végrehajtó, adósságbehajtó"
+ },
+ {
+  "kod": "3659",
+  "nev": "Egyéb hatósági ügyintéző"
+ },
+ {
+  "kod": "3711",
+  "nev": "Segédszínész, statiszta"
+ },
+ {
+  "kod": "3712",
+  "nev": "Segédrendező"
+ },
+ {
+  "kod": "3713",
+  "nev": "Fényképész"
+ },
+ {
+  "kod": "3714",
+  "nev": "Díszletező, díszítő"
+ },
+ {
+  "kod": "3715",
+  "nev": "Kiegészítő filmgyártási és színházi foglalkozású"
+ },
+ {
+  "kod": "3716",
+  "nev": "Lakberendező, dekoratőr"
+ },
+ {
+  "kod": "3717",
+  "nev": "Kulturális intézményi szaktechnikus"
+ },
+ {
+  "kod": "3719",
+  "nev": "Egyéb művészeti és kulturális foglalkozású"
+ },
+ {
+  "kod": "3721",
+  "nev": "Sportoló"
+ },
+ {
+  "kod": "3722",
+  "nev": "Fitnesz- és rekreációs programok irányítója"
+ },
+ {
+  "kod": "3730",
+  "nev": "Egyéb vallási foglalkozású"
+ },
+ {
+  "kod": "3910",
+  "nev": "Egyéb ügyintéző"
+ },
+ {
+  "kod": "4111",
+  "nev": "Titkár(nő)"
+ },
+ {
+  "kod": "4112",
+  "nev": "Általános irodai adminisztrátor"
+ },
+ {
+  "kod": "4113",
+  "nev": "Gépíró, szövegszerkesztő"
+ },
+ {
+  "kod": "4114",
+  "nev": "Adatrögzítő, kódoló"
+ },
+ {
+  "kod": "4121",
+  "nev": "Könyvelő (analitikus)"
+ },
+ {
+  "kod": "4122",
+  "nev": "Bérelszámoló"
+ },
+ {
+  "kod": "4123",
+  "nev": "Pénzügyi, statisztikai, biztosítási adminisztrátor"
+ },
+ {
+  "kod": "4129",
+  "nev": "Egyéb számviteli foglalkozású"
+ },
+ {
+  "kod": "4131",
+  "nev": "Készlet- és anyagnyilvántartó"
+ },
+ {
+  "kod": "4132",
+  "nev": "Szállítási, szállítmányozási nyilvántartó"
+ },
+ {
+  "kod": "4133",
+  "nev": "Könyvtári, levéltári nyilvántartó"
+ },
+ {
+  "kod": "4134",
+  "nev": "Humánpolitikai adminisztrátor"
+ },
+ {
+  "kod": "4135",
+  "nev": "Postai szolgáltató (kézbesítő, válogató)"
+ },
+ {
+  "kod": "4136",
+  "nev": "Iratkezelő, irattáros"
+ },
+ {
+  "kod": "4190",
+  "nev": "Egyéb, máshova nem sorolható irodai, ügyviteli foglalkozású"
+ },
+ {
+  "kod": "4211",
+  "nev": "Banki pénztáros"
+ },
+ {
+  "kod": "4212",
+  "nev": "Szerencsejáték-szervező"
+ },
+ {
+  "kod": "4213",
+  "nev": "Zálogházi ügyintéző és pénzkölcsönző"
+ },
+ {
+  "kod": "4221",
+  "nev": "Utazásszervező, tanácsadó"
+ },
+ {
+  "kod": "4222",
+  "nev": "Recepciós"
+ },
+ {
+  "kod": "4223",
+  "nev": "Szállodai recepciós"
+ },
+ {
+  "kod": "4224",
+  "nev": "Ügyfél- (vevő)tájékoztató"
+ },
+ {
+  "kod": "4225",
+  "nev": "Ügyfélszolgálati központ tájékoztatója"
+ },
+ {
+  "kod": "4226",
+  "nev": "Lakossági kérdező, összeíró"
+ },
+ {
+  "kod": "4227",
+  "nev": "Postai ügyfélkapcsolati foglalkozású"
+ },
+ {
+  "kod": "4229",
+  "nev": "Egyéb ügyfélkapcsolati foglalkozású"
+ },
+ {
+  "kod": "5111",
+  "nev": "Kereskedő"
+ },
+ {
+  "kod": "5112",
+  "nev": "Vezető eladó"
+ },
+ {
+  "kod": "5113",
+  "nev": "Bolti eladó"
+ },
+ {
+  "kod": "5114",
+  "nev": "Kölcsönző"
+ },
+ {
+  "kod": "5115",
+  "nev": "Piaci, utcai árus"
+ },
+ {
+  "kod": "5116",
+  "nev": "Piaci, utcai étel- és italárus"
+ },
+ {
+  "kod": "5117",
+  "nev": "Bolti pénztáros, jegypénztáros"
+ },
+ {
+  "kod": "5121",
+  "nev": "Üzemanyagtöltő állomás kezelője"
+ },
+ {
+  "kod": "5122",
+  "nev": "Áru- és divatbemutató"
+ },
+ {
+  "kod": "5123",
+  "nev": "Telefonos (multimédiás) értékesítési ügynök"
+ },
+ {
+  "kod": "5129",
+  "nev": "Egyéb, máshova nem sorolható kereskedelmi foglalkozású"
+ },
+ {
+  "kod": "5131",
+  "nev": "Vendéglős"
+ },
+ {
+  "kod": "5132",
+  "nev": "Pincér"
+ },
+ {
+  "kod": "5133",
+  "nev": "Pultos"
+ },
+ {
+  "kod": "5134",
+  "nev": "Szakács"
+ },
+ {
+  "kod": "5135",
+  "nev": "Cukrász"
+ },
+ {
+  "kod": "5211",
+  "nev": "Fodrász"
+ },
+ {
+  "kod": "5212",
+  "nev": "Kozmetikus"
+ },
+ {
+  "kod": "5213",
+  "nev": "Manikűrös, pedikűrös"
+ },
+ {
+  "kod": "5219",
+  "nev": "Egyéb személyi szolgáltatási foglalkozású"
+ },
+ {
+  "kod": "5221",
+  "nev": "Gyermekfelügyelő, dajka"
+ },
+ {
+  "kod": "5222",
+  "nev": "Segédápoló, műtőssegéd"
+ },
+ {
+  "kod": "5223",
+  "nev": "Házi gondozó"
+ },
+ {
+  "kod": "5229",
+  "nev": "Egyéb személygondozási foglalkozású"
+ },
+ {
+  "kod": "5231",
+  "nev": "Kalauz, menetjegyellenőr"
+ },
+ {
+  "kod": "5232",
+  "nev": "Utaskísérő (repülőn, hajón)"
+ },
+ {
+  "kod": "5233",
+  "nev": "Idegenvezető"
+ },
+ {
+  "kod": "5241",
+  "nev": "Vezető takarító"
+ },
+ {
+  "kod": "5242",
+  "nev": "Házvezető"
+ },
+ {
+  "kod": "5243",
+  "nev": "Épületgondnok"
+ },
+ {
+  "kod": "5251",
+  "nev": "Rendőr"
+ },
+ {
+  "kod": "5252",
+  "nev": "Tűzoltó"
+ },
+ {
+  "kod": "5253",
+  "nev": "Büntetés-véghajtási őr"
+ },
+ {
+  "kod": "5254",
+  "nev": "Vagyonőr, testőr"
+ },
+ {
+  "kod": "5255",
+  "nev": "Természetvédelmi őr"
+ },
+ {
+  "kod": "5256",
+  "nev": "Közterület-felügyelő"
+ },
+ {
+  "kod": "5259",
+  "nev": "Egyéb személy- és vagyonvédelmi foglalkozású"
+ },
+ {
+  "kod": "5291",
+  "nev": "Járművezető-oktató"
+ },
+ {
+  "kod": "5292",
+  "nev": "Hobbiállat-gondozó, -kozmetikus"
+ },
+ {
+  "kod": "5293",
+  "nev": "Temetkezési foglalkozású"
+ },
+ {
+  "kod": "5299",
+  "nev": "Egyéb, máshova nem sorolható szolgáltatási foglalkozású"
+ },
+ {
+  "kod": "6111",
+  "nev": "Szántóföldinövény-termesztő"
+ },
+ {
+  "kod": "6112",
+  "nev": "Bionövény-termesztő"
+ },
+ {
+  "kod": "6113",
+  "nev": "Zöldségtermesztő"
+ },
+ {
+  "kod": "6114",
+  "nev": "Szőlő-, gyümölcstermesztő"
+ },
+ {
+  "kod": "6115",
+  "nev": "Dísznövény-, virág- és faiskolai kertész, csemetenevelő"
+ },
+ {
+  "kod": "6116",
+  "nev": "Gyógynövénytermesztő"
+ },
+ {
+  "kod": "6119",
+  "nev": "Egyéb növénytermesztési foglalkozású"
+ },
+ {
+  "kod": "6121",
+  "nev": "Szarvasmarha-, ló-, sertés-, juhtartó és -tenyésztő"
+ },
+ {
+  "kod": "6122",
+  "nev": "Baromfitartó és -tenyésztő"
+ },
+ {
+  "kod": "6123",
+  "nev": "Méhész"
+ },
+ {
+  "kod": "6124",
+  "nev": "Kisállattartó és -tenyésztő"
+ },
+ {
+  "kod": "6130",
+  "nev": "Vegyes profilú gazdálkodó"
+ },
+ {
+  "kod": "6211",
+  "nev": "Erdészeti foglalkozású"
+ },
+ {
+  "kod": "6212",
+  "nev": "Fakitermelő (favágó)"
+ },
+ {
+  "kod": "6220",
+  "nev": "Vadgazdálkodási foglalkozású"
+ },
+ {
+  "kod": "6230",
+  "nev": "Halászati foglalkozású"
+ },
+ {
+  "kod": "7111",
+  "nev": "Húsfeldolgozó"
+ },
+ {
+  "kod": "7112",
+  "nev": "Gyümölcs- és zöldségfeldolgozó, -tartósító"
+ },
+ {
+  "kod": "7113",
+  "nev": "Tejfeldolgozó, tejtermékgyártó"
+ },
+ {
+  "kod": "7114",
+  "nev": "Pék, édesiparitermék-gyártó"
+ },
+ {
+  "kod": "7115",
+  "nev": "Borász és egyéb szeszesital-gyártó, szikvízkészítő"
+ },
+ {
+  "kod": "7211",
+  "nev": "Szabásminta-készítő"
+ },
+ {
+  "kod": "7212",
+  "nev": "Szabó, varró"
+ },
+ {
+  "kod": "7213",
+  "nev": "Kalapos, kesztyűs"
+ },
+ {
+  "kod": "7214",
+  "nev": "Szűcs, szőrmefestő"
+ },
+ {
+  "kod": "7215",
+  "nev": "Tímár"
+ },
+ {
+  "kod": "7216",
+  "nev": "Bőrdíszműves, bőröndös, bőrtermékkészítő, -javító"
+ },
+ {
+  "kod": "7217",
+  "nev": "Cipész, cipőkészítő, -javító"
+ },
+ {
+  "kod": "7221",
+  "nev": "Famegmunkáló"
+ },
+ {
+  "kod": "7222",
+  "nev": "Faesztergályos"
+ },
+ {
+  "kod": "7223",
+  "nev": "Bútorasztalos"
+ },
+ {
+  "kod": "7224",
+  "nev": "Kárpitos"
+ },
+ {
+  "kod": "7225",
+  "nev": "Kádár, bognár"
+ },
+ {
+  "kod": "7231",
+  "nev": "Nyomdai előkészítő"
+ },
+ {
+  "kod": "7232",
+  "nev": "Nyomdász, nyomdaipari gépmester"
+ },
+ {
+  "kod": "7233",
+  "nev": "Könyvkötő"
+ },
+ {
+  "kod": "7310",
+  "nev": "Fémöntőminta-készítő"
+ },
+ {
+  "kod": "7321",
+  "nev": "Lakatos"
+ },
+ {
+  "kod": "7322",
+  "nev": "Szerszámkészítő"
+ },
+ {
+  "kod": "7323",
+  "nev": "Forgácsoló"
+ },
+ {
+  "kod": "7324",
+  "nev": "Fémcsiszoló, köszörűs, szerszámköszörűs"
+ },
+ {
+  "kod": "7325",
+  "nev": "Hegesztő, lángvágó"
+ },
+ {
+  "kod": "7326",
+  "nev": "Kovács"
+ },
+ {
+  "kod": "7327",
+  "nev": "Festékszóró, fényező"
+ },
+ {
+  "kod": "7328",
+  "nev": "Fém- és egyéb tartószerkezet-szerelő"
+ },
+ {
+  "kod": "7331",
+  "nev": "Gépjármű- és motorkarbantartó, -javító"
+ },
+ {
+  "kod": "7332",
+  "nev": "Repülőgépmotor-karbantartó, -javító"
+ },
+ {
+  "kod": "7333",
+  "nev": "Mezőgazdasági és ipari gép (motor) karbantartója, javítója"
+ },
+ {
+  "kod": "7334",
+  "nev": "Mechanikaigép-karbantartó, -javító (műszerész)"
+ },
+ {
+  "kod": "7335",
+  "nev": "Kerékpár-karbantartó, -javító"
+ },
+ {
+  "kod": "7341",
+  "nev": "Villamos gépek és készülékek műszerésze, javítója"
+ },
+ {
+  "kod": "7342",
+  "nev": "Informatikai és telekommunikációs berendezések műszerésze, javítója"
+ },
+ {
+  "kod": "7343",
+  "nev": "Elektromoshálózat-szerelő, -javító"
+ },
+ {
+  "kod": "7411",
+  "nev": "Címfestő"
+ },
+ {
+  "kod": "7412",
+  "nev": "Ékszerkészítő, ötvös, drágakőcsiszoló"
+ },
+ {
+  "kod": "7413",
+  "nev": "Keramikus"
+ },
+ {
+  "kod": "7414",
+  "nev": "Üveggyártó"
+ },
+ {
+  "kod": "7415",
+  "nev": "Hangszerkészítő"
+ },
+ {
+  "kod": "7416",
+  "nev": "Szőr- és tollfeldolgozó"
+ },
+ {
+  "kod": "7417",
+  "nev": "Nád- és fűzfeldolgozó, seprű- kefegyártó"
+ },
+ {
+  "kod": "7418",
+  "nev": "Textilműves, hímző, csipkeverő"
+ },
+ {
+  "kod": "7419",
+  "nev": "Egyéb kézműipari foglalkozású"
+ },
+ {
+  "kod": "7420",
+  "nev": "Finommechanikai műszerész"
+ },
+ {
+  "kod": "7511",
+  "nev": "Kőműves"
+ },
+ {
+  "kod": "7512",
+  "nev": "Gipszkartonozó, stukkózó"
+ },
+ {
+  "kod": "7513",
+  "nev": "Ács"
+ },
+ {
+  "kod": "7514",
+  "nev": "Épületasztalos"
+ },
+ {
+  "kod": "7515",
+  "nev": "Építményszerkezet-szerelő"
+ },
+ {
+  "kod": "7519",
+  "nev": "Egyéb építőmesteri foglalkozású"
+ },
+ {
+  "kod": "7521",
+  "nev": "Vezeték- és csőhálózat-szerelő (víz, gáz, fűtés)"
+ },
+ {
+  "kod": "7522",
+  "nev": "Szellőző-, hűtő- és klimatizálóberendezés-szerelő"
+ },
+ {
+  "kod": "7523",
+  "nev": "Felvonószerelő"
+ },
+ {
+  "kod": "7524",
+  "nev": "Épületvillamossági szerelő, villanyszerelő"
+ },
+ {
+  "kod": "7529",
+  "nev": "Egyéb építési, szerelési foglalkozású"
+ },
+ {
+  "kod": "7531",
+  "nev": "Szigetelő"
+ },
+ {
+  "kod": "7532",
+  "nev": "Tetőfedő"
+ },
+ {
+  "kod": "7533",
+  "nev": "Épület-, építménybádogos"
+ },
+ {
+  "kod": "7534",
+  "nev": "Burkoló"
+ },
+ {
+  "kod": "7535",
+  "nev": "Festő és mázoló"
+ },
+ {
+  "kod": "7536",
+  "nev": "Kőfaragó, műköves"
+ },
+ {
+  "kod": "7537",
+  "nev": "Kályha- és kandallóépítő"
+ },
+ {
+  "kod": "7538",
+  "nev": "Üvegező"
+ },
+ {
+  "kod": "7539",
+  "nev": "Egyéb építési szakipari foglalkozású"
+ },
+ {
+  "kod": "7911",
+  "nev": "Ipari búvár"
+ },
+ {
+  "kod": "7912",
+  "nev": "Ipari alpinista"
+ },
+ {
+  "kod": "7913",
+  "nev": "Robbantómester"
+ },
+ {
+  "kod": "7914",
+  "nev": "Kártevőirtó, gyomirtó"
+ },
+ {
+  "kod": "7915",
+  "nev": "Kéményseprő, épületszerkezet-tisztító"
+ },
+ {
+  "kod": "7919",
+  "nev": "Egyéb, máshova nem sorolható ipari és építőipari foglalkozású"
+ },
+ {
+  "kod": "8111",
+  "nev": "Élelmiszer-, italgyártó gép kezelője"
+ },
+ {
+  "kod": "8112",
+  "nev": "Dohánygyártó gép kezelője"
+ },
+ {
+  "kod": "8121",
+  "nev": "Textilipari gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "kod": "8122",
+  "nev": "Ruházati gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "kod": "8123",
+  "nev": "Bőrkikészítő és -feldolgozó gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "kod": "8124",
+  "nev": "Cipőgyártó gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "kod": "8125",
+  "nev": "Fafeldolgozó gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "kod": "8126",
+  "nev": "Papír- és cellulóztermék-gyártó gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "kod": "8131",
+  "nev": "Kőolaj- és földgázfeldolgozó gép kezelője"
+ },
+ {
+  "kod": "8132",
+  "nev": "Vegyi alapanyagot és terméket gyártó gép kezelője"
+ },
+ {
+  "kod": "8133",
+  "nev": "Gyógyszergyártó gép kezelője"
+ },
+ {
+  "kod": "8134",
+  "nev": "Műtrágya- és növényvédőszer-gyártó gép kezelője"
+ },
+ {
+  "kod": "8135",
+  "nev": "Műanyagtermék-gyártó gép kezelője"
+ },
+ {
+  "kod": "8136",
+  "nev": "Gumitermékgyártó gép kezelője"
+ },
+ {
+  "kod": "8137",
+  "nev": "Fotó- és mozgófilmlaboráns"
+ },
+ {
+  "kod": "8141",
+  "nev": "Kerámiaipari terméket gyártó gép kezelője"
+ },
+ {
+  "kod": "8142",
+  "nev": "Üveget és üvegterméket gyártó gép kezelője"
+ },
+ {
+  "kod": "8143",
+  "nev": "Cement-, kő- és egyéb ásványianyag-feldolgozó gép kezelője"
+ },
+ {
+  "kod": "8144",
+  "nev": "Papíripari alapanyagot gyártó gép kezelője"
+ },
+ {
+  "kod": "8151",
+  "nev": "Fémfeldolgozó gép kezelője"
+ },
+ {
+  "kod": "8152",
+  "nev": "Fémmegmunkáló, felületkezelő gép kezelője"
+ },
+ {
+  "kod": "8190",
+  "nev": "Egyéb, máshova nem sorolható feldolgozóipari gép kezelője"
+ },
+ {
+  "kod": "8211",
+  "nev": "Mechanikaigép-összeszerelő"
+ },
+ {
+  "kod": "8212",
+  "nev": "Villamosberendezés-összeszerelő"
+ },
+ {
+  "kod": "8219",
+  "nev": "Egyéb termék-összeszerelő"
+ },
+ {
+  "kod": "8311",
+  "nev": "Szilárdásvány-kitermelő gép kezelője (szén, kő)"
+ },
+ {
+  "kod": "8312",
+  "nev": "Kútfúró, mélyfúró gép kezelője (kőolaj, földgáz, víz)"
+ },
+ {
+  "kod": "8321",
+  "nev": "Energetikai gép kezelője"
+ },
+ {
+  "kod": "8322",
+  "nev": "Vízgazdálkodási gép kezelője"
+ },
+ {
+  "kod": "8323",
+  "nev": "Kazángépkezelő"
+ },
+ {
+  "kod": "8324",
+  "nev": "Sugármentesítő gép, berendezés kezelője"
+ },
+ {
+  "kod": "8325",
+  "nev": "Csomagoló-, palackozó- és címkézőgép kezelője"
+ },
+ {
+  "kod": "8326",
+  "nev": "Mozigépész, vetítőgépész"
+ },
+ {
+  "kod": "8327",
+  "nev": "Mosodai gép kezelője"
+ },
+ {
+  "kod": "8329",
+  "nev": "Egyéb, máshova nem sorolható, helyhez kötött gép kezelője"
+ },
+ {
+  "kod": "8411",
+  "nev": "Mozdonyvezető"
+ },
+ {
+  "kod": "8412",
+  "nev": "Vasútijármű-vezetéshez kapcsoló foglalkozású"
+ },
+ {
+  "kod": "8413",
+  "nev": "Villamosvezető"
+ },
+ {
+  "kod": "8414",
+  "nev": "Metróvezető"
+ },
+ {
+  "kod": "8415",
+  "nev": "Trolibuszvezető"
+ },
+ {
+  "kod": "8416",
+  "nev": "Személygépkocsi-vezető"
+ },
+ {
+  "kod": "8417",
+  "nev": "Tehergépkocsi-vezető, kamionsofőr"
+ },
+ {
+  "kod": "8418",
+  "nev": "Autóbuszvezető"
+ },
+ {
+  "kod": "8419",
+  "nev": "Egyéb járművezető és kapcsolódó foglalkozású"
+ },
+ {
+  "kod": "8421",
+  "nev": "Mezőgazdasági, erdőgazdasági, növényvédő gép kezelője"
+ },
+ {
+  "kod": "8422",
+  "nev": "Földmunkagép és hasonló könnyű- és nehézgép kezelője"
+ },
+ {
+  "kod": "8423",
+  "nev": "Köztisztasági, településtisztasági gép kezelője"
+ },
+ {
+  "kod": "8424",
+  "nev": "Daru, felvonó és hasonló anyagmozgató gép kezelője"
+ },
+ {
+  "kod": "8425",
+  "nev": "Targoncavezető"
+ },
+ {
+  "kod": "8430",
+  "nev": "Hajószemélyzet, kormányos, matróz"
+ },
+ {
+  "kod": "9111",
+  "nev": "Háztartási takarító és kisegítő"
+ },
+ {
+  "kod": "9112",
+  "nev": "Intézményi takarító és kisegítő"
+ },
+ {
+  "kod": "9113",
+  "nev": "Kézi mosó, vasaló"
+ },
+ {
+  "kod": "9114",
+  "nev": "Járműtakarító"
+ },
+ {
+  "kod": "9115",
+  "nev": "Ablaktisztító"
+ },
+ {
+  "kod": "9119",
+  "nev": "Egyéb takarító és kisegítő"
+ },
+ {
+  "kod": "9211",
+  "nev": "Szemétgyűjtő, utcaseprő"
+ },
+ {
+  "kod": "9212",
+  "nev": "Hulladékosztályozó"
+ },
+ {
+  "kod": "9221",
+  "nev": "Pedálos vagy kézi hajtású gépek vezetője"
+ },
+ {
+  "kod": "9222",
+  "nev": "Állati erővel vont jármű hajtója"
+ },
+ {
+  "kod": "9223",
+  "nev": "Rakodómunkás"
+ },
+ {
+  "kod": "9224",
+  "nev": "Pultfeltöltő, árufeltöltő"
+ },
+ {
+  "kod": "9225",
+  "nev": "Kézi csomagoló"
+ },
+ {
+  "kod": "9231",
+  "nev": "Portás, telepőr, egyszerű őr"
+ },
+ {
+  "kod": "9232",
+  "nev": "Mérőóra-leolvasó és hasonló egyszerű foglalkozású"
+ },
+ {
+  "kod": "9233",
+  "nev": "Hivatalsegéd, kézbesítő"
+ },
+ {
+  "kod": "9234",
+  "nev": "Hordár, csomagkihordó"
+ },
+ {
+  "kod": "9235",
+  "nev": "Gyorséttermi eladó"
+ },
+ {
+  "kod": "9236",
+  "nev": "Konyhai kisegítő"
+ },
+ {
+  "kod": "9237",
+  "nev": "Háztartási alkalmazott"
+ },
+ {
+  "kod": "9238",
+  "nev": "Parkolóőr"
+ },
+ {
+  "kod": "9239",
+  "nev": "Egyéb, máshova nem sorolható egyszerű szolgáltatási és szállítási foglalkozású"
+ },
+ {
+  "kod": "9310",
+  "nev": "Egyszerű ipari foglalkozású"
+ },
+ {
+  "kod": "9321",
+  "nev": "Kubikos"
+ },
+ {
+  "kod": "9329",
+  "nev": "Egyéb egyszerű építőipari foglalkozású"
+ },
+ {
+  "kod": "9331",
+  "nev": "Egyszerű mezőgazdasági foglalkozású"
+ },
+ {
+  "kod": "9332",
+  "nev": "Egyszerű erdészeti, vadászati és halászati foglalkozású"
+ },
+ {
+  "kod": "0110",
+  "nev": "Fegyveres szervek felsőfokú képesítést igénylő foglalkozásai"
+ },
+ {
+  "kod": "0210",
+  "nev": "Fegyveres szervek középfokú képesítést igénylő foglalkozásai"
+ },
+ {
+  "kod": "0310",
+  "nev": "Fegyveres szervek középfokú képesítést nem igénylő foglalkozásai"
+ }
+]

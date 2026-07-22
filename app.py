@@ -259,7 +259,7 @@ if not st.session_state.gdpr_elfogadva:
             </div>
             <p style="color:#94a3b8; font-size:14px; line-height:1.7; margin:0;">
                 A feltöltött CV-d elemzés céljából az
-                <strong style="color:#f1f5f9;">Anthropic Claude API</strong>-ra kerül továbbításra —
+                <strong style="color:#f1f5f9;">OpenAI API</strong>-ra kerül továbbításra —
                 <strong style="color:#f1f5f9;">a CV-d és személyes adataid nem tárolódnak.</strong>
                 A szolgáltatás fejlesztéséhez anonim álláspiaci adatokat (nyilvános hirdetések
                 szövegét) gyűjtünk és tárolunk; ezek feldolgozásában a
@@ -303,7 +303,7 @@ st.markdown(f"""
     <div style="display:flex; align-items:center; gap:18px;">
         {_fej_logo}
         <div style="font-size:13px; color:#94a3b8;">
-            Claude API · ATS optimalizálás · Személyre szabott dokumentumok
+            OpenAI API · ATS optimalizálás · Személyre szabott dokumentumok
         </div>
         <div style="margin-left:auto;">
             <span style="background:rgba(212,168,67,0.1); border:1px solid rgba(212,168,67,0.3);
@@ -518,6 +518,32 @@ with tab_korkep:
                     st.markdown(f"**{e['szakma']}** — {e['trend']}% egy hónap alatt")
             else:
                 st.caption("Jelenleg nincs megbízhatóan csökkenő szakma az adatban.")
+
+        # ── SZEKTOR-KÖRKÉP: merre tartanak a területek ──
+        st.markdown("---")
+        st.markdown("#### 🏭 Szektor-körkép — merre tartanak a területek?")
+        from collections import defaultdict as _dd
+        _szekt = _dd(lambda: {"friss": 0, "cegek": 0, "szakmak": []})
+        for e in _kk:
+            s = _szekt[e.get("szektor", "Egyéb")]
+            s["friss"] += e["friss_30"]
+            s["cegek"] += e["cegek_30"]
+            s["szakmak"].append(e)
+        _szekt_sor = sorted(_szekt.items(), key=lambda x: -x[1]["friss"])
+        _oszlopok = st.columns(min(3, len(_szekt_sor)) or 1)
+        for _i, (_nev, _a) in enumerate(_szekt_sor):
+            _top = max(_a["szakmak"], key=lambda x: x["friss_30"])
+            with _oszlopok[_i % len(_oszlopok)]:
+                st.markdown(f"""<div style="background:#111827; border:1px solid
+                    rgba(212,168,67,0.3); border-radius:10px; padding:14px 16px;
+                    margin-bottom:10px;">
+                    <div style="color:#D4A843; font-weight:700;">{_nev}</div>
+                    <div style="color:#e2e8f4; font-size:13px; margin-top:6px;">
+                    {_a['friss']} friss hirdetés · {len(_a['szakmak'])} szakma</div>
+                    <div style="color:#94a3b8; font-size:12px; margin-top:4px;">
+                    Legkeresettebb: <b style="color:#e2e8f4;">{_top['szakma']}</b>
+                    ({_top['friss_30']} hirdetés)</div>
+                    </div>""", unsafe_allow_html=True)
 
         # ── TELJES TÁBLÁZAT ──
         st.markdown("---")
@@ -1038,8 +1064,7 @@ function gomb(nev){
                                     "szerep": "felhasznalo", "szoveg": kerdes
                                 })
 
-                                import anthropic as anth
-                                chat_client = anth.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+                                from utils.openai_kliens import gpt as _gpt_chat, GYORS as _GYORS_chat
                                 cv_kontextus = st.session_state.get("cv_szoveg_global", "")
 
                                 chat_prompt = f"""Te egy tapasztalt karrier tanácsadó vagy.
@@ -1053,14 +1078,11 @@ A jelölt kérdése: {kerdes}
 
 Válaszolj röviden, őszintén, személyre szabottan. Maximum 3-4 mondat."""
 
-                                valasz = chat_client.messages.create(
-                                    model="claude-haiku-4-5",
-                                    max_tokens=300,
-                                    messages=[{"role": "user", "content": chat_prompt}]
-                                )
+                                valasz = _gpt_chat([{"role": "user", "content": chat_prompt}],
+                                                   model=_GYORS_chat, max_tokens=300)
                                 st.session_state.tab1_chat[chat_key].append({
                                     "szerep": "ugynok",
-                                    "szoveg": valasz.content[0].text
+                                    "szoveg": valasz
                                 })
                                 st.rerun()
 
@@ -1074,7 +1096,7 @@ Válaszolj röviden, őszintén, személyre szabottan. Maximum 3-4 mondat."""
                             ajanlott_idx = next((j for j, s in enumerate(szinek) if s["kulcs"] == ajanlott), 1)
 
                             kivalasztott_idx = st.radio(
-                                f"Claude ajánlata: **{szinek[ajanlott_idx]['nev']}**",
+                                f"Ajánlott szín a szakmádhoz: **{szinek[ajanlott_idx]['nev']}**",
                                 options=range(len(szinek)),
                                 format_func=lambda x: szin_nevek[x],
                                 index=ajanlott_idx,
@@ -1621,11 +1643,11 @@ with tab_portfolio:
 **Alternatíva (ha sajátabb cím kell):** GitHub Pages — feltöltöd a fájlt egy repóba, és a Settings → Pages alatt kapsz egy `…github.io` linket. Ez kicsit több lépés, de teljesen ingyenes és tartós.
                 """)
 
-            # ── PORTFÓLIÓ-CHAT (Powered by Claude) ──
+            # ── PORTFÓLIÓ-CHAT (Powered by OpenAI) ──
             st.markdown("---")
             st.markdown(
                 "#### ✍️ Csiszold a portfóliót — "
-                "<span style='color:#D4A843; font-weight:700;'>🤖 Powered by Claude</span>",
+                "<span style='color:#D4A843; font-weight:700;'>🤖 Powered by OpenAI</span>",
                 unsafe_allow_html=True
             )
             st.caption("Írd le, mit változtatnál (pl. „tedd rövidebbé a bemutatkozást”, "
@@ -1639,7 +1661,7 @@ with tab_portfolio:
                     st.markdown(f'<div class="chat-uzenet-felhasznalo">{_u["szoveg"]}</div>',
                                 unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<div class="chat-uzenet-ugynok">🤖 Claude: {_u["szoveg"]}</div>',
+                    st.markdown(f'<div class="chat-uzenet-ugynok">🤖 {_u["szoveg"]}</div>',
                                 unsafe_allow_html=True)
 
             pf_kerdes = st.chat_input("Mit csiszoljunk a portfólión?", key="pf_chat_input")
@@ -1653,7 +1675,7 @@ with tab_portfolio:
                     "szovegek": st.session_state.pf_szovegek,
                     "extra_info": st.session_state.pf_extra,
                 }
-                with st.spinner("🤖 Claude dolgozik a portfólión..."):
+                with st.spinner("🤖 Az AI dolgozik a portfólión..."):
                     _muvelet = portfolio_chat(allapot, pf_kerdes)
                     allapot = chat_muvelet_alkalmazasa(allapot, _muvelet)
                     st.session_state.pf_adatok = allapot["adatok"]
@@ -1673,20 +1695,64 @@ with tab_portfolio:
 # ══════════════════════════════════════════════════════════════
 with tab_kulfoldi:
     st.markdown("### ✈️ Külföldi Lehetőségek")
-    st.markdown("""
-    <div style="background:#111827; border:1px solid rgba(212,168,67,0.2);
-                border-radius:12px; padding:32px; text-align:center; margin-top:24px;">
-        <div style="font-size:48px; margin-bottom:16px;">✈️</div>
-        <div style="color:#D4A843; font-weight:700; font-size:20px; margin-bottom:12px;">
-            Hamarosan elérhető!
-        </div>
-        <div style="color:#94a3b8; font-size:14px; line-height:2;">
-            🇩🇪 Német Lebenslauf formátum<br>
-            🇦🇹 Osztrák munkaerőpiac<br>
-            🇬🇧 Angol CV és motivációs levél
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.caption("Élő találatok az EURES-ről, az Európai Unió hivatalos állásportáljáról. "
+               "Lefedettség: EU-tagállamok + Izland, Liechtenstein, Norvégia, Svájc. "
+               "(Az Egyesült Királyság Brexit óta nem tagja a hálózatnak.)")
+
+    from utils.eures import eures_kereses, ORSZAGOK, ALAP_ORSZAGOK
+    from utils.profil import profil, erdeklodes_jelzes
+
+    _ek1, _ek2 = st.columns([3, 2])
+    with _ek1:
+        _e_kulcsszo = st.text_input(
+            "Milyen szakmára / pozícióra keresel?",
+            value=profil().get("szakma", ""),
+            placeholder="pl. ápoló, villanyszerelő, szoftverfejlesztő",
+            key="eures_kulcsszo")
+    with _ek2:
+        _e_orszag_nevek = st.multiselect(
+            "Ország (bármelyik EU/EFTA-ország hozzáadható)",
+            options=list(ORSZAGOK.values()),
+            default=[ORSZAGOK[k] for k in ALAP_ORSZAGOK], key="eures_orszag")
+
+    if st.button("✈️ Keresés az EURES-en", key="eures_gomb", type="primary"):
+        if not _e_kulcsszo.strip():
+            st.warning("Adj meg egy kulcsszót a kereséshez.")
+        else:
+            _kodok = [k for k, v in ORSZAGOK.items() if v in _e_orszag_nevek] \
+                     or ALAP_ORSZAGOK
+            with st.status("✈️ Keresés az EURES-en…", expanded=False) as _es:
+                st.session_state["eures_eredmeny"] = eures_kereses(_e_kulcsszo, _kodok, darab=15)
+                _es.update(label="✈️ Keresés kész", state="complete")
+            erdeklodes_jelzes(f"külföldi munka ({_e_kulcsszo.strip()})")
+
+    _e_eredmeny = st.session_state.get("eures_eredmeny")
+    if _e_eredmeny is not None:
+        if not _e_eredmeny["ok"]:
+            st.warning(_e_eredmeny["hiba"])
+        elif not _e_eredmeny["allasok"]:
+            st.info("Erre a kulcsszóra most nincs találat a választott országokban. "
+                    "Próbálj más megfogalmazást — sokszor a német/angol szakmanév többet hoz.")
+        else:
+            st.caption(f"{_e_eredmeny['talalatok']:,}".replace(",", " ")
+                       + f" találat összesen — az első {len(_e_eredmeny['allasok'])} "
+                         "a legfrissebb, dátum szerint.")
+            for _a in _e_eredmeny["allasok"]:
+                st.markdown(f"""<div style="background:#111827; border:1px solid
+                    rgba(212,168,67,0.3); border-radius:10px; padding:14px 16px;
+                    margin-bottom:6px;">
+                    <div style="color:#e2e8f4; font-weight:700; font-size:15px;">
+                    {_a['cim']}</div>
+                    <div style="color:#D4A843; font-size:13px; margin-top:4px;">
+                    {_a['munkaado']} · {_a['orszag']}</div>
+                    <div style="color:#94a3b8; font-size:12px; margin-top:6px;">
+                    Nyelv: {_a['nyelvek']} · Foglalkoztatás: {_a['foglalkoztatas']}
+                    · {_a['datum']}</div>
+                    <div style="color:#94a3b8; font-size:13px; margin-top:8px; line-height:1.5;">
+                    {_a['leiras']}</div>
+                    </div>""", unsafe_allow_html=True)
+                st.markdown(f"[🔗 Megnézem az EURES oldalán]({_a['link']})")
+                st.markdown("<div style='margin-bottom:14px;'></div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 # TAB: KARRIER TANÁCSADÓ — a saját adatbázisunk piaci adataiból

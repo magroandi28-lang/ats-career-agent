@@ -2,6 +2,7 @@
 
 Ez a fájl az új munkamenet indításához készült. Olvasd végig, mielőtt bármihez nyúlsz!
 RÉSZLETES FOLYAMAT-LEÍRÁS: docs/folyamat_terkep.md (ez a kánon — javaslat előtt ezzel vesd össze!)
+MIGRÁCIÓS TEENDŐK (Streamlit→FastAPI/React váltáskor törlendő régi kód!): docs/migracio_teendok.md
 
 ## MI EZ A PROJEKT
 Andi álláskeresést segítő Streamlit-alkalmazása (app.py) Supabase-adatbázissal.
@@ -42,10 +43,14 @@ tudásbázis + Flow, a mentálhigiénés szemléletű AI-kísérő. Cél: Andi e
 - Supabase új tábla: tudasanyag (pgvector, tudas_kereses RPC — db/tudasbazis.sql)
 
 ## KULCSOK (.env)
-ANTHROPIC (CV/levél/chat-írás, kredit kevés!), GEMINI (szöveg: kiértékelés, chat,
-kézírás; embedding-kvótája külön számláló!), OPENAI (CSAK embedding, ~$5.14 van,
-fillérekes), JOOBLE, SERPAPI, SUPABASE. Gemini napi keret: szöveg és embedding
-KÜLÖN fogy; éjfél (US) után töltődik.
+ANTHROPIC KIVEZETVE (07-21, Andi döntése — "egy fillért sem rá") — a kódban
+sehol nem hívjuk, csomag is törölve requirements.txt-ből, a kulcs csak üresben
+maradt a .env-ben, nem baj. OPENAI most MINDENT visz: embedding (fillérekes) +
+CV/levél/portfólió/chat-írás (gpt-5.6-luna kinyerésre, gpt-5.6-terra
+fogalmazásra) — FIGYELNI a $5.14 keretet, ez most gyorsabban fogy mint eddig!
+GEMINI (szöveg: kiértékelés, chat, kézírás; embedding-kvótája külön számláló!),
+JOOBLE, SERPAPI, SUPABASE. Gemini napi keret: szöveg és embedding KÜLÖN fogy;
+éjfél (US) után töltődik.
 
 ## ANDI SZABÁLYAI — KÖTELEZŐ + MA TANULT LECKÉK
 1. EGYSZERRE EGY LÉPÉS. Pontos parancs szürke kódblokkban (PowerShell: NINCS &&,
@@ -60,7 +65,8 @@ KÜLÖN fogy; éjfél (US) után töltődik.
    folyamatából induljunk, ne ötletből!
 8. Tanulás: fülről fülre leírjuk, mit-hogyan építettünk, Andi utólag tanulja meg
    (mint a védésnél). Cél: interjún el tudja mesélni (RAG, pgvector, multi-provider,
-   multimodális, ETL — ezek a hívószavak!).
+   multimodális, ETL — ezek a hívószavak! + 07-22-től: FastAPI, Next.js,
+   Supabase Auth, determinisztikus vs. AI-alapú pontozás tudatos szétválasztása).
 9. "Kész" csak az, amire Andi mondja. Flow hangneme: informál, nem dönt; erősség-
    alapú; kiégettnek/bántalmazottnak támogató, sosem számonkérő.
 
@@ -77,6 +83,27 @@ KÜLÖN fogy; éjfél (US) után töltődik.
 - RAG-jegyzet: morzsaszám-emelés (4→10) JÓVÁHAGYVA de a zajszűrés utánra
   halasztva — MOST MÁR MEHET; később: multi-query RAG.
 
+## 07-21 EREDMÉNYEI
+- Claude/Anthropic TELJESEN kivezetve az appból (10 hívás: karrier_ugynok.py x6,
+  portfolio_generator.py x3, ceginfo_agensek.py x1, + app.py 1 beágyazott chat)
+  → utils/openai_kliens.py közös hívóval OpenAI-ra (gpt-5.6-luna/terra).
+  UI-szövegek is javítva (GDPR-nyilatkozat, fejléc-badge, portfolio-chat felirat).
+  A "Claude ajánlata" színcímke egy FÉLREVEZETŐ LABEL volt — a szín-javaslat
+  mindig is determinisztikus (szin_ajanlat(), kategória alapján), nem AI-hívás.
+  Mind a 10 hely élőben tesztelve, működik.
+- ✈️ Külföldi Lehetőségek fül: élő EURES-keresés (kulcsszó + DE/AT szűrő),
+  valódi EU-s álláshirdetések, nincs tárolás (élő lekérdezés, session_state
+  cache-eli az utolsó találatot). ELVETVE — Andi kérésére ÚJRA lesz tervezve
+  CV-alapú, rangsorolt formában (mint a hazai Karrier Ügynök), lásd lent.
+- 🇭🇺 EURES-HU beépítve a NAPI HAZAI gyűjtésbe (scripts/eures_gyujto.py) —
+  a Jooble MELLETT, nem helyette (élőben igazolva: más forrás, az EURES
+  magyar hirdetései az NFSZ-től jönnek, a Jooble kereskedelmi portálokról,
+  0 átfedés a cégnevekben). ERVENYES_FORRAS_TIPUSOK bővítve 'eures'-sel
+  (utils/adatbazis.py + db/eures_forras.sql — Andi lefuttatta). GitHub
+  Actions bővítve (.github/workflows/jooble_gyujto.yml, EURES-HU lépés a
+  Jooble után). Első teljes lefuttatás: mind az 50 szakma, 309 új EURES-HU
+  hirdetés mentve (6692 összesen, 6354 jooble + 309 eures + korábbiak).
+
 ## ÁLLAPOT + NYITOTT FELADATOK (prioritás szerint)
 0. AUTOMATA (nem kell kézzel!): hajnali gyűjtés + készség-pótló + adatőr.
    Adatőr-jelentés: GitHub → Actions fül → legutóbbi futás.
@@ -90,9 +117,21 @@ KÜLÖN fogy; éjfél (US) után töltődik.
 4. Tesztelési réteg + CI (pytest a determinisztikus függvényekre — Ruander
    vizsgaportfólióhoz is!) — Andi gépeli, Claude tanít
 5. Deploy (Streamlit Cloud) + README (a folyamat_terkep.md-ből) + LinkedIn
-6. Külföldi fül döntés · hang bemenet (st.audio_input hibás — saját komponens
-   kellene) · felolvasás · teszt-kérdéssor bővítés · GPT-re váltás a chatben
-   (kulcs kész, modell-független a kód)
+6. Hang bemenet (st.audio_input hibás — saját komponens kellene) · felolvasás ·
+   teszt-kérdéssor bővítés
+7b. Képzés-modul: MOST kurált, kézzel karbantartott adatbázisból dolgozik
+   (agents/kepzes_db.py, kepzesek_szakmahoz()) — nem gyűjt élőben. Andi
+   jelezte (07-22): ez még nem működik jól, képzéseket TÉNYLEGESEN gyűjteni
+   kell (nem csak kurálni) — hasonló gyűjtő-script kellene, mint a Jooble/
+   EURES-nél. Részletek kidolgozása még nem történt meg.
+7. Külföldi fül ÚJRATERVEZÉS (07-21, folyamatban): CV-alapú, rangsorolt top 5
+   (mint a hazai Karrier Ügynök), NEM élő keresés — napi EURES-gyűjtés kell
+   saját táblába (pl. kulfoldi_hirdetesek) a "legjobb 5" tisztességes
+   kiválasztásához. Akadály: az EURES kulcsszavas keresés NEM fordít
+   nyelvek között (magyar kulcsszó → 0 találat DE/AT-ban) — kell egy
+   HU→célnyelv fordítási réteg (szótár + AI-tartalék). Fázis 2: CV-átírás +
+   motivációs levél HU-ból németre ÉS angolra (nem csak fordítás — helyi
+   konvenció, Europass/DACH kutatva). Fázis 3: portfólió célnyelven.
 
 ## ISMERT APRÓSÁGOK
 - OneDrive sync-késés: a sandbox néha csonka fájlt lát — ellenőrzés Andi gépén.

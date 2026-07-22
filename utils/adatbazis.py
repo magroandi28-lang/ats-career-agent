@@ -29,7 +29,7 @@ SUPABASE_SERVICE_KEY = (
 _kliens = None
 
 ERVENYES_KESZSEG_TIPUSOK = ("elvaras", "feladat", "eszkoz", "soft", "iparag")
-ERVENYES_FORRAS_TIPUSOK = ("portal", "ceges", "jooble")
+ERVENYES_FORRAS_TIPUSOK = ("portal", "ceges", "jooble", "eures")
 
 
 def kliens():
@@ -151,7 +151,7 @@ def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
         hatar = (datetime.datetime.now(datetime.timezone.utc)
                  - datetime.timedelta(days=max_nap)).isoformat()
         q = (db.table("hirdetesek")
-               .select("cim, snippet, link, helyszin, datum_szoveg, bersav, forras_tipus, ceg_id")
+               .select("id, cim, snippet, link, helyszin, datum_szoveg, bersav, forras_tipus, ceg_id")
                .eq("szakma_id", szakma_id)
                .gte("letrehozva", hatar))
         if helyszin:
@@ -169,6 +169,7 @@ def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
         allasok = []
         for s in sorok:
             allasok.append({
+                "id": s.get("id"),
                 "cim": s.get("cim", ""),
                 "ceg": cegnev.get(s.get("ceg_id"), ""),
                 "snippet": s.get("snippet", ""),
@@ -183,6 +184,34 @@ def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
     except Exception as e:
         print(f"[adatbazis] Friss hirdetesek lekerdezese hiba: {e}")
         return []
+
+
+def keszsegek_hirdetesekhez(hirdetes_idk: list) -> dict:
+    """Több hirdetéshez EGYETLEN lekérdezéssel megadja a hozzájuk mentett
+    készségeket (a hirdetes_keszseg kapcsolótáblán át).
+
+    Visszatérés: {hirdetes_id: ["pénztárgép kezelése", "HACCP", ...], ...}
+    Ez a determinisztikus (nem AI-alapú) egyezés-számoláshoz kell — a
+    készségek MÁR el vannak mentve gyűjtéskor, itt csak lekérdezzük őket."""
+    db = kliens()
+    idk = [i for i in (hirdetes_idk or []) if i]
+    if not db or not idk:
+        return {}
+    try:
+        r = (db.table("hirdetes_keszseg")
+               .select("hirdetes_id, keszsegek(nev)")
+               .in_("hirdetes_id", idk)
+               .execute())
+        eredmeny: dict = {}
+        for sor in (r.data or []):
+            hid = sor.get("hirdetes_id")
+            nev = (sor.get("keszsegek") or {}).get("nev")
+            if hid and nev:
+                eredmeny.setdefault(hid, []).append(nev)
+        return eredmeny
+    except Exception as e:
+        print(f"[adatbazis] Keszsegek-hirdetesekhez lekerdezes hiba: {e}")
+        return {}
 
 
 def osszes_sor(tabla: str, oszlopok: str) -> list:
@@ -312,8 +341,9 @@ def kereslet_korkep() -> list:
                 break
             start += 1000
 
-        nevek = {s["id"]: s["nev"] for s in
-                 (db.table("szakmak").select("id, nev").execute().data or [])}
+        _szsorok = db.table("szakmak").select("id, nev, kategoria").execute().data or []
+        nevek = {s["id"]: s["nev"] for s in _szsorok}
+        kategoriak = {s["id"]: (s.get("kategoria") or "Egyéb") for s in _szsorok}
 
         from collections import defaultdict
         gyujto = defaultdict(lambda: {"friss": 0, "elozo": 0, "cegek": set()})
@@ -354,6 +384,7 @@ def kereslet_korkep() -> list:
                 kategoria = "➡️ stabil"
             eredmeny.append({
                 "szakma": nevek[szid],
+                "szektor": kategoriak.get(szid, "Egyéb"),
                 "friss_30": a["friss"],
                 "elozo_30": a["elozo"],
                 "cegek_30": len(a["cegek"]),
