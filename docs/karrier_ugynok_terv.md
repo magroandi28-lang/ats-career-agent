@@ -182,6 +182,26 @@ tanácsadásnál — de a rendszer nem próbálja ezt kitalálni/feltételezni.
 - A determinisztikus számítások (ATS %, állás-rangsorolás) kódban maradnak,
   nem AI-becslés — ez már korábban eldöntött, nem változik.
 
+## Megvalósítva (2026.07.22, ma este)
+
+Az első, valódi verzió elkészült és lokálisan letesztelve (`npm run build`
+hibamentes):
+- `frontend/src/app/page.js`: Flow beszélgető-panel a belépési pont —
+  bemutatkozás, gyors gombok ("Állást keresnék" stb.) + szabad szöveges
+  mező, meglévő `/flow-chat` végponthoz kötve.
+- `utils/flow_agy.py`: `flow_valasz()` promptja kiegészítve két új résszel
+  (`FLOW_SZEMELYISEG`, `FLOW_IRANYITAS`) — Flow felismeri az álláskeresési
+  szándékot, megkérdezi a célszakmát, ha nem tudja, és `[FLOW_AKCIO:
+  karrier_ugynok:SZAKMA]` jelöléssel jelzi a frontendnek, mikor indítsa el
+  a keresést.
+- `frontend/src/app/KarrierUgynok.js`: a korábbi keresőoldal kiszervezve
+  komponensbe, `kezdoSzakma` propon keresztül Flow automatikusan el is
+  indíthatja, kattintás nélkül.
+
+Amit ez MÉG NEM tartalmaz (későbbi kör): hangalapú be/kimenet, a mind-az-5-
+höz CV+levél generálás és kiválasztás, elavultság-alapú triázs, a többi
+fülre irányítás.
+
 ## Következő lépés
 
 Ha ez a terv jóváhagyva, a tényleges építés sorrendje:
