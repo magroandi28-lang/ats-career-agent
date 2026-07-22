@@ -8,6 +8,7 @@ Futtatás:  python scripts/adat_or.py
 Ajánlott: hetente, illetve minden nagyobb gyűjtés/bővítés után.
 """
 
+import datetime
 import os
 import re
 import sys
@@ -154,6 +155,56 @@ def main():
                  .is_("embedding", "null").execute().count
     if ures_emb:
         HIBA.append(f"{ures_emb} tudás-szakasznak nincs embeddingje (nem kereshető)")
+
+    # ── 7. SZAKMÁNKÉNTI GYŰJTÉS-EGÉSZSÉG ÉS CÍMKÉZETTSÉG ─────
+    print(f"\n[7] SZAKMÁNKÉNTI GYŰJTÉS ÉS CÍMKÉZETTSÉG")
+    print("    Ellenőrzés: van-e szakma, ahol 7 napja nem jött be új hirdetés")
+    print("    (gyűjtés-lyuk — érdemes új forrást keresni hozzá), és hol")
+    print("    alacsony a címkézettség (torz rangsor: jó találatok tűnhetnek")
+    print("    0%-osnak, mert nincs elmentve hozzájuk készség-adat)")
+
+    szakma_nev_map = {s["id"]: s["nev"] for s in szakmak}
+    hirdetesek_reszletes = lapozva(db, "hirdetesek", "id, szakma_id, letrehozva")
+
+    het_hatara = (datetime.datetime.now(datetime.timezone.utc)
+                  - datetime.timedelta(days=7)).isoformat()
+
+    uj_7nap = defaultdict(int)
+    osszes_szakmankent = defaultdict(int)
+    cimzett_szakmankent = defaultdict(int)
+
+    for h in hirdetesek_reszletes:
+        sz_id = h.get("szakma_id")
+        if not sz_id:
+            continue
+        osszes_szakmankent[sz_id] += 1
+        if h["id"] in cimkezett:
+            cimzett_szakmankent[sz_id] += 1
+        if (h.get("letrehozva") or "") >= het_hatara:
+            uj_7nap[sz_id] += 1
+
+    lyukas_szakmak = []
+    torz_szakmak = []
+    for sz_id, nev in szakma_nev_map.items():
+        ossz = osszes_szakmankent.get(sz_id, 0)
+        if ossz == 0:
+            continue  # sose volt hozzá hirdetés -- ez más probléma, nem gyűjtés-lyuk
+        if uj_7nap.get(sz_id, 0) == 0:
+            lyukas_szakmak.append(nev)
+        cimzett = cimzett_szakmankent.get(sz_id, 0)
+        if (cimzett / ossz) < 0.7:
+            torz_szakmak.append(f"{nev} ({round(100 * cimzett / ossz)}% címkézett)")
+
+    if lyukas_szakmak:
+        FIGYELEM.append(
+            f"{len(lyukas_szakmak)} szakmánál 7 napja nincs új hirdetés "
+            f"(gyűjtés-lyuk): {lyukas_szakmak}"
+        )
+    if torz_szakmak:
+        FIGYELEM.append(
+            f"{len(torz_szakmak)} szakmánál alacsony a címkézettség "
+            f"(rangsor-torzulás veszélye): {torz_szakmak}"
+        )
 
     # ── ÖSSZEGZÉS ────────────────────────────────────────────
     print("\n" + "=" * 60)

@@ -135,10 +135,44 @@ def ceginfo_cache_ment(ceg_nev: str, info: dict):
         print(f"[adatbazis] Ceginfo mentes hiba: {e}")
 
 
+def _valos_hirdetes_datum(datum_szoveg: str, letrehozva: str) -> datetime.date:
+    """A hirdetés VALÓDI feladási dátumát adja vissza -- nem azt, mikor
+    kerültünk rá MI (letrehozva), hanem amit a forrás (Jooble/EURES) a
+    hirdetés tényleges dátumaként ad. Enélkül egy régóta fent lévő, de
+    csak most, először megtalált hirdetés tévesen "frissnek" tűnne.
+
+    Formátumok, amiket a gyűjtők ma mentenek:
+      - Jooble: "ÉÉÉÉ-HH-NN" (scripts/jooble_gyujto.py)
+      - EURES:  "ÉÉÉÉ.HH.NN." (utils/eures.py, _datum())
+
+    Ha egyik sem értelmezhető (üres, hibás), a gyűjtési dátumra esünk
+    vissza -- így legalább egy hozzávetőleges sorrend marad, nem esik ki
+    a hirdetés a rangsorból pusztán egy hiányzó dátum miatt.
+    """
+    szoveg = (datum_szoveg or "").strip()
+    for minta in ("%Y-%m-%d", "%Y.%m.%d.", "%Y.%m.%d"):
+        try:
+            return datetime.datetime.strptime(szoveg, minta).date()
+        except ValueError:
+            continue
+    try:
+        return datetime.datetime.fromisoformat(
+            (letrehozva or "").replace("Z", "+00:00")
+        ).date()
+    except (ValueError, TypeError):
+        return datetime.date.min
+
+
 def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
                      max_nap: int = 30, limit: int = 15) -> list:
     """DB-FIRST: friss hirdetések a SAJÁT adatbázisunkból az adott szakmához.
-    Ha van elég, nem kell internetes keresés — gyorsabb és ingyenes."""
+    Ha van elég, nem kell internetes keresés — gyorsabb és ingyenes.
+
+    FONTOS: a végleges sorrend a hirdetés VALÓDI feladási dátuma szerint
+    készül (lásd _valos_hirdetes_datum()), nem a mi gyűjtési időbélyegünk
+    szerint -- egy csak most megtalált, de régóta fent lévő hirdetés ne
+    előzzön meg egy ténylegesen frissebb találatot.
+    """
     db = kliens()
     if not db or not szakma_nev:
         return []
@@ -151,13 +185,24 @@ def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
         hatar = (datetime.datetime.now(datetime.timezone.utc)
                  - datetime.timedelta(days=max_nap)).isoformat()
         q = (db.table("hirdetesek")
-               .select("id, cim, snippet, link, helyszin, datum_szoveg, bersav, forras_tipus, ceg_id")
+               .select("id, cim, snippet, link, helyszin, datum_szoveg, bersav, forras_tipus, ceg_id, letrehozva")
                .eq("szakma_id", szakma_id)
                .gte("letrehozva", hatar))
         if helyszin:
             q = q.ilike("helyszin", f"%{helyszin}%")
-        r = q.order("letrehozva", desc=True).limit(limit).execute()
+        # Szélesebb jelölt-kört kérünk le, mint amennyit végül visszaadunk --
+        # a VALÓDI dátum szerinti sorrendet csak ezután, Pythonban állítjuk
+        # be, így a ténylegesen legfrissebbek nem eshetnek ki a jelöltek
+        # közül pusztán a gyűjtési sorrend miatt.
+        r = (q.order("letrehozva", desc=True)
+              .limit(max(limit * 5, 50))
+              .execute())
         sorok = r.data or []
+        sorok.sort(
+            key=lambda s: _valos_hirdetes_datum(s.get("datum_szoveg"), s.get("letrehozva")),
+            reverse=True,
+        )
+        sorok = sorok[:limit]
 
         # Cégnevek egyetlen lekérdezéssel
         ceg_idk = list({s["ceg_id"] for s in sorok if s.get("ceg_id")})
