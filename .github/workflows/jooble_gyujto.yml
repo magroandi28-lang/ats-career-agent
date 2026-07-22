@@ -21,38 +21,48 @@ jobs:
       - name: Gyujtes futtatasa
         env:
           JOOBLE_API_KEY: ${{ secrets.JOOBLE_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_KINYERES_GYUJTESKOR: "0"
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/jooble_gyujto.py
 
-      # EURES (NFSZ-forras) - a Jooble-tol strukturalisan fuggetlen, ingyenes forras
+      # EURES (NFSZ-forras) - a Jooble-tol fuggetlen, ingyenes forras
       - name: EURES-HU gyujtes futtatasa
         if: always()
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_KINYERES_GYUJTESKOR: "0"
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/eures_gyujto.py
 
-      # A cimke nelkul maradt hirdetesek potlasa (a friss napi Gemini-kerettel)
-      - name: Keszseg-potlo futtatasa
-        if: always()
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: python scripts/keszseg_potlo.py
-
-      # Ami a Gemini-keretbol kimaradt: szotar-cimkezes (0 Ft, AI nelkul)
-      - name: Szotar-cimkezo futtatasa
+      # Eloszor az ingyenes szotar dolgozik.
+      - name: Szotar-cimkezo futtatasa (Gemini elott)
         if: always()
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/keszseg_szotaras.py
 
-      # Adatminoseg-jelentes minden nap — az Actions naplojaban olvashato
+      # A maradek potlasa korlatozott Gemini-keretbol.
+      - name: Keszseg-potlo futtatasa
+        if: always()
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          KESZSEG_POTLO_MAX_CSOMAG: ${{ vars.KESZSEG_POTLO_MAX_CSOMAG || '5' }}
+          KESZSEG_POTLO_CSOMAG_MERET: ${{ vars.KESZSEG_POTLO_CSOMAG_MERET || '10' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/keszseg_potlo.py
+
+      # Az új készségekkel ismét ingyen címkézünk.
+      - name: Szotar-cimkezo ujrafuttatasa
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/keszseg_szotaras.py
+
+      # Napi adatminoseg-jelentes.
       - name: Adator (adatminoseg-jelentes)
         if: always()
         env:
