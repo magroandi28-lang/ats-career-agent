@@ -4,16 +4,28 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "check:env": "node scripts/check-env.mjs",
+    "prebuild": "npm run check:env",
     "build": "next build",
     "start": "next start"
   },
+  "engines": {
+    "node": "24.x"
+  },
+  "overrides": {
+    "postcss": "8.5.22",
+    "sharp": "0.35.3"
+  },
   "dependencies": {
+    "@supabase/ssr": "0.12.3",
+    "@supabase/supabase-js": "2.110.8",
     "next": "16.2.11",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "@tailwindcss/postcss": "4.3.3",
+    "tailwindcss": "4.3.3"
   }
 }

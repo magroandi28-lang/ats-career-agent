@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-// A backend cime -- kornyezeti valtozobol jon (Vercel-en a valodi Render-cim,
-// helyi fejlesztesnel pedig a localhost).
-const API_CIM = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { apiFetch } from "../lib/api";
 
 // Ez a komponens a Karrier Ügynök automatizált láncát adja: szakma
 // felismerése -> állások keresése. Flow (page.js) hívja meg, amikor
@@ -29,7 +26,7 @@ export default function KarrierUgynok({ kezdoSzakma = "", kezdoHelyszin = "Budap
 
     try {
       setFutAllapot("szakma");
-      const szResp = await fetch(`${API_CIM}/szakma-felismeres`, {
+      const szResp = await apiFetch("/szakma-felismeres", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ szakma_megadva: szakmaSzoveg }),
@@ -39,7 +36,7 @@ export default function KarrierUgynok({ kezdoSzakma = "", kezdoHelyszin = "Budap
       setSzakmaInfo(szInfo);
 
       setFutAllapot("allasok");
-      const alResp = await fetch(`${API_CIM}/allasok`, {
+      const alResp = await apiFetch("/allasok", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ szakma_info: szInfo, helyszin: helyszinSzoveg }),
