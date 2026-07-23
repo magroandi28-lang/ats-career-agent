@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #070b16;
+  --foreground: #f4f0e6;
+  --navy: #070b16;
+  --navy-soft: #0d1425;
+  --panel: rgba(16, 25, 44, 0.88);
+  --panel-strong: #121d33;
+  --gold: #e1b84f;
+  --gold-soft: #f1cc6b;
+  --muted: #98a5bb;
+  --line: rgba(225, 184, 79, 0.22);
 }
 
 @theme inline {
@@ -12,15 +20,65 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+button,
+a,
+input {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--gold-soft);
+  outline-offset: 3px;
+}
+
+.career-shell {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(33, 56, 96, 0.38), transparent 32rem),
+    radial-gradient(circle at 95% 18%, rgba(225, 184, 79, 0.09), transparent 24rem),
+    linear-gradient(180deg, #070b16 0%, #080d19 100%);
+}
+
+.career-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.gold-text {
+  background: linear-gradient(135deg, #f3d478, #c99932);
+  background-clip: text;
+  color: transparent;
+}
+
+.glass-panel {
+  border: 1px solid var(--line);
+  background: linear-gradient(145deg, rgba(18, 29, 51, 0.94), rgba(10, 17, 31, 0.92));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.flow-pulse {
+  box-shadow:
+    0 0 0 6px rgba(225, 184, 79, 0.08),
+    0 0 30px rgba(225, 184, 79, 0.22);
+}
+
+@media (max-width: 1023px) {
+  .career-grid {
+    background-size: 24px 24px;
+  }
 }
