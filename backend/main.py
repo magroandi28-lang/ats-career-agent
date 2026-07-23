@@ -18,7 +18,7 @@ Utana a bongeszoben:
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from agents.karrier_ugynok import (
     szakma_felismeres,
@@ -34,23 +34,53 @@ from agents.karrier_ugynok import (
 from utils.adatbazis import kereslet_korkep, szakma_statisztika, kliens
 from utils.teszt import ENERGIA_SKALA, STRESSZ_SKALA, holland_tipus, jollet_jelzes
 from utils.flow_agy import flow_kiertekeles, flow_valasz
-from backend.auth import jelenlegi_felhasznalo, friss_auth_kliens
+from backend.auth import (
+    auth_keres_limit,
+    friss_auth_kliens,
+    jelenlegi_felhasznalo,
+)
+from backend.security import RequestSecurityMiddleware, read_validated_pdf
+from backend.settings import get_settings
 
-app = FastAPI(title="Karrier-Ugynokseg API")
+settings = get_settings()
+app = FastAPI(
+    title="Karrier-Ugynokseg API",
+    docs_url=None if settings.production else "/docs",
+    redoc_url=None if settings.production else "/redoc",
+    openapi_url=None if settings.production else "/openapi.json",
+)
 
 # Enged: a Vercelen elo React/Next.js oldal (es a helyi fejlesztoi szerver is)
 # hivhassa ezt a backendet a bongeszobol. CORS nelkul a bongeszo blokkolna
 # a valaszt, meg akkor is, ha a szerver maga rendesen valaszolt.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://ats-career-agent-z3od.vercel.app",
-        "http://localhost:3000",
+    allow_origins=list(settings.cors_origins),
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-Request-ID",
     ],
-    allow_origin_regex=r"https://ats-career-agent-z3od.*\.vercel\.app",
-    allow_methods=["*"],
-    allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
+    allow_credentials=False,
 )
+app.add_middleware(RequestSecurityMiddleware)
+
+
+@app.get("/health/live")
+def health_live():
+    """Folyamat-életjelet ad, külső szolgáltatást nem érint."""
+    return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def health_ready():
+    """Csak akkor jelez kész állapotot, ha az alapkapcsolatok konfiguráltak."""
+    if not settings.auth_ready or not settings.database_ready:
+        raise HTTPException(503, "A szolgáltatás még nem áll készen.")
+    return {"status": "ready"}
 
 
 @app.get("/healthz")
@@ -62,16 +92,25 @@ def healthz():
     return {"status": "ok", "uzenet": "Elek!"}
 
 
-class SzakmaFelismeresBemenet(BaseModel):
+class ApiModel(BaseModel):
+    """Minden API-bemenetnél tiltja a nem dokumentált mezőket."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class SzakmaFelismeresBemenet(ApiModel):
     """Ez irja le, MIT varunk a keresben. A FastAPI ez alapjan automatikusan
     ellenorzi es Python-objektumma alakitja a bejovo adatot -- ezt hivjak
     'Pydantic modell'-nek."""
-    cv_szoveg: str = ""
-    szakma_megadva: str = ""
+    cv_szoveg: str = Field(default="", max_length=120_000)
+    szakma_megadva: str = Field(default="", max_length=200)
 
 
 @app.post("/szakma-felismeres")
-def szakma_felismeres_vegpont(bemenet: SzakmaFelismeresBemenet):
+def szakma_felismeres_vegpont(
+    bemenet: SzakmaFelismeresBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Az ELSO valodi vegpont. A mar meglevo szakma_felismeres() fuggvenyt hivja
     (agents/karrier_ugynok.py) -- nem masolt vagy atirt kod, ugyanaz a logika,
@@ -84,16 +123,19 @@ def szakma_felismeres_vegpont(bemenet: SzakmaFelismeresBemenet):
     return szakma_felismeres(bemenet.cv_szoveg, bemenet.szakma_megadva)
 
 
-class AllasokBemenet(BaseModel):
+class AllasokBemenet(ApiModel):
     """A /szakma-felismeres valasza (szakma_info) megy ide vissza -- igy nem
     kell ujra kitalalni a szakmat, csak folytatjuk a lancot."""
-    cv_szoveg: str = ""
+    cv_szoveg: str = Field(default="", max_length=120_000)
     szakma_info: dict
-    helyszin: str = "Budapest"
+    helyszin: str = Field(default="Budapest", max_length=200)
 
 
 @app.post("/allasok")
-def allasok_vegpont(bemenet: AllasokBemenet):
+def allasok_vegpont(
+    bemenet: AllasokBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Minoseg-elso allaskereses + rangsorolas. A teljes dontesi logika (80%-os
     kuszob, mikor megy ki a netre, mi tortenik ha meg ugy sincs jo talalat)
@@ -105,15 +147,18 @@ def allasok_vegpont(bemenet: AllasokBemenet):
     )
 
 
-class AtsBemenet(BaseModel):
+class AtsBemenet(ApiModel):
     """Ugyanaz a szakma_info megy ide, mint az /allasok-ba -- a lanc
     harmadik lepese."""
-    cv_szoveg: str = ""
+    cv_szoveg: str = Field(default="", max_length=120_000)
     szakma_info: dict
 
 
 @app.post("/ats-diagnozis")
-def ats_diagnozis_vegpont(bemenet: AtsBemenet):
+def ats_diagnozis_vegpont(
+    bemenet: AtsBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Determinisztikus ATS-diagnozis: a szazalekot es a hianyzo kulcsszavak
     darabszamat KOD szamolja, valos adatbazis-adatokbol (v_szakma_keszsegek
@@ -128,19 +173,22 @@ def ats_diagnozis_vegpont(bemenet: AtsBemenet):
     return ats_diagnozis_determinisztikus(bemenet.cv_szoveg, bemenet.szakma_info)
 
 
-class CvAtirasBemenet(BaseModel):
+class CvAtirasBemenet(ApiModel):
     """A lanc negyedik lepese: az /allasok egyik talalata (allas) + a
     /ats-diagnozis eredmenye (diagnozis) alapjan irja at a CV-t."""
-    cv_szoveg: str = ""
+    cv_szoveg: str = Field(default="", max_length=120_000)
     allas: dict
     szakma_info: dict
-    diagnozis: dict = {}
-    ceginfo: dict = {}
-    kiegeszites: str = ""
+    diagnozis: dict = Field(default_factory=dict)
+    ceginfo: dict = Field(default_factory=dict)
+    kiegeszites: str = Field(default="", max_length=10_000)
 
 
 @app.post("/cv-atiras")
-def cv_atiras_vegpont(bemenet: CvAtirasBemenet):
+def cv_atiras_vegpont(
+    bemenet: CvAtirasBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     CV-atiras egy konkret allashirdetesre szabva: beepiti az ATS-diagnozisbol
     hianyzo kulcsszavakat, termeszetes megfogalmazasban. Ez VALODI iras-feladat
@@ -158,19 +206,22 @@ def cv_atiras_vegpont(bemenet: CvAtirasBemenet):
     }
 
 
-class MotivaciosLevelBemenet(BaseModel):
+class MotivaciosLevelBemenet(ApiModel):
     """Ugyanaz a bemenet-forma, mint a /cv-atiras-nal, csak diagnozis
     nelkul -- a motivacios level nem az ATS-hianyokra epul, hanem
     kozvetlenul az allasra es a cegre."""
-    cv_szoveg: str = ""
+    cv_szoveg: str = Field(default="", max_length=120_000)
     allas: dict
     szakma_info: dict
-    ceginfo: dict = {}
-    kiegeszites: str = ""
+    ceginfo: dict = Field(default_factory=dict)
+    kiegeszites: str = Field(default="", max_length=10_000)
 
 
 @app.post("/motivacios-level")
-def motivacios_level_vegpont(bemenet: MotivaciosLevelBemenet):
+def motivacios_level_vegpont(
+    bemenet: MotivaciosLevelBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Motivacios level egy konkret allashirdetesre es cegre szabva. Valodi
     iras-feladat (nem pontszamitas) -- az AI-hasznalat itt indokolt.
@@ -186,16 +237,19 @@ def motivacios_level_vegpont(bemenet: MotivaciosLevelBemenet):
     }
 
 
-class KepzesBemenet(BaseModel):
+class KepzesBemenet(ApiModel):
     """A /ats-diagnozis hianyzo_kulcsszavak listaja mehet ide hianyok-kent --
     igy a kepzes-ajanlas ugyanarra a hianyra epul, amit a diagnozis talalt."""
-    szakma: str
-    hianyok: list = []
-    szakma_kategoria: str = ""
+    szakma: str = Field(max_length=200)
+    hianyok: list = Field(default_factory=list)
+    szakma_kategoria: str = Field(default="", max_length=200)
 
 
 @app.post("/kepzes-ajanlat")
-def kepzes_ajanlat_vegpont(bemenet: KepzesBemenet):
+def kepzes_ajanlat_vegpont(
+    bemenet: KepzesBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Kurált, kézzel karbantartott képzési adatbázisból válogat -- NINCS
     AI-hívás, NINCS internetes keresés, 0 forint, azonnali válasz.
@@ -210,7 +264,9 @@ def kepzes_ajanlat_vegpont(bemenet: KepzesBemenet):
 # ── PIACI KÖRKÉP ──────────────────────────────────────────────
 
 @app.get("/piaci-korkep")
-def piaci_korkep_vegpont():
+def piaci_korkep_vegpont(
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Élő kereslet-mutató MINDEN szakmára: két 30 napos ablakot hasonlít
     össze (friss_30 vs elozo_30) -- 0 AI-hívás, csak Supabase-lekérdezés.
@@ -218,12 +274,15 @@ def piaci_korkep_vegpont():
     return {"szakmak": kereslet_korkep()}
 
 
-class SzakmaStatBemenet(BaseModel):
-    szakma: str
+class SzakmaStatBemenet(ApiModel):
+    szakma: str = Field(max_length=200)
 
 
 @app.post("/szakma-statisztika")
-def szakma_statisztika_vegpont(bemenet: SzakmaStatBemenet):
+def szakma_statisztika_vegpont(
+    bemenet: SzakmaStatBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Egy konkrét szakma piaci képe: hirdetésszám, leggyakoribb elvárások
     (a v_szakma_keszsegek nézetből, százalékkal), bérinfók. 0 AI-hívás.
@@ -233,20 +292,23 @@ def szakma_statisztika_vegpont(bemenet: SzakmaStatBemenet):
 
 # ── TANÁCSADÓ TESZT (Holland + karrierhorgony + jóllét) ──────
 
-class TanacsadoTesztBemenet(BaseModel):
+class TanacsadoTesztBemenet(ApiModel):
     """h_pontok: {'R':1-4, 'I':1-4, 'A':1-4, 'S':1-4, 'E':1-4, 'C':1-4}
     (lásd utils/teszt.py HOLLAND_KERDESEK -- a kódok jelentése ott van).
     energia/stressz: PONTOSAN az ENERGIA_SKALA/STRESSZ_SKALA egyik szövege."""
     h_pontok: dict
-    horgony1: str
-    horgony2: str = ""
-    energia: str
-    stressz: str
-    valtas_ok: str
+    horgony1: str = Field(max_length=200)
+    horgony2: str = Field(default="", max_length=200)
+    energia: str = Field(max_length=200)
+    stressz: str = Field(max_length=200)
+    valtas_ok: str = Field(max_length=2_000)
 
 
 @app.post("/tanacsado-teszt")
-def tanacsado_teszt_vegpont(bemenet: TanacsadoTesztBemenet):
+def tanacsado_teszt_vegpont(
+    bemenet: TanacsadoTesztBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     A teszt PONTOZÁSA -- teljesen determinisztikus, 0 AI-hívás (Andi elve:
     a pontozás mindig kód, sosem AI). A szöveges kiértékeléshez lásd a
@@ -266,7 +328,7 @@ def tanacsado_teszt_vegpont(bemenet: TanacsadoTesztBemenet):
 
 # ── FLOW (mentálhigiénés kísérő) ──────────────────────────────
 
-class FlowKiertekelesBemenet(BaseModel):
+class FlowKiertekelesBemenet(ApiModel):
     """profil: a felhasznalo eddigi adatai (szakma, keszsegek, holland_tipus,
     karrierhorgony, jollet_jelzes stb.) -- a backend NEM tárol session-t,
     a hívó fél (frontend) adja át mindig a teljes profilt."""
@@ -274,7 +336,10 @@ class FlowKiertekelesBemenet(BaseModel):
 
 
 @app.post("/flow-kiertekeles")
-def flow_kiertekeles_vegpont(bemenet: FlowKiertekelesBemenet):
+def flow_kiertekeles_vegpont(
+    bemenet: FlowKiertekelesBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Flow részletes, személyre szabott kiértékelése a teszt + profil alapján.
     VALÓDI Gemini-hívás (jelenleg ingyenes egyetemi kerettel, aug. végéig).
@@ -283,15 +348,18 @@ def flow_kiertekeles_vegpont(bemenet: FlowKiertekelesBemenet):
     return {"kiertekeles": flow_kiertekeles(bemenet.profil)}
 
 
-class FlowChatBemenet(BaseModel):
-    kerdes: str
-    profil: dict = {}
-    app_ismeret: str = ""
-    elozmenyek: list = []
+class FlowChatBemenet(ApiModel):
+    kerdes: str = Field(max_length=8_000)
+    profil: dict = Field(default_factory=dict)
+    app_ismeret: str = Field(default="", max_length=20_000)
+    elozmenyek: list = Field(default_factory=list)
 
 
 @app.post("/flow-chat")
-def flow_chat_vegpont(bemenet: FlowChatBemenet):
+def flow_chat_vegpont(
+    bemenet: FlowChatBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Flow chat-válasza: profil + tudásbázis (pgvector RAG) + app-ismeret
     alapján. VALÓDI Gemini-hívás. Üres kérdéssel NEM hív API-t.
@@ -303,12 +371,15 @@ def flow_chat_vegpont(bemenet: FlowChatBemenet):
 
 # ── CÉGINFÓ ───────────────────────────────────────────────────
 
-class CeginfoBemenet(BaseModel):
-    ceg_nev: str
+class CeginfoBemenet(ApiModel):
+    ceg_nev: str = Field(max_length=300)
 
 
 @app.post("/ceginfo")
-def ceginfo_vegpont(bemenet: CeginfoBemenet):
+def ceginfo_vegpont(
+    bemenet: CeginfoBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Céginfó cache-first: ha 30 napon belül már lekérdeztük ezt a céget,
     az adatbázisból jön (0 Ft) -- csak ismeretlen/lejárt cégnél megy ki
@@ -317,13 +388,16 @@ def ceginfo_vegpont(bemenet: CeginfoBemenet):
     return ceginfo_kereses(bemenet.ceg_nev)
 
 
-class SkillGapBemenet(BaseModel):
-    cv_szoveg: str = ""
-    keszsegek: list = []
+class SkillGapBemenet(ApiModel):
+    cv_szoveg: str = Field(default="", max_length=120_000)
+    keszsegek: list = Field(default_factory=list)
 
 
 @app.post("/skill-gap-elemzes")
-def skill_gap_elemzes_vegpont(bemenet: SkillGapBemenet):
+def skill_gap_elemzes_vegpont(
+    bemenet: SkillGapBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Melyik piaci elvárás van meg / hiányzik a CV-ből, jelentés alapján
     (szinonima is számít). VALÓDI Gemini-hívás -- jelenleg ingyenes
@@ -332,13 +406,16 @@ def skill_gap_elemzes_vegpont(bemenet: SkillGapBemenet):
     return skill_gap_elemzes(bemenet.cv_szoveg, bemenet.keszsegek)
 
 
-class TanacsadoVelemenyBemenet(BaseModel):
-    szakma: str
+class TanacsadoVelemenyBemenet(ApiModel):
+    szakma: str = Field(max_length=200)
     stat: dict
 
 
 @app.post("/tanacsado-velemeny")
-def tanacsado_velemeny_vegpont(bemenet: TanacsadoVelemenyBemenet):
+def tanacsado_velemeny_vegpont(
+    bemenet: TanacsadoVelemenyBemenet,
+    _felhasznalo=Depends(jelenlegi_felhasznalo),
+):
     """
     Rövid, közérthető karrier-tanács a /szakma-statisztika végpont
     adataiból (+ KSH-átlagbér, ha van). VALÓDI Gemini-hívás -- jelenleg
@@ -349,13 +426,16 @@ def tanacsado_velemeny_vegpont(bemenet: TanacsadoVelemenyBemenet):
 
 # ── AUTH (Supabase Auth -- email + jelszó) ────────────────────
 
-class RegisztracioBemenet(BaseModel):
-    email: str
-    jelszo: str
+class RegisztracioBemenet(ApiModel):
+    email: str = Field(min_length=3, max_length=320)
+    jelszo: str = Field(min_length=12, max_length=128)
 
 
 @app.post("/auth/regisztracio")
-def regisztracio_vegpont(bemenet: RegisztracioBemenet):
+def regisztracio_vegpont(
+    bemenet: RegisztracioBemenet,
+    _=Depends(auth_keres_limit),
+):
     """
     Új fiók létrehozása a Supabase Auth-ban. A jelszó-tárolást, -hash-elést
     és az email-küldést (ha a projekt beállítása szerint kell megerősítés)
@@ -365,8 +445,8 @@ def regisztracio_vegpont(bemenet: RegisztracioBemenet):
     db = friss_auth_kliens()
     try:
         valasz = db.auth.sign_up({"email": bemenet.email, "password": bemenet.jelszo})
-    except Exception as e:
-        raise HTTPException(400, f"Sikertelen regisztráció: {e}")
+    except Exception:
+        raise HTTPException(400, "A regisztráció nem sikerült.")
     return {
         "id": valasz.user.id if valasz.user else None,
         "email": valasz.user.email if valasz.user else None,
@@ -374,13 +454,16 @@ def regisztracio_vegpont(bemenet: RegisztracioBemenet):
     }
 
 
-class BejelentkezesBemenet(BaseModel):
-    email: str
-    jelszo: str
+class BejelentkezesBemenet(ApiModel):
+    email: str = Field(min_length=3, max_length=320)
+    jelszo: str = Field(min_length=1, max_length=128)
 
 
 @app.post("/auth/bejelentkezes")
-def bejelentkezes_vegpont(bemenet: BejelentkezesBemenet):
+def bejelentkezes_vegpont(
+    bemenet: BejelentkezesBemenet,
+    _=Depends(auth_keres_limit),
+):
     """
     Belépés email + jelszóval. Sikeres belépéskor egy access_tokent ad
     vissza -- ezt kell a további kéréseknél az "Authorization: Bearer <token>"
@@ -423,11 +506,7 @@ async def cv_feltoltes_vegpont(fajl: UploadFile = File(...),
     Ha már van mentett CV-je, felülírja (egy CV / felhasználó, egyszerűség
     kedvéért -- verziózás később, ha kell).
     """
-    if fajl.content_type != "application/pdf":
-        raise HTTPException(400, "Csak PDF-fájl tölthető fel.")
-    tartalom = await fajl.read()
-    if len(tartalom) > 5 * 1024 * 1024:
-        raise HTTPException(400, "A fájl túl nagy (max 5 MB).")
+    tartalom = await read_validated_pdf(fajl)
 
     db = kliens()
     if not db:
@@ -438,8 +517,8 @@ async def cv_feltoltes_vegpont(fajl: UploadFile = File(...),
             utvonal, tartalom,
             file_options={"content-type": "application/pdf", "upsert": "true"},
         )
-    except Exception as e:
-        raise HTTPException(500, f"Sikertelen feltöltés: {e}")
+    except Exception:
+        raise HTTPException(500, "Sikertelen feltöltés.")
     return {"ok": True, "utvonal": utvonal, "meret_kb": round(len(tartalom) / 1024, 1)}
 
 

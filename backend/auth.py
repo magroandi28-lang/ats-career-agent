@@ -1,57 +1,61 @@
-"""
-Auth-segédlet -- Karrier-Ugynokseg backend
+"""Supabase Auth-integráció a FastAPI backendhez."""
 
-Ez adja a "vedett vegpont" mechanizmust: egy FastAPI Depends()-fuggvenyt,
-ami minden hivasnal ellenorzi, hogy valodi, ervenyes Supabase-tokent
-kuldtek-e a keresben. Ha nem, 401-es hibat ad (nem enged tovabb).
-
-A tenyleges regisztracio/bejelentkezes a Supabase Auth (GoTrue) sajat
-szolgaltatasa -- mi csak wrappeljuk, nem irjuk ujra a jelszo-kezelest.
-"""
-
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase import create_client
 
-from utils.adatbazis import kliens, SUPABASE_URL, SUPABASE_SERVICE_KEY
+from backend.security import limit_auth_request, limit_user_request
+from backend.settings import get_settings
 
-_bearer = HTTPBearer()
+_bearer = HTTPBearer(auto_error=False)
 
 
 def friss_auth_kliens():
-    """
-    FONTOS: a bejelentkezés/regisztráció (sign_in_with_password / sign_up)
-    a KLIENS OBJEKTUM SAJÁT munkamenetét átírja a bejelentkező felhasználóéra
-    -- élőben leteszteltük: ha ugyanazt a kliens-példányt használnánk, mint
-    amit a kliens() (utils/adatbazis.py) mindenhol máshol megoszt, akkor egy
-    bejelentkezés után a szolgáltatás-szintű (service_role) jogosultság
-    ELVESZNE a teljes megosztott kliensről -- minden további Storage/DB
-    művelet (más felhasználóké is!) ez után hibázna vagy rossz jogosultsággal
-    futna. Ezért az auth-műveletekhez MINDIG egy ÚJ, eldobható klienst
-    hozunk létre -- ez sose szennyezi a megosztott, mindenki más által
-    használt kliens()-t.
-    """
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    """Minden auth-művelethez külön, publikus jogosultságú kliens készül."""
+
+    settings = get_settings()
+    if not settings.auth_ready:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="A bejelentkezés jelenleg nem elérhető.",
+        )
+    return create_client(
+        settings.supabase_url,
+        settings.supabase_publishable_key,
+    )
 
 
-def jelenlegi_felhasznalo(hitelesites: HTTPAuthorizationCredentials = Depends(_bearer)):
-    """
-    Kiolvassa a kérés fejlécéből a tokent ("Authorization: Bearer <token>"),
-    és a Supabase-szel ellenőrizteti, hogy valódi és érvényes-e.
+def auth_keres_limit(request: Request) -> None:
+    """Külön, IP-alapú védelem a regisztrációhoz és belépéshez."""
 
-    Ezt kell megadni bármelyik vegpontnak, amit csak bejelentkezett
-    felhasznalo erhet el: @app.get("/valami") def x(felh=Depends(jelenlegi_felhasznalo)).
-    """
-    token = hitelesites.credentials
-    db = kliens()
-    if not db:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
-                             "Az adatbázis-kapcsolat nem elérhető.")
+    limit_auth_request(request)
+
+
+def jelenlegi_felhasznalo(
+    request: Request,
+    hitelesites: HTTPAuthorizationCredentials | None = Depends(_bearer),
+):
+    """Ellenőrzi a Bearer tokent a Supabase Auth szolgáltatásával."""
+
+    if hitelesites is None or hitelesites.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Bejelentkezés szükséges.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
-        valasz = db.auth.get_user(token)
+        valasz = friss_auth_kliens().auth.get_user(hitelesites.credentials)
     except Exception:
         valasz = None
+
     if not valasz or not valasz.user:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
-                             "Érvénytelen vagy lejárt bejelentkezés.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Érvénytelen vagy lejárt bejelentkezés.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    limit_user_request(request, str(valasz.user.id))
+    request.state.user_id = str(valasz.user.id)
     return valasz.user
