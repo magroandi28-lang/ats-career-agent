@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Jooble állásgyűjtő — scripts/jooble_gyujto.py (3. fázis)
+"""Jooble állásgyűjtő — scripts/jooble_gyujto.py
 
-Önállóan futtatható gyűjtő: a SZAKMAK listán végigmegy, a Jooble API-ból
-lehúzza a friss hirdetéseket, a Haiku kinyeri a készségeket, és minden
-a Supabase-be kerül. Duplikátumot nem dolgoz fel kétszer (se pénzt,
-se időt nem pazarol rá).
+A Jooble API-ból letölti a friss hirdetéseket, kiszűri a duplikátumokat,
+majd elmenti őket a Supabase-be.
 
-Futtatás a projekt gyökeréből:
-    python scripts/jooble_gyujto.py                  # a teljes szakmalista
-    python scripts/jooble_gyujto.py "bolti eladó"    # csak egy szakma
-
-Később GitHub Actions futtatja majd naponta — addig kézzel indítod.
+Futtatás:
+    python scripts/jooble_gyujto.py
+    python scripts/jooble_gyujto.py "bolti eladó"
 """
 
 import json
@@ -22,7 +18,6 @@ import time
 import requests
 from dotenv import load_dotenv
 
-# A projekt gyökerét a path-ra tesszük, hogy az agents/utils importok működjenek
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.adatbazis import (  # noqa: E402
@@ -37,33 +32,36 @@ load_dotenv()
 JOOBLE_API_KEY = os.getenv("JOOBLE_API_KEY", "")
 JOOBLE_URL = "https://hu.jooble.org/api/"
 
-# A készség-kinyerést a Google Gemini INGYENES szintje végzi — 0 Ft.
+# A napi gyűjtésnél kikapcsolható a Gemini használata.
+# Így először az ingyenes szótáras címkéző dolgozhat.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODELL = "gemini-2.5-flash"
-GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
-              f"{GEMINI_MODELL}:generateContent")
+GEMINI_MODELL = os.getenv("GEMINI_MODELL", "gemini-2.5-flash")
+GEMINI_KINYERES_GYUJTESKOR = os.getenv(
+    "GEMINI_KINYERES_GYUJTESKOR", "1"
+).strip().lower() not in ("0", "false", "nem", "off")
 
-# ── GYŰJTÖTT SZAKMÁK (név, kategória) — bővítsd bátran! ──────
+GEMINI_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{GEMINI_MODELL}:generateContent"
+)
+
+_GEMINI_KVOTA_ELFOGYOTT = False
+
 SZAKMAK = [
-    # Kereskedelem, vendéglátás
     ("bolti eladó", "Kereskedelem"),
     ("pénztáros", "Kereskedelem"),
     ("raktáros", "Kereskedelem"),
     ("szakács", "Szolgáltatás"),
     ("felszolgáló", "Szolgáltatás"),
-    # Iroda, ügyfélkapcsolat
     ("ügyfélszolgálati munkatárs", "Szolgáltatás"),
     ("adminisztratív asszisztens", "Szolgáltatás"),
     ("könyvelő", "Szolgáltatás"),
-    # Ipar, műszaki
     ("villanyszerelő", "Ipar"),
     ("karbantartó", "Ipar"),
     ("gépkezelő", "Ipar"),
     ("sofőr", "Szolgáltatás"),
-    # Egészségügy
     ("ápoló", "Egészségügy"),
     ("egészségügyi asszisztens", "Egészségügy"),
-    # IT
     ("szoftvertesztelő", "IT"),
     ("Python fejlesztő", "IT"),
     ("AI mérnök", "IT"),
@@ -72,26 +70,22 @@ SZAKMAK = [
     ("rendszergazda", "IT"),
     ("DevOps mérnök", "IT"),
     ("IT projektmenedzser", "IT"),
-    # Iroda, gazdaság
     ("HR munkatárs", "Szolgáltatás"),
     ("marketing munkatárs", "Szolgáltatás"),
     ("pénzügyi ügyintéző", "Szolgáltatás"),
     ("logisztikai koordinátor", "Szolgáltatás"),
     ("recepciós", "Szolgáltatás"),
     ("értékesítő", "Kereskedelem"),
-    # Ipar, építőipar, fizikai
     ("targoncavezető", "Ipar"),
     ("hegesztő", "Ipar"),
     ("CNC gépkezelő", "Ipar"),
     ("autószerelő", "Ipar"),
     ("gyári operátor", "Ipar"),
     ("kőműves", "Építőipar"),
-    # Szolgáltatás, egyéb
     ("biztonsági őr", "Szolgáltatás"),
     ("takarító", "Szolgáltatás"),
     ("futár", "Szolgáltatás"),
     ("óvodapedagógus", "Oktatás"),
-    # További bővítés — cél a széles lefedettség
     ("gépészmérnök", "Ipar"),
     ("villamosmérnök", "Ipar"),
     ("minőségbiztosítási munkatárs", "Ipar"),
@@ -104,40 +98,31 @@ SZAKMAK = [
     ("cukrász", "Szolgáltatás"),
     ("varrómunkás", "Ipar"),
     ("festő-mázoló", "Építőipar"),
-    # 07-21 BŐVÍTÉS — valós piaci kereslet alapján (saját hirdetés-adatból
-    # kigyűjtött gyakori címek + hiányzó szektorok lefedése)
-    # Egészségügy
     ("orvos", "Egészségügy"),
     ("gyógyszerész", "Egészségügy"),
     ("szociális gondozó", "Egészségügy"),
     ("mentőápoló", "Egészségügy"),
     ("gyógytornász", "Egészségügy"),
     ("dietetikus", "Egészségügy"),
-    # Oktatás
     ("tanár", "Oktatás"),
     ("nyelvtanár", "Oktatás"),
     ("gyógypedagógus", "Oktatás"),
     ("szociálpedagógus", "Oktatás"),
-    # Jog, közigazgatás
     ("jogász", "Szolgáltatás"),
     ("ügyvéd", "Szolgáltatás"),
     ("közigazgatási ügyintéző", "Szolgáltatás"),
     ("önkormányzati ügyintéző", "Szolgáltatás"),
-    # Pénzügy, bank
     ("banki ügyintéző", "Szolgáltatás"),
     ("biztosítási tanácsadó", "Szolgáltatás"),
     ("kontroller", "Szolgáltatás"),
     ("adótanácsadó", "Szolgáltatás"),
-    # Logisztika, szállítás
     ("nemzetközi gépkocsivezető", "Szolgáltatás"),
     ("vámügyintéző", "Szolgáltatás"),
     ("szállítmányozó", "Szolgáltatás"),
     ("anyagmozgató", "Ipar"),
-    # Kereskedelem, vendéglátás, turizmus
     ("boltvezető", "Kereskedelem"),
     ("szállodai recepciós", "Szolgáltatás"),
     ("idegenvezető", "Szolgáltatás"),
-    # Épületgépészet, ipari szakma
     ("lakatos", "Ipar"),
     ("asztalos", "Ipar"),
     ("víz-, gáz-, fűtésszerelő", "Építőipar"),
@@ -146,139 +131,256 @@ SZAKMAK = [
     ("ács", "Építőipar"),
     ("tetőfedő", "Építőipar"),
     ("burkoló", "Építőipar"),
-    # IT bővítés
     ("mobilfejlesztő", "IT"),
     ("adatbázis-adminisztrátor", "IT"),
     ("UX/UI dizájner", "IT"),
     ("kiberbiztonsági szakértő", "IT"),
     ("data scientist", "IT"),
     ("adatmérnök", "IT"),
-    # Média, nyelvi szakma
     ("fordító", "Szolgáltatás"),
     ("tolmács", "Szolgáltatás"),
     ("újságíró", "Szolgáltatás"),
     ("közösségimédia-menedzser", "Szolgáltatás"),
-    # Minőség, projekt, vezetői
     ("minőségellenőr", "Ipar"),
     ("projektvezető", "Szolgáltatás"),
     ("key account manager", "Kereskedelem"),
     ("betanított munkás", "Ipar"),
-    # Mezőgazdaság
     ("mezőgazdasági gépkezelő", "Ipar"),
     ("állattenyésztő", "Ipar"),
 ]
 
-HELYSZIN = ""                    # üres = egész Magyarország (lehet pl. "Budapest")
-MAX_OLDAL = 4                    # ennyi oldalt lapozunk kulcsszavanként (~20 hirdetés/oldal)
-CSOMAG_MERET = 10                # ennyit adunk egyszerre a készség-kinyerőnek
+HELYSZIN = ""
+MAX_OLDAL = 4
+CSOMAG_MERET = 10
 
-# Szinonimák: ugyanazt a szakmát több kulcsszóval is keressük,
-# így szélesebb a merítés (a duplikátumokat a rendszer kiszűri).
 SZINONIMAK = {
-    "szoftvertesztelő": ["QA engineer", "tesztautomatizálás", "manuális tesztelő"],
-    "Python fejlesztő": ["Python developer", "backend fejlesztő"],
-    "AI mérnök": ["machine learning engineer", "AI fejlesztő", "gépi tanulás"],
+    "szoftvertesztelő": [
+        "QA engineer",
+        "tesztautomatizálás",
+        "manuális tesztelő",
+    ],
+    "Python fejlesztő": [
+        "Python developer",
+        "backend fejlesztő",
+    ],
+    "AI mérnök": [
+        "machine learning engineer",
+        "AI fejlesztő",
+        "gépi tanulás",
+    ],
     "adatelemző": ["data analyst"],
-    "bolti eladó": ["eladó-pénztáros", "áruházi eladó"],
-    "raktáros": ["komissiózó", "raktári munkatárs"],
-    "ügyfélszolgálati munkatárs": ["call center munkatárs"],
-    "adminisztratív asszisztens": ["irodai asszisztens"],
-    "frontend fejlesztő": ["React fejlesztő", "webfejlesztő"],
-    "rendszergazda": ["IT support", "helpdesk munkatárs"],
-    "HR munkatárs": ["HR asszisztens", "toborzó"],
-    "marketing munkatárs": ["digitális marketing", "social media menedzser"],
-    "pénzügyi ügyintéző": ["pénzügyi asszisztens"],
-    "logisztikai koordinátor": ["fuvarszervező"],
-    "értékesítő": ["üzletkötő", "sales munkatárs"],
-    "CNC gépkezelő": ["CNC forgácsoló"],
-    "gyári operátor": ["betanított munkás", "összeszerelő"],
-    "targoncavezető": ["targoncás raktáros"],
+    "bolti eladó": [
+        "eladó-pénztáros",
+        "áruházi eladó",
+    ],
+    "raktáros": [
+        "komissiózó",
+        "raktári munkatárs",
+    ],
+    "ügyfélszolgálati munkatárs": [
+        "call center munkatárs",
+    ],
+    "adminisztratív asszisztens": [
+        "irodai asszisztens",
+    ],
+    "frontend fejlesztő": [
+        "React fejlesztő",
+        "webfejlesztő",
+    ],
+    "rendszergazda": [
+        "IT support",
+        "helpdesk munkatárs",
+    ],
+    "HR munkatárs": [
+        "HR asszisztens",
+        "toborzó",
+    ],
+    "marketing munkatárs": [
+        "digitális marketing",
+        "social media menedzser",
+    ],
+    "pénzügyi ügyintéző": [
+        "pénzügyi asszisztens",
+    ],
+    "logisztikai koordinátor": [
+        "fuvarszervező",
+    ],
+    "értékesítő": [
+        "üzletkötő",
+        "sales munkatárs",
+    ],
+    "CNC gépkezelő": [
+        "CNC forgácsoló",
+    ],
+    "gyári operátor": [
+        "betanított munkás",
+        "összeszerelő",
+    ],
+    "targoncavezető": [
+        "targoncás raktáros",
+    ],
 }
 
 
-def keszsegek_kinyerese(allasok: list) -> list:
-    """Készség-kinyerés a Google Gemini INGYENES API-jával (nem Claude!).
-    Visszatérés: listák listája, az allasok sorrendjében."""
+def gemini_kvota_elfogyott() -> bool:
+    """Jelzi, ha ebben a futásban 429-es kvótahiba érkezett."""
+    return _GEMINI_KVOTA_ELFOGYOTT
+
+
+def keszsegek_kinyerese(
+    allasok: list,
+    kenyszerit: bool = False,
+) -> list:
+    """Készségek kinyerése a Gemini API-val."""
+    global _GEMINI_KVOTA_ELFOGYOTT
+
     if not allasok:
         return []
-    if not GEMINI_API_KEY:
-        print("  FIGYELEM: GEMINI_API_KEY hianyzik — keszsegek nelkul mentunk.")
+
+    if not kenyszerit and not GEMINI_KINYERES_GYUJTESKOR:
         return [[] for _ in allasok]
 
-    lista = "\n\n".join([
-        f"[{i}] {a.get('cim','')} — {a.get('ceg','')}\n{a.get('snippet','')}"
-        for i, a in enumerate(allasok)
-    ])
+    if _GEMINI_KVOTA_ELFOGYOTT:
+        return [[] for _ in allasok]
 
-    prompt = f"""Álláshirdetésekből kell strukturáltan kinyerned a készségeket és elvárásokat.
+    if not GEMINI_API_KEY:
+        print(
+            "FIGYELEM: GEMINI_API_KEY hiányzik — "
+            "készségek nélkül mentünk."
+        )
+        return [[] for _ in allasok]
 
-HIRDETÉSEK (sorszámmal):
+    lista = "\n\n".join(
+        [
+            (
+                f"[{i}] {a.get('cim', '')} — {a.get('ceg', '')}\n"
+                f"{a.get('snippet', '')}"
+            )
+            for i, a in enumerate(allasok)
+        ]
+    )
+
+    prompt = f"""
+Álláshirdetésekből kell strukturáltan kinyerned a készségeket és elvárásokat.
+
+HIRDETÉSEK:
 {lista}
 
-Minden hirdetéshez add meg a benne szereplő készségeket SZAKMAI néven:
-- tipus lehet (PONTOSAN így válaszd szét!):
-  "elvaras" = amit a jelölttől MEGKÖVETELNEK: végzettség, tapasztalat, nyelvtudás, bizonyítvány, jogosítvány
-  "feladat" = amit a munkakörben CSINÁLNI kell: tevékenység (pl. tesztek írása, árufeltöltés)
-  "eszkoz" = konkrét szoftver, technológia vagy gép NEVE (Python, SAP, targonca)
-  "soft" = személyes készség (csapatmunka, precizitás)
-  "iparag" = terület/szektor, ami NEM készség (autóipar, fintech, egészségügy)
-- A pongyola megfogalmazást fordítsd szakmaira (pl. "kassza" → "pénztárgép kezelése").
-- Ugyanazt a fogalmat MINDIG ugyanazzal a névvel add vissza (egységes elnevezés).
-- A nevet kisbetűvel írd, KIVÉVE a rövidítéseket és tulajdonneveket (HACCP, SQL, Python).
-- Hirdetésenként 3-8 elem. Helyszínt, bért, munkaidőt, juttatást NE adj meg készségként.
+Minden hirdetéshez add meg a benne szereplő készségeket szakmai néven.
 
-Válaszolj KIZÁRÓLAG JSON-tömbként, minden más szöveg nélkül:
+A típus pontosan ezek egyike lehet:
+- elvaras: végzettség, tapasztalat, nyelvtudás, bizonyítvány, jogosítvány
+- feladat: amit a munkakörben csinálni kell
+- eszkoz: konkrét szoftver, technológia vagy gép
+- soft: személyes készség
+- iparag: terület vagy szektor
+
+Szabályok:
+- Hirdetésenként 3–8 elem.
+- Helyszínt, bért, munkaidőt és juttatást ne adj meg készségként.
+- A neveket egységes, szakmai formában add vissza.
+- Válaszolj kizárólag JSON-tömbként.
+
+Formátum:
 [
-  {{"index": 0, "keszsegek": [{{"nev": "pénztárgép kezelése", "tipus": "feladat"}}]}}
-]"""
+  {{
+    "index": 0,
+    "keszsegek": [
+      {{
+        "nev": "pénztárgép kezelése",
+        "tipus": "feladat"
+      }}
+    ]
+  }}
+]
+"""
 
     try:
         r = requests.post(
             GEMINI_URL,
             params={"key": GEMINI_API_KEY},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
+            json={
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": prompt,
+                            }
+                        ]
+                    }
+                ]
+            },
             timeout=60,
         )
+
+        if r.status_code == 429:
+            _GEMINI_KVOTA_ELFOGYOTT = True
+            print(
+                "Gemini-kvóta elfogyott (429) — "
+                "a feldolgozás leáll."
+            )
+            return [[] for _ in allasok]
+
         r.raise_for_status()
-        t = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+        t = (
+            r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            .strip()
+        )
+
         if "```json" in t:
             t = t.split("```json")[1].split("```")[0].strip()
         elif "```" in t:
             t = t.split("```")[1].split("```")[0].strip()
+
         adat = json.loads(t)
         eredmeny = [[] for _ in allasok]
+
         for elem in adat:
             idx = elem.get("index")
             if isinstance(idx, int) and 0 <= idx < len(allasok):
                 eredmeny[idx] = elem.get("keszsegek", [])
+
         return eredmeny
+
     except Exception as e:
-        print(f"  Gemini hiba (keszseg-kinyeres): {e}")
+        print(f"Gemini-hiba a készségkinyerésnél: {e}")
         return [[] for _ in allasok]
 
 
 def _tisztit(szoveg: str) -> str:
-    """HTML-tagek és felesleges szóközök eltávolítása a Jooble mezőkből."""
+    """HTML-tagek és felesleges szóközök eltávolítása."""
     szoveg = re.sub(r"<[^>]+>", " ", szoveg or "")
-    szoveg = szoveg.replace("&nbsp;", " ").replace("&amp;", "&")
+    szoveg = (
+        szoveg.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+    )
     return " ".join(szoveg.split())
 
 
 def jooble_kereses(kulcsszo: str) -> list:
-    """Egy kulcsszó friss hirdetései a Jooble API-ból — LAPOZÁSSAL:
-    a 'page' paraméterrel több oldalt kérünk le (oldalanként ~20 hirdetés)."""
+    """Állások keresése egy Jooble-kulcsszóval."""
     allasok = []
+
     for oldal in range(1, MAX_OLDAL + 1):
         try:
             r = requests.post(
                 JOOBLE_URL + JOOBLE_API_KEY,
-                json={"keywords": kulcsszo, "location": HELYSZIN, "page": oldal},
+                json={
+                    "keywords": kulcsszo,
+                    "location": HELYSZIN,
+                    "page": oldal,
+                },
                 timeout=20,
             )
+
             r.raise_for_status()
             jobs = r.json().get("jobs", [])
+
         except Exception as e:
-            print(f"  Jooble hiba ({kulcsszo}, {oldal}. oldal): {e}")
+            print(
+                f"Jooble-hiba ({kulcsszo}, {oldal}. oldal): {e}"
+            )
             break
 
         if not jobs:
@@ -286,87 +388,147 @@ def jooble_kereses(kulcsszo: str) -> list:
 
         for j in jobs:
             cim = _tisztit(j.get("title", ""))
+
             if not cim:
                 continue
-            allasok.append({
-                "cim": cim,
-                "ceg": _tisztit(j.get("company", "")),
-                "snippet": _tisztit(j.get("snippet", ""))[:500],
-                "link": (j.get("link") or "").strip(),
-                "helyszin": _tisztit(j.get("location", "")),
-                "datum": (j.get("updated") or "")[:10],
-                "bersav": _tisztit(j.get("salary", "")),
-                "forras_tipus": "jooble",
-            })
 
-        if len(jobs) < 15:  # ennél kevesebb találat = ez volt az utolsó oldal
+            allasok.append(
+                {
+                    "cim": cim,
+                    "ceg": _tisztit(j.get("company", "")),
+                    "snippet": _tisztit(
+                        j.get("snippet", "")
+                    )[:500],
+                    "link": (j.get("link") or "").strip(),
+                    "helyszin": _tisztit(
+                        j.get("location", "")
+                    ),
+                    "datum": (j.get("updated") or "")[:10],
+                    "bersav": _tisztit(
+                        j.get("salary", "")
+                    ),
+                    "forras_tipus": "jooble",
+                }
+            )
+
+        if len(jobs) < 15:
             break
+
         time.sleep(1)
+
     return allasok
 
 
-def szakma_gyujtes(szakma: str, kategoria: str) -> int:
-    """Egy szakma teljes feldolgozása: keresés → duplikátum-szűrés →
-    készség-kinyerés → mentés. Visszaadja az új hirdetések számát."""
+def szakma_gyujtes(
+    szakma: str,
+    kategoria: str,
+) -> int:
+    """Egy szakma hirdetéseinek feldolgozása és mentése."""
     print(f"\n=== {szakma} ===")
-    # A szakma neve + a szinonimái — minden kulcsszóra keresünk,
-    # az átfedéseket link alapján helyben kiszűrjük.
+
     kulcsszavak = [szakma] + SZINONIMAK.get(szakma, [])
     egyedi = {}
-    for k in kulcsszavak:
-        for a in jooble_kereses(k):
-            azonosito = a["link"] or (a["cim"] + a["ceg"])
-            egyedi.setdefault(azonosito, a)
+
+    for kulcsszo in kulcsszavak:
+        for allas in jooble_kereses(kulcsszo):
+            azonosito = (
+                allas["link"]
+                or allas["cim"] + allas["ceg"]
+            )
+            egyedi.setdefault(azonosito, allas)
+
     allasok = list(egyedi.values())
-    print(f"  Jooble talalat: {len(allasok)} ({len(kulcsszavak)} kulcsszoval)")
+
+    print(
+        f"Jooble-találat: {len(allasok)} "
+        f"({len(kulcsszavak)} kulcsszóval)"
+    )
+
     if not allasok:
         return 0
 
-    # Duplikátum-szűrés MÉG a készség-kinyerés előtt (API-költség-kímélés):
-    # amit már ismerünk, arra nem hívunk modellt.
-    megvan = letezo_linkek([a["link"] for a in allasok])
-    ujak = [a for a in allasok if a["link"] not in megvan]
-    print(f"  Ebbol uj (meg nincs az adatbazisban): {len(ujak)}")
+    megvan = letezo_linkek(
+        [allas["link"] for allas in allasok]
+    )
+
+    ujak = [
+        allas
+        for allas in allasok
+        if allas["link"] not in megvan
+    ]
+
+    print(
+        f"Ebből új, még nincs az adatbázisban: {len(ujak)}"
+    )
+
     if not ujak:
         return 0
 
-    szakma_info = {"szakma": szakma, "szakma_kategoria": kategoria}
+    szakma_info = {
+        "szakma": szakma,
+        "szakma_kategoria": kategoria,
+    }
+
     mentve = 0
+
     for i in range(0, len(ujak), CSOMAG_MERET):
-        csomag = ujak[i:i + CSOMAG_MERET]
+        csomag = ujak[i : i + CSOMAG_MERET]
         keszsegek = keszsegek_kinyerese(csomag)
-        mentve += gyujtes_mentese(szakma_info, csomag, keszsegek)
-        time.sleep(5)  # a Gemini ingyenes szint perc-limitje miatt
+
+        mentve += gyujtes_mentese(
+            szakma_info,
+            csomag,
+            keszsegek,
+        )
+
+        if GEMINI_KINYERES_GYUJTESKOR:
+            time.sleep(5)
+
     return mentve
 
 
 def main():
     if not JOOBLE_API_KEY:
-        print("HIBA: JOOBLE_API_KEY hianyzik a .env-bol!")
-        return
-    if kliens() is None:
-        print("HIBA: a Supabase kapcsolat nincs beallitva (.env)!")
+        print("HIBA: JOOBLE_API_KEY hiányzik!")
         return
 
-    # Parancssori szakma: csak azt gyűjtjük (teszteléshez praktikus)
+    if kliens() is None:
+        print("HIBA: a Supabase-kapcsolat nincs beállítva!")
+        return
+
     if len(sys.argv) > 1:
-        lista = [(sys.argv[1], "Egyéb")]
+        lista = [
+            (
+                sys.argv[1],
+                "Egyéb",
+            )
+        ]
     else:
         lista = SZAKMAK
 
-    print(f"Jooble gyujto indul — {len(lista)} szakma")
+    print(f"Jooble-gyűjtő indul — {len(lista)} szakma")
+
     osszes = 0
+
     for szakma, kategoria in lista:
         try:
-            osszes += szakma_gyujtes(szakma, kategoria)
+            osszes += szakma_gyujtes(
+                szakma,
+                kategoria,
+            )
         except Exception as e:
-            print(f"  VARATLAN HIBA ({szakma}): {e} — megyunk tovabb.")
-        time.sleep(2)  # kíméletes tempó az API-k felé
+            print(
+                f"Váratlan hiba ({szakma}): {e} — "
+                "folytatjuk a következő szakmával."
+            )
 
-    # Automatikus névegyesítés minden gyűjtés végén — nincs több kézi tisztítás
+        time.sleep(2)
+
     keszsegnev_normalizalas()
 
-    print(f"\nKESZ! Osszesen {osszes} uj hirdetes mentve.")
+    print(
+        f"\nKÉSZ! Összesen {osszes} új hirdetés mentve."
+    )
 
 
 if __name__ == "__main__":
