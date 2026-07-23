@@ -12,19 +12,7 @@ az alkalmazás ugyanúgy működik tovább — csak épp nem gyűjt.
 """
 
 import datetime
-import os
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-# A titkos kulcsot két néven is elfogadjuk: a Supabase új felülete
-# "secret key"-nek hívja, a régi "service_role"-nak — ugyanaz a szerepe.
-SUPABASE_SERVICE_KEY = (
-    os.getenv("SUPABASE_SERVICE_KEY", "")
-    or os.getenv("SUPABASE_SECRET_KEY", "")
-)
+from backend.settings import get_settings
 
 _kliens = None
 
@@ -38,13 +26,17 @@ def kliens():
     global _kliens
     if _kliens is not None:
         return _kliens
-    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        print("[adatbazis] FIGYELEM: SUPABASE_URL vagy SUPABASE_SERVICE_KEY "
+    settings = get_settings()
+    if not settings.database_ready:
+        print("[adatbazis] FIGYELEM: SUPABASE_URL vagy SUPABASE_SECRET_KEY "
               "hianyzik a .env-bol — a mentes kimarad!")
         return None
     try:
         from supabase import create_client
-        _kliens = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        _kliens = create_client(
+            settings.supabase_url,
+            settings.supabase_secret_key,
+        )
         return _kliens
     except Exception as e:
         print(f"[adatbazis] Kapcsolodas sikertelen: {e}")

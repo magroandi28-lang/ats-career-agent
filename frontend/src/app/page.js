@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import KarrierUgynok from "./KarrierUgynok";
-
-const API_CIM = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import AuthMenu from "./AuthMenu";
+import { apiFetch } from "../lib/api";
 
 // Flow üzeneteiben ezt a jelölést keressük: [FLOW_AKCIO:karrier_ugynok:SZAKMA]
 // Ha megvan, Flow eldöntötte, hogy a felhasználó állást keres, és tudja is
@@ -41,7 +41,7 @@ export default function Home() {
     setKuldesFolyamatban(true);
 
     try {
-      const valasz = await fetch(`${API_CIM}/flow-chat`, {
+      const valasz = await apiFetch("/flow-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -76,7 +76,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-10 font-sans text-zinc-900">
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-1 text-2xl font-semibold">Karrier-Ügynökség</h1>
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Karrier-Ügynökség</h1>
+          <AuthMenu />
+        </div>
         <p className="mb-6 text-sm text-zinc-500">
           Flow itt van, hogy meghallgasson és a megfelelő segítséghez vezessen.
         </p>
