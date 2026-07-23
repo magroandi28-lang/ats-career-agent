@@ -182,6 +182,51 @@ tanácsadásnál — de a rendszer nem próbálja ezt kitalálni/feltételezni.
 - A determinisztikus számítások (ATS %, állás-rangsorolás) kódban maradnak,
   nem AI-becslés — ez már korábban eldöntött, nem változik.
 
+## ChatGPT-vel tervezett felület (2026.07.23, képernyőkép alapján rögzítve)
+
+Andi egy másik eszközzel (ChatGPT) egy ennél kidolgozottabb felületet
+tervezett meg, de a beszélgetés-ablak elromlott, nem érhető el többé -- ez
+a leírás a képernyőkép alapján, szó szerint rögzíti, hogy semmi ne vesszen
+el belőle. EZT a verziót kell alapul venni a Flow-felület véglegesítésekor,
+nem a korábbi, ennél gyengébb próbálkozásaimat.
+
+Fejléc: "Karrier-Ügynökség" logó + "Adatkezelés elfogadva" jelvény (jobb
+felül).
+
+Fő panel:
+- Kis jelvény: "✦ Karrier GPS"
+- Cím: "Szia! Mi hozott ma ide?"
+- Alcím: "Mondd el pár szóban, hol tartasz — én összerakom a következő
+  lépést."
+- Szabad szöveges mező: "Írd le szabadon, miben segítsek…" + kerek,
+  arany küldés-gomb (felfelé nyíl)
+- Gyors-választó gombok KÖZVETLENÜL az input alatt (négy, ÉS EZEK A
+  VALÓDI, HELYES kategóriák — nem a korábbi kitalált kártyáim):
+  "Állást keresek" / "Pályát váltanék" / "A CV-met javítanám" /
+  "Tanácsot szeretnék"
+
+Jobb oldali sáv: "🗺 Karrier térképed" — 3 lépéses, számozott folyamat:
+1. Helyzeted — "Hol tartasz most?"
+2. Célod — "Hová szeretnél eljutni?"
+3. Következő lépés — "Mit érdemes most megtenned?"
+Alatta megjegyzés: "A beszélgetés közben automatikusan felépül" — vagyis
+ez a 3 lépés NEM egy űrlap, amit ki kell tölteni, hanem a beszélgetésből
+automatikusan összeáll, ahogy Flow-val írsz.
+
+Alsó sor, 3 összefoglaló-kártya:
+- "📊 Piaci körkép — 9 260 valódi hirdetésből"
+- "👤 Neked való állások — Profil alapján rangsorolva"
+- "📋 Pályázati csomag — CV + motivációs levél"
+
+Lábléc: "Egy lépés egyszerre. Rád figyelve, a következő legjobb lépésre
+viszünk." + haladásjelző: "0/1 lépés ma"
+
+FONTOS TANULSÁG a mai kitalált (rossz) kártyáimból: a gyors-válasz gombok
+szövege NEM lehet kitalált/általános — ennek a ChatGPT-tervnek a 4 gombja
+("Állást keresek", "Pályát váltanék", "A CV-met javítanám", "Tanácsot
+szeretnék") a helyes, végleges szöveg, ezt kell használni, nem újra
+kitalálni.
+
 ## Megvalósítva (2026.07.22, ma este)
 
 Az első, valódi verzió elkészült és lokálisan letesztelve (`npm run build`
