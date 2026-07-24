@@ -57,7 +57,7 @@ def test_biztonsagi_fejlecek_es_request_id_megjelennek():
 
 def test_tul_nagy_deklaralt_keres_blokkolva():
     valasz = kliens.post(
-        "/flow-chat",
+        "/api/v1/flow/messages",
         content=b"",
         headers={"Content-Length": str(3 * 1024 * 1024)},
     )

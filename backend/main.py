@@ -33,7 +33,15 @@ from agents.karrier_ugynok import (
 )
 from utils.adatbazis import kereslet_korkep, szakma_statisztika, kliens
 from utils.teszt import ENERGIA_SKALA, STRESSZ_SKALA, holland_tipus, jollet_jelzes
-from utils.flow_agy import flow_kiertekeles, flow_valasz
+from utils.flow_agy import flow_kiertekeles, flow_dontes
+from utils.flow_allapot import (
+    session_lekeres_vagy_letrehozas,
+    elozmenyek_lekerese,
+    uzenet_mentese,
+    gps_esemeny_rogzitese,
+    gps_snapshot_frissites,
+    gps_projekcio,
+)
 from backend.auth import (
     auth_keres_limit,
     friss_auth_kliens,
@@ -348,25 +356,75 @@ def flow_kiertekeles_vegpont(
     return {"kiertekeles": flow_kiertekeles(bemenet.profil)}
 
 
-class FlowChatBemenet(ApiModel):
+class FlowUzenetBemenet(ApiModel):
+    """A /flow-chat utódja: nincs 'elozmenyek' mező, mert a backend saját
+    maga tárolja és olvassa vissza a beszélgetést (private.flow_messages) --
+    nem a kliens állítása szerint dolgozik."""
     kerdes: str = Field(max_length=8_000)
     profil: dict = Field(default_factory=dict)
     app_ismeret: str = Field(default="", max_length=20_000)
-    elozmenyek: list = Field(default_factory=list)
 
 
-@app.post("/flow-chat")
-def flow_chat_vegpont(
-    bemenet: FlowChatBemenet,
-    _felhasznalo=Depends(jelenlegi_felhasznalo),
+@app.post("/api/v1/flow/messages")
+def flow_uzenet_vegpont(
+    bemenet: FlowUzenetBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
 ):
     """
-    Flow chat-válasza: profil + tudásbázis (pgvector RAG) + app-ismeret
-    alapján. VALÓDI Gemini-hívás. Üres kérdéssel NEM hív API-t.
+    Flow strukturált döntési végpontja — a 02-flow-career-gps.md terv
+    szerinti hivatalos utódja a régi /flow-chat + kliensoldali regex
+    ([FLOW_AKCIO: ...]) mintának:
+
+    - a beszélgetés-előzményt a backend saját maga tárolja és olvassa
+      (private.flow_messages), nem a kliens állítása szerint dolgozik;
+    - Flow válasza mindig FlowDecision-séma szerinti strukturált objektum,
+      sosem szabad szöveges jelölés;
+    - sikeres 'karrier_ugynok_inditasa' döntésnél a BACKEND maga ír
+      career_gps_events sort és frissíti a career_gps_snapshots-ot — Flow
+      (az LLM) sosem ír közvetlenül adatbázist, csak javasol.
     """
-    return {"valasz": flow_valasz(
-        bemenet.kerdes, bemenet.profil, bemenet.app_ismeret, bemenet.elozmenyek
-    )}
+    user_id = str(felhasznalo.id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    elozmenyek = elozmenyek_lekerese(user_id, session_id)
+
+    uzenet_mentese(user_id, session_id, "user", bemenet.kerdes)
+
+    dontes = flow_dontes(bemenet.kerdes, bemenet.profil, bemenet.app_ismeret, elozmenyek)
+
+    uzenet_mentese(
+        user_id, session_id, "flow", dontes.response_message, dontes.evidence_refs,
+    )
+
+    gps_esemeny = None
+    if dontes.proposed_action == "karrier_ugynok_inditasa" and dontes.szakma:
+        esemeny_id = gps_esemeny_rogzitese(
+            user_id, session_id, "career_goal_selected",
+            {"szakma": dontes.szakma}, actor="flow",
+        )
+        gps_snapshot_frissites(user_id, "karriercel", "kivalasztott", esemeny_id)
+        gps_esemeny = {"tipus": "career_goal_selected", "szakma": dontes.szakma}
+
+    return {
+        "intent": dontes.intent,
+        "response_message": dontes.response_message,
+        "proposed_action": dontes.proposed_action,
+        "required_fields": dontes.required_fields,
+        "specialist_request": dontes.specialist_request,
+        "confidence": dontes.confidence,
+        "szakma": dontes.szakma,
+        "gps_esemeny": gps_esemeny,
+    }
+
+
+@app.get("/api/v1/career-gps")
+def career_gps_vegpont(felhasznalo=Depends(jelenlegi_felhasznalo)):
+    """
+    A bejelentkezett felhasználó aktuális Career GPS állapota, területenként
+    (profil, karriercél, piaci kép, felkészültség, pályázás, portfólió,
+    speciális út). A private.career_gps_snapshots táblából olvas -- ez az
+    events-naplóból már összegzett, gyorsan olvasható nézet.
+    """
+    return {"teruletek": gps_projekcio(str(felhasznalo.id))}
 
 
 # ── CÉGINFÓ ───────────────────────────────────────────────────

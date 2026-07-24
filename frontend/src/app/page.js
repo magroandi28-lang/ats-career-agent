@@ -7,8 +7,6 @@ import KarrierUgynok from "./KarrierUgynok";
 import { apiFetch } from "../lib/api";
 import { createClient } from "../lib/supabase/client";
 
-const AKCIO_MINTA = /\[FLOW_AKCIO:karrier_ugynok:([^\]]+)\]/;
-
 const KEZDO_LEPESEK = [
   {
     id: "cv",
@@ -103,13 +101,15 @@ export default function Home() {
     }
 
     setHiba(null);
-    const ujElozmenyek = [...uzenetek, { szerep: "user", szoveg: tiszta }];
-    setUzenetek(ujElozmenyek);
+    setUzenetek((elozo) => [...elozo, { szerep: "user", szoveg: tiszta }]);
     setSzoveg("");
     setKuldesFolyamatban(true);
 
     try {
-      const valasz = await apiFetch("/flow-chat", {
+      // A backend saját maga tárolja és olvassa vissza az előzményt
+      // (private.flow_messages) -- nem küldünk elozmenyek mezőt, nem
+      // bízunk a kliens állítására.
+      const valasz = await apiFetch("/api/v1/flow/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -118,25 +118,21 @@ export default function Home() {
           app_ismeret:
             "A Karrier-Ügynökség ellenőrzött karrierprofilt, Career GPS-t, " +
             "piaci körképet, állásillesztést és pályázati anyagokat készít.",
-          elozmenyek: ujElozmenyek.map(({ szerep, szoveg: elozoSzoveg }) => ({
-            szerep,
-            szoveg: elozoSzoveg,
-          })),
         }),
       });
-      if (!valasz.ok) throw new Error(`flow-chat: ${valasz.status}`);
-      const adat = await valasz.json();
-      let flowSzoveg = adat.valasz || "";
-      const talalat = flowSzoveg.match(AKCIO_MINTA);
-      let ujSzakma = null;
+      if (!valasz.ok) throw new Error(`flow-messages: ${valasz.status}`);
+      const dontes = await valasz.json();
 
-      if (talalat) {
-        ujSzakma = talalat[1].trim();
-        flowSzoveg = flowSzoveg.replace(AKCIO_MINTA, "").trim();
+      setUzenetek((elozo) => [
+        ...elozo,
+        { szerep: "flow", szoveg: dontes.response_message || "" },
+      ]);
+
+      // Strukturált döntés (FlowDecision) -- nincs kliensoldali regex,
+      // a proposed_action/szakma mező közvetlenül a backend válasza.
+      if (dontes.proposed_action === "karrier_ugynok_inditasa" && dontes.szakma) {
+        setKarrierSzakma(dontes.szakma);
       }
-
-      setUzenetek((elozo) => [...elozo, { szerep: "flow", szoveg: flowSzoveg }]);
-      if (ujSzakma) setKarrierSzakma(ujSzakma);
     } catch {
       setHiba(
         "Flow most nem érte el a háttérrendszert. Az üzeneted megmaradt, próbáld újra később.",
