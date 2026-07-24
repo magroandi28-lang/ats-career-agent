@@ -61,7 +61,9 @@ export default function Home() {
   const [gpsNyitva, setGpsNyitva] = useState(false);
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const kezdoValasztasRef = useRef(null);
+  const belepesKeresRef = useRef(false);
   const belepve = Boolean(session);
+  const belepesFuggoben = !belepve && Boolean(kezdoValasztas);
 
   useEffect(() => {
     const supabase = createClient();
@@ -90,6 +92,8 @@ export default function Home() {
   );
 
   function belepesKeres(uzenet) {
+    if (belepesKeresRef.current) return;
+    belepesKeresRef.current = true;
     setUzenetek((elozo) => [
       ...elozo,
       { szerep: "user", szoveg: uzenet },
@@ -112,6 +116,7 @@ export default function Home() {
   function kezdoAllapotVisszaallitasa() {
     if (kuldesFolyamatban) return;
     kezdoValasztasRef.current = null;
+    belepesKeresRef.current = false;
     setKezdoValasztas(null);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
@@ -123,6 +128,10 @@ export default function Home() {
     if (!tiszta || kuldesFolyamatban) return;
 
     if (!belepve) {
+      if (!kezdoValasztasRef.current) {
+        kezdoValasztasRef.current = "szabad-szoveg";
+        setKezdoValasztas("szabad-szoveg");
+      }
       setSzoveg("");
       belepesKeres(tiszta);
       return;
@@ -303,7 +312,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <div className="min-h-[300px] space-y-4 p-5 sm:p-6">
+              <div className="space-y-4 p-5 sm:p-6">
                 {uzenetek.map((uzenet, index) =>
                   uzenet.belepes ? (
                     <div
@@ -338,67 +347,92 @@ export default function Home() {
                     Flow feldolgozza a következő lépést…
                   </div>
                 )}
-              </div>
 
-              {!kezdoValasztas && (
-                <div className="grid gap-3 border-t border-white/8 p-5 sm:grid-cols-3 sm:p-6">
-                  {KEZDO_LEPESEK.map((lepes) => (
-                    <button
-                      key={lepes.id}
-                      type="button"
-                      onClick={() => kezdoLepesValasztasa(lepes)}
-                      disabled={kuldesFolyamatban}
-                      className="group rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
-                    >
-                      <span className="text-sm font-semibold text-slate-100 group-hover:text-amber-100">
-                        {lepes.cim}
-                      </span>
-                      <span className="mt-2 block text-xs leading-5 text-slate-500">
-                        {lepes.leiras}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    uzenetKuldese(szoveg);
+                  }}
+                  className="relative mt-5"
+                >
+                  <label htmlFor="flow-message" className="sr-only">
+                    Üzenet Flow számára
+                  </label>
+                  <textarea
+                    id="flow-message"
+                    value={szoveg}
+                    onChange={(event) => setSzoveg(event.target.value)}
+                    disabled={belepesFuggoben}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
+                        uzenetKuldese(szoveg);
+                      }
+                    }}
+                    placeholder={
+                      belepesFuggoben
+                        ? "A folytatáshoz lépj be, vagy válassz másik utat."
+                        : "Írd le néhány mondatban, hol tartasz és miben segítsek…"
+                    }
+                    rows={7}
+                    maxLength={4000}
+                    className="min-h-44 w-full resize-y rounded-2xl border border-white/12 bg-slate-950/55 px-5 py-4 pb-16 text-sm leading-6 text-white placeholder:text-slate-500 focus:border-amber-300/50 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                  <div className="absolute bottom-4 left-5 text-[11px] text-slate-600">
+                    Enter: küldés · Shift + Enter: új sor
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={
+                      kuldesFolyamatban || belepesFuggoben || !szoveg.trim()
+                    }
+                    className="absolute bottom-3 right-3 rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {kuldesFolyamatban ? "Küldés…" : "Küldés"}
+                  </button>
+                </form>
 
-              {kezdoValasztas && (
-                <div className="border-t border-white/8 px-5 py-3 sm:px-6">
+                {!kezdoValasztas && (
+                  <div className="pt-2">
+                    <p className="mb-3 text-xs font-medium text-slate-500">
+                      Vagy indulj egy gyors választással:
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {KEZDO_LEPESEK.map((lepes) => (
+                        <button
+                          key={lepes.id}
+                          type="button"
+                          onClick={() => kezdoLepesValasztasa(lepes)}
+                          disabled={kuldesFolyamatban}
+                          className="group rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
+                        >
+                          <span className="text-sm font-semibold text-slate-100 group-hover:text-amber-100">
+                            {lepes.cim}
+                          </span>
+                          <span className="mt-2 block text-xs leading-5 text-slate-500">
+                            {lepes.leiras}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {kezdoValasztas && (
                   <button
                     type="button"
                     onClick={kezdoAllapotVisszaallitasa}
                     disabled={kuldesFolyamatban}
-                    className="text-xs font-semibold text-amber-200/80 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="mt-1 inline-flex rounded-full border border-white/12 bg-white/[0.035] px-4 py-2 text-xs font-semibold text-amber-200/80 hover:border-amber-300/35 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     ← Másik út választása
                   </button>
-                </div>
-              )}
-
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  uzenetKuldese(szoveg);
-                }}
-                className="flex gap-2 border-t border-white/8 bg-black/10 p-4 sm:p-5"
-              >
-                <input
-                  value={szoveg}
-                  onChange={(event) => setSzoveg(event.target.value)}
-                  placeholder={
-                    belepve
-                      ? "Írd le, miben akadtál el…"
-                      : "Kérdezz, vagy válassz egy kiindulópontot…"
-                  }
-                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-amber-300/45"
-                />
-                <button
-                  type="submit"
-                  disabled={kuldesFolyamatban || !szoveg.trim()}
-                  className="rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Küldés
-                </button>
-              </form>
+                )}
+              </div>
             </div>
 
             {hiba && (
@@ -458,3 +492,4 @@ export default function Home() {
     </main>
   );
 }
+

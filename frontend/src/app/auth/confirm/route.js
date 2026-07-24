@@ -6,6 +6,7 @@ export async function GET(request) {
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
   const code = url.searchParams.get("code");
+  const next = url.searchParams.get("next");
   const redirectTo = request.nextUrl.clone();
   redirectTo.pathname = "/login";
   redirectTo.search = "";
@@ -14,7 +15,8 @@ export async function GET(request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      redirectTo.pathname = "/";
+      redirectTo.pathname =
+        next?.startsWith("/") && !next.startsWith("//") ? next : "/";
     }
   } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
@@ -22,9 +24,11 @@ export async function GET(request) {
       token_hash: tokenHash,
     });
     if (!error) {
-      redirectTo.pathname = "/";
+      redirectTo.pathname =
+        next?.startsWith("/") && !next.startsWith("//") ? next : "/";
     }
   }
 
   return NextResponse.redirect(redirectTo);
 }
+
