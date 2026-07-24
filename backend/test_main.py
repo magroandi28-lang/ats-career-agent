@@ -8,6 +8,9 @@ from fastapi.testclient import TestClient
 from starlette.datastructures import Headers, UploadFile
 
 from backend.main import app
+from backend.auth import jelenlegi_felhasznalo
+from backend.career_state_machine import CareerAction, CareerIntent
+from backend.flow_contract import FlowDecision
 from backend.security import (
     FixedWindowRateLimiter,
     read_validated_pdf,
@@ -57,7 +60,7 @@ def test_biztonsagi_fejlecek_es_request_id_megjelennek():
 
 def test_tul_nagy_deklaralt_keres_blokkolva():
     valasz = kliens.post(
-        "/flow-chat",
+        "/api/v1/flow/messages",
         content=b"",
         headers={"Content-Length": str(3 * 1024 * 1024)},
     )
@@ -113,3 +116,130 @@ def test_uj_kulcsnevek_elonyben_reszesulnek(monkeypatch):
     assert beallitas.supabase_publishable_key == "sb_publishable_uj"
     assert beallitas.supabase_secret_key == "sb_secret_uj"
     get_settings.cache_clear()
+
+
+def test_flow_cv_frissites_nem_indit_allaskeresest(monkeypatch):
+    """A modell javaslatából csak a cél megerősítése hajtható végre."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "elozmenyek_lekerese", lambda *_: [])
+    monkeypatch.setattr(main, "uzenet_mentese", lambda *_, **__: None)
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {
+            "id": "workflow-1",
+            "current_state": "CEL_TISZTAZATLAN",
+            "context": {},
+        },
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {
+            "id": "profile-1",
+            "confirmed_data": {},
+            "draft_data": {},
+            "draft_version": 0,
+        },
+    )
+    frissitesek = []
+    monkeypatch.setattr(
+        main,
+        "workflow_frissites",
+        lambda *args: frissitesek.append(args) or True,
+    )
+    monkeypatch.setattr(main, "gps_esemeny_rogzitese", lambda *_, **__: "event-1")
+    monkeypatch.setattr(main, "gps_snapshot_frissites", lambda *_, **__: None)
+    monkeypatch.setattr(
+        main,
+        "flow_dontes",
+        lambda *_, **__: FlowDecision(
+            intent=CareerIntent.CV_FRISSITES,
+            response_message="A CV frissítésével folytatjuk.",
+            proposed_action=CareerAction.CEL_MEGEROSITESE,
+            confidence=0.99,
+        ),
+    )
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/messages",
+            json={"kerdes": "Frissítsd a CV-met.", "profil": {}},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert valasz.json()["intent"] == "cv_frissites"
+    assert valasz.json()["current_state"] == "CEL_TISZTAZOTT"
+    assert valasz.json()["accepted_action"] == "cel_megerositese"
+    assert "allaskereses_inditasa" not in valasz.json()["allowed_actions"]
+    assert len(frissitesek) == 1
+
+
+def test_megerositett_minimumprofil_atlep_ellenorzott_allapotba(monkeypatch):
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(
+        main,
+        "profile_confirm",
+        lambda *_: {"id": "snapshot-1", "version": 1},
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {
+            "id": "profile-1",
+            "confirmed_data": {
+                "target_role": "automata tesztelő",
+                "skills": ["Python", "Playwright"],
+                "location": "Budapest",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {
+            "id": "workflow-1",
+            "current_state": "CEL_TISZTAZOTT",
+            "intent": "allas_kereses",
+            "context": {},
+        },
+    )
+    updates = []
+    monkeypatch.setattr(
+        main,
+        "workflow_frissites",
+        lambda *args: updates.append(args) or True,
+    )
+    monkeypatch.setattr(main, "gps_esemeny_rogzitese", lambda *_, **__: "event-1")
+    monkeypatch.setattr(main, "gps_snapshot_frissites", lambda *_, **__: None)
+
+    try:
+        response = kliens.post(
+            "/api/v1/profile/confirm",
+            json={
+                "fields": ["target_role", "skills", "location"],
+                "reason": "user_confirmation",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["readiness"]["ready"] is True
+    assert response.json()["current_state"] == "PROFIL_ELLENORZOTT"
+    assert response.json()["state_changed"] is True
+    assert len(updates) == 1

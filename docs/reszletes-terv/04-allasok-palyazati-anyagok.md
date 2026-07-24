@@ -1,5 +1,9 @@
 # 4. Állások és pályázati anyagok
 
+> **Kanonikus elsőbbség:** az álláskeresés, álláskiválasztás, ATS,
+> pályázati munkapéldány, beadás és emberi jóváhagyás felhasználói folyamatánál
+> a [felhasználói állapotgép](../felhasznaloi-allapotgep.md) az irányadó.
+
 ## 1. Cél és hatókör
 
 Ez a főrész a megerősített karrierprofilhoz legjobban illő, reálisan

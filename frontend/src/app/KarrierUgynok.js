@@ -76,18 +76,21 @@ export default function KarrierUgynok({ kezdoSzakma = "", kezdoHelyszin = "Budap
           value={szakmaMegadva}
           onChange={(e) => setSzakmaMegadva(e.target.value)}
           placeholder="Milyen szakma? Pl. bolti eladó, szoftverfejlesztő..."
-          className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+          className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+          style={{ background: "#141d33", border: "1px solid #2a3550", color: "#e6ebf7" }}
         />
         <input
           value={helyszin}
           onChange={(e) => setHelyszin(e.target.value)}
           placeholder="Város"
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 sm:w-32"
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none sm:w-32"
+          style={{ background: "#141d33", border: "1px solid #2a3550", color: "#e6ebf7" }}
         />
         <button
           type="submit"
           disabled={dolgozik}
-          className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-lg px-5 py-2 text-sm font-medium disabled:opacity-50"
+          style={{ background: "#e0b84a", color: "#1a1305" }}
         >
           {dolgozik
             ? futAllapot === "szakma"
@@ -98,21 +101,30 @@ export default function KarrierUgynok({ kezdoSzakma = "", kezdoHelyszin = "Budap
       </form>
 
       {hiba && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          className="mb-6 rounded-lg px-4 py-3 text-sm"
+          style={{ background: "#3a1a1a", border: "1px solid #5a2a2a", color: "#f0a0a0" }}
+        >
           Hiba történt: {hiba}
         </div>
       )}
 
       {szakmaInfo && (
-        <div className="mb-6 rounded-lg border border-zinc-200 bg-white p-4">
-          <p className="text-sm text-zinc-500">Felismert szakma</p>
-          <p className="mb-2 text-lg font-medium">{szakmaInfo.szakma}</p>
+        <div
+          className="mb-6 rounded-lg p-4"
+          style={{ background: "#141d33", border: "1px solid #232e4d" }}
+        >
+          <p className="text-sm" style={{ color: "#7a88ad" }}>Felismert szakma</p>
+          <p className="mb-2 text-lg font-medium" style={{ color: "#f0d896" }}>
+            {szakmaInfo.szakma}
+          </p>
           {szakmaInfo.utos_kulcsszavak?.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {szakmaInfo.utos_kulcsszavak.map((k) => (
                 <span
                   key={k}
-                  className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-600"
+                  className="rounded-full px-2.5 py-0.5 text-xs"
+                  style={{ background: "#1c2544", color: "#cdd6ee" }}
                 >
                   {k}
                 </span>
@@ -123,7 +135,10 @@ export default function KarrierUgynok({ kezdoSzakma = "", kezdoHelyszin = "Budap
       )}
 
       {eredmeny && !eredmeny.van_jo_talalat && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div
+          className="mb-4 rounded-lg px-4 py-3 text-sm"
+          style={{ background: "#3a2f14", border: "1px solid #5a4a1f", color: "#e0c896" }}
+        >
           Ebben a szakmában most nincs 80%+ egyezésű friss hirdetés
           ({helyszin}). Az alábbiak a legjobb elérhető találatok.
         </div>
@@ -134,32 +149,37 @@ export default function KarrierUgynok({ kezdoSzakma = "", kezdoHelyszin = "Budap
           {talalatok.map((allas, i) => (
             <li
               key={allas.id ?? i}
-              className="rounded-lg border border-zinc-200 bg-white p-4"
+              className="rounded-lg p-4"
+              style={{ background: "#141d33", border: "1px solid #232e4d" }}
             >
               <div className="mb-1 flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium">{allas.cim}</p>
-                  <p className="text-sm text-zinc-500">
+                  <p className="font-medium" style={{ color: "#f0d896" }}>{allas.cim}</p>
+                  <p className="text-sm" style={{ color: "#7a88ad" }}>
                     {allas.ceg}
                     {allas.helyszin ? ` · ${allas.helyszin}` : ""}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                <span
+                  className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
+                  style={{ background: "#173328", color: "#4ade80" }}
+                >
                   {allas.illeszkedes ?? 0}% egyezés
                 </span>
               </div>
               {allas.snippet && (
-                <p className="mb-2 text-sm text-zinc-600">{allas.snippet}</p>
+                <p className="mb-2 text-sm" style={{ color: "#cdd6ee" }}>{allas.snippet}</p>
               )}
               {allas.bersav && (
-                <p className="mb-2 text-xs text-zinc-500">💰 {allas.bersav}</p>
+                <p className="mb-2 text-xs" style={{ color: "#7a88ad" }}>💰 {allas.bersav}</p>
               )}
               {allas.link && (
                 <a
                   href={allas.link}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm font-medium text-zinc-900 underline"
+                  className="text-sm font-medium underline"
+                  style={{ color: "#e0b84a" }}
                 >
                   Megnézem a hirdetést →
                 </a>
@@ -170,7 +190,7 @@ export default function KarrierUgynok({ kezdoSzakma = "", kezdoHelyszin = "Budap
       )}
 
       {eredmeny && talalatok.length === 0 && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm" style={{ color: "#7a88ad" }}>
           Nincs megjeleníthető találat ehhez a szakmához/városhoz.
         </p>
       )}

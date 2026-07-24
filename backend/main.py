@@ -33,7 +33,32 @@ from agents.karrier_ugynok import (
 )
 from utils.adatbazis import kereslet_korkep, szakma_statisztika, kliens
 from utils.teszt import ENERGIA_SKALA, STRESSZ_SKALA, holland_tipus, jollet_jelzes
-from utils.flow_agy import flow_kiertekeles, flow_valasz
+from utils.flow_agy import flow_kiertekeles, flow_dontes
+from utils.flow_allapot import (
+    session_lekeres_vagy_letrehozas,
+    elozmenyek_lekerese,
+    uzenet_mentese,
+    workflow_lekeres_vagy_letrehozas,
+    workflow_frissites,
+    gps_esemeny_rogzitese,
+    gps_snapshot_frissites,
+    gps_projekcio,
+)
+from backend.career_state_machine import (
+    CareerAction,
+    CareerIntent,
+    CareerState,
+    allowed_actions,
+    confirm_intent_transition,
+    next_state,
+)
+from backend.profile_service import (
+    ALLOWED_FIELDS,
+    profile_confirm,
+    profile_get_or_create,
+    profile_readiness,
+    profile_update_draft,
+)
 from backend.auth import (
     auth_keres_limit,
     friss_auth_kliens,
@@ -348,25 +373,278 @@ def flow_kiertekeles_vegpont(
     return {"kiertekeles": flow_kiertekeles(bemenet.profil)}
 
 
-class FlowChatBemenet(ApiModel):
+class FlowUzenetBemenet(ApiModel):
+    """A /flow-chat utódja: nincs 'elozmenyek' mező, mert a backend saját
+    maga tárolja és olvassa vissza a beszélgetést (private.flow_messages) --
+    nem a kliens állítása szerint dolgozik."""
     kerdes: str = Field(max_length=8_000)
+    # Átmeneti kompatibilitási mező: a backend szándékosan figyelmen kívül
+    # hagyja. Személyre szabáshoz csak a szerveroldali, megerősített profil jó.
     profil: dict = Field(default_factory=dict)
     app_ismeret: str = Field(default="", max_length=20_000)
-    elozmenyek: list = Field(default_factory=list)
 
 
-@app.post("/flow-chat")
-def flow_chat_vegpont(
-    bemenet: FlowChatBemenet,
-    _felhasznalo=Depends(jelenlegi_felhasznalo),
+@app.post("/api/v1/flow/messages")
+def flow_uzenet_vegpont(
+    bemenet: FlowUzenetBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
 ):
     """
-    Flow chat-válasza: profil + tudásbázis (pgvector RAG) + app-ismeret
-    alapján. VALÓDI Gemini-hívás. Üres kérdéssel NEM hív API-t.
+    Flow csak szándékot és következő műveletet javasol. A backend a
+    szerveroldali állapotgéppel ellenőrzi, hogy a javaslat megengedett-e.
+    CV-feltöltésből ezért nem indul automatikusan álláskeresés vagy ATS.
     """
-    return {"valasz": flow_valasz(
-        bemenet.kerdes, bemenet.profil, bemenet.app_ismeret, bemenet.elozmenyek
-    )}
+    user_id = str(felhasznalo.id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    if not workflow:
+        raise HTTPException(503, "A karrierfolyamat állapota nem érhető el.")
+    try:
+        previous_state = CareerState(workflow["current_state"])
+    except (KeyError, ValueError):
+        raise HTTPException(500, "A karrierfolyamat állapota érvénytelen.")
+    elozmenyek = elozmenyek_lekerese(user_id, session_id)
+    profile = profile_get_or_create(user_id)
+    if not profile:
+        raise HTTPException(503, "A karrierprofil nem érhető el.")
+    server_profile = dict(profile.get("confirmed_data") or {})
+
+    uzenet_mentese(user_id, session_id, "user", bemenet.kerdes)
+
+    dontes = flow_dontes(
+        bemenet.kerdes,
+        server_profile,
+        bemenet.app_ismeret,
+        elozmenyek,
+        current_state=previous_state,
+    )
+
+    uzenet_mentese(
+        user_id, session_id, "flow", dontes.response_message, dontes.evidence_refs,
+    )
+
+    current_state = previous_state
+    accepted_action = None
+    gps_esemeny = None
+    if (
+        dontes.intent is not CareerIntent.BIZONYTALAN
+        and dontes.proposed_action is CareerAction.CEL_MEGEROSITESE
+    ):
+        next_workflow_state = confirm_intent_transition(
+            previous_state, dontes.intent
+        )
+        if next_workflow_state is not None:
+            context = dict(workflow.get("context") or {})
+            if dontes.szakma:
+                context["target_role"] = dontes.szakma
+            if not workflow_frissites(
+                user_id,
+                workflow["id"],
+                next_workflow_state,
+                dontes.intent,
+                context,
+            ):
+                raise HTTPException(503, "Az állapotváltás mentése nem sikerült.")
+            current_state = next_workflow_state
+            accepted_action = CareerAction.CEL_MEGEROSITESE
+
+            esemeny_id = gps_esemeny_rogzitese(
+                user_id,
+                session_id,
+                "career_intent_confirmed",
+                {
+                    "intent": dontes.intent.value,
+                    "previous_state": previous_state.value,
+                    "current_state": current_state.value,
+                    "target_role": dontes.szakma or None,
+                },
+                actor="system",
+            )
+            gps_snapshot_frissites(
+                user_id, "karriercel", "kivalasztott", esemeny_id
+            )
+            gps_esemeny = {
+                "tipus": "career_intent_confirmed",
+                "intent": dontes.intent.value,
+            }
+    elif dontes.intent is CareerIntent.BIZONYTALAN:
+        accepted_action = CareerAction.TISZTAZO_KERDES
+
+    proposed_action = dontes.proposed_action
+    if proposed_action not in allowed_actions(previous_state):
+        proposed_action = None
+
+    return {
+        "workflow_id": workflow["id"],
+        "intent": dontes.intent.value,
+        "response_message": dontes.response_message,
+        "proposed_action": proposed_action.value if proposed_action else None,
+        "accepted_action": accepted_action.value if accepted_action else None,
+        "required_fields": dontes.required_fields,
+        "specialist_request": dontes.specialist_request,
+        "confidence": dontes.confidence,
+        "szakma": dontes.szakma,
+        "previous_state": previous_state.value,
+        "current_state": current_state.value,
+        "state_changed": current_state != previous_state,
+        "allowed_actions": [
+            action.value for action in allowed_actions(current_state)
+        ],
+        "gps_esemeny": gps_esemeny,
+    }
+
+
+class ProfileDraftPatchBemenet(ApiModel):
+    fields: dict
+
+
+class ProfileConfirmBemenet(ApiModel):
+    fields: list[str] = Field(min_length=1, max_length=30)
+    reason: str = Field(default="user_confirmation", min_length=1, max_length=100)
+
+
+def _active_intent_and_readiness(user_id: str, session_id: str | None, profile: dict):
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    intent = None
+    readiness = None
+    if workflow and workflow.get("intent"):
+        try:
+            intent = CareerIntent(workflow["intent"])
+            readiness = profile_readiness(intent, profile)
+        except ValueError:
+            pass
+    return workflow, intent, readiness
+
+
+@app.get("/api/v1/profile")
+def profile_get_vegpont(felhasznalo=Depends(jelenlegi_felhasznalo)):
+    """A saját profil vázlata, megerősített adatai és célfüggő hiányai."""
+    user_id = str(felhasznalo.id)
+    profile = profile_get_or_create(user_id)
+    if not profile:
+        raise HTTPException(503, "A karrierprofil nem érhető el.")
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow, intent, readiness = _active_intent_and_readiness(
+        user_id, session_id, profile
+    )
+    return {
+        "id": profile["id"],
+        "draft_data": profile.get("draft_data") or {},
+        "draft_version": profile.get("draft_version", 0),
+        "confirmed_data": profile.get("confirmed_data") or {},
+        "active_snapshot_id": profile.get("active_snapshot_id"),
+        "active_intent": intent.value if intent else None,
+        "current_state": workflow.get("current_state") if workflow else None,
+        "readiness": readiness,
+        "allowed_fields": sorted(ALLOWED_FIELDS),
+    }
+
+
+@app.patch("/api/v1/profile/draft")
+def profile_draft_vegpont(
+    bemenet: ProfileDraftPatchBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Felhasználói adatot vázlatba ment; ettől még nem lesz igazolt tény."""
+    user_id = str(felhasznalo.id)
+    try:
+        profile = profile_update_draft(user_id, bemenet.fields)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    if not profile:
+        raise HTTPException(409, "A profil közben megváltozott. Töltsd újra.")
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    gps_esemeny_rogzitese(
+        user_id,
+        session_id,
+        "profile_draft_created",
+        {"fields": sorted(bemenet.fields), "draft_version": profile["draft_version"]},
+        actor="user",
+    )
+    return {
+        "ok": True,
+        "draft_data": profile.get("draft_data") or {},
+        "draft_version": profile["draft_version"],
+        "confirmed": False,
+    }
+
+
+@app.post("/api/v1/profile/confirm")
+def profile_confirm_vegpont(
+    bemenet: ProfileConfirmBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Kifejezett jóváhagyással snapshotot készít és ellenőrzi a profilkaput."""
+    user_id = str(felhasznalo.id)
+    try:
+        snapshot = profile_confirm(user_id, bemenet.fields, bemenet.reason)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    if not snapshot:
+        raise HTTPException(409, "A profil megerősítése nem sikerült.")
+
+    profile = profile_get_or_create(user_id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow, intent, readiness = _active_intent_and_readiness(
+        user_id, session_id, profile
+    )
+    state_changed = False
+    current_state = None
+    if workflow and intent:
+        current_state = CareerState(workflow["current_state"])
+        action = (
+            CareerAction.PROFIL_MEGEROSITESE
+            if readiness and readiness["ready"]
+            else CareerAction.PROFIL_ADATOK_BEKERESE
+        )
+        target_state = next_state(current_state, action)
+        if target_state is not None:
+            context = dict(workflow.get("context") or {})
+            context["profile_snapshot_id"] = snapshot["id"]
+            if not workflow_frissites(
+                user_id, workflow["id"], target_state, intent, context
+            ):
+                raise HTTPException(503, "A profilállapot mentése nem sikerült.")
+            current_state = target_state
+            state_changed = True
+
+    event_id = gps_esemeny_rogzitese(
+        user_id,
+        session_id,
+        "profile_snapshot_activated",
+        {
+            "snapshot_id": snapshot["id"],
+            "version": snapshot["version"],
+            "fields": sorted(bemenet.fields),
+            "ready_for_intent": bool(readiness and readiness["ready"]),
+        },
+        actor="user",
+    )
+    gps_snapshot_frissites(
+        user_id,
+        "profil",
+        "megerositett" if readiness and readiness["ready"] else "ellenorzendo",
+        event_id,
+    )
+    return {
+        "ok": True,
+        "snapshot_id": snapshot["id"],
+        "snapshot_version": snapshot["version"],
+        "readiness": readiness,
+        "current_state": current_state.value if current_state else None,
+        "state_changed": state_changed,
+    }
+
+
+@app.get("/api/v1/career-gps")
+def career_gps_vegpont(felhasznalo=Depends(jelenlegi_felhasznalo)):
+    """
+    A bejelentkezett felhasználó aktuális Career GPS állapota, területenként
+    (profil, karriercél, piaci kép, felkészültség, pályázás, portfólió,
+    speciális út). A private.career_gps_snapshots táblából olvas -- ez az
+    events-naplóból már összegzett, gyorsan olvasható nézet.
+    """
+    return {"teruletek": gps_projekcio(str(felhasznalo.id))}
 
 
 # ── CÉGINFÓ ───────────────────────────────────────────────────

@@ -4,6 +4,55 @@ Ez a fájl az új munkamenet indításához készült. Olvasd végig, mielőtt b
 RÉSZLETES FOLYAMAT-LEÍRÁS: docs/folyamat_terkep.md (ez a kánon — javaslat előtt ezzel vesd össze!)
 MIGRÁCIÓS TEENDŐK (Streamlit→FastAPI/React váltáskor törlendő régi kód!): docs/migracio_teendok.md
 
+## VALÓS ÁLLAPOT — 2026-07-23 este (FONTOS, ELŐSZÖR EZT OLVASD!)
+
+A React/Next.js + FastAPI migráció közben KÉT PÁRHUZAMOS munka futott ezen a
+repón: ez a munkamenet (Flow + Karrier Ügynök automatizált lánc) ÉS egy másik
+ág/eszköz (`agent/determinisztikus-karrierallapot`), ami egy komoly
+biztonsági/platform-réteget épített. A kettő NEM ütközik — valódi build-
+teszttel leellenőrizve (2026-07-23), a teljes kód (mindkét munka együtt)
+tisztán lefordul.
+
+KÉSZ, ELLENŐRIZVE:
+- Backend + Frontend váz élőben fut: Render (backend) + Vercel (frontend),
+  https://ats-career-agent-z3od.vercel.app
+- Supabase Auth + Storage (regisztráció, bejelentkezés, CV feltöltés/letöltés)
+- Biztonsági réteg (másik ágon készült, itt csak ellenőrizve): RLS az
+  adatbázis-táblákon, rate limiting (backend/security.py), env-változó
+  ellenőrzés build előtt (frontend/scripts/check-env.mjs), automata
+  minőség-ellenőrzés GitHub Actionsben (.github/workflows/quality.yml —
+  teszt + függőség-audit + titok-szűrés minden push-nál)
+- Determinisztikus állás-rangsorolás + ATS-diagnózis (nem AI-becslés)
+- Hirdetés-frissesség: a VALÓDI feladási dátum szerint rendez, nem a
+  gyűjtési időbélyeg szerint (utils/adatbazis.py, _valos_hirdetes_datum())
+- Adatőr (scripts/adat_or.py) szakmánkénti gyűjtés-lyuk és címkézettlenség-
+  jelentéssel bővítve
+- Napi gyűjtés: 99 szakma, egész ország, Jooble+EURES (.github/workflows/
+  jooble_gyujto.yml)
+- Flow ELSŐ verziója: saját belépő panel (nem fülsor!), a meglévő
+  /flow-chat végponthoz kötve, [FLOW_AKCIO:karrier_ugynok:SZAKMA] jelöléssel
+  automatikusan elindítja a Karrier Ügynök keresést -- LOKÁLISAN kész és
+  build-tesztelve, de MÉG NINCS PUSHOLVA GitHub-ra (2026-07-23 este)
+
+MÉG NINCS KÉSZ (ide kell folytatni):
+- A Flow-köszöntő szövege és a gyors-válasz kártyák tartalma még nem végleges
+  -- részletes terv és a felmerült hibák (kitalált, nem-valós kategóriák
+  kerültek bele tévesen): docs/karrier_ugynok_terv.md
+- A tudásbázis (2735 szakasz, Corvinus/Hajduska/Ivey/Selye/saját jegyzetek)
+  "temak" (témakör-címke) oszlopa MÉG NINCS feltöltve és a keresés MÉG NEM
+  használja -- ez a terv, jóváhagyott témakör-lista: docs/karrier_ugynok_terv.md
+- A "mind az 5 találathoz CV+motivációs levél, felhasználó választja ki
+  melyikhez" logika még nincs megépítve (ma csak eldöntöttük, hogy ez legyen)
+- Elavult-CV triázs (a rendszer maga döntse el, nem a felhasználó önbevallása,
+  hogy "csak átnézendő" vagy "újraépítendő" szintű a CV) még nincs megépítve
+- A többi 5 fül (Tanácsadó, Piaci Körkép, Portfólió, Képzések, Külföld) még
+  nincs áthozva Flow alá -- ma explicit csak a Karrier Ügynökre koncentráltunk
+- Hangalapú be/kimenet (böngésző Web Speech API, ingyenes) még nincs építve
+
+KÖVETKEZŐ LÉPÉS: git push a helyi változásokkal (Flow + sötét-arany dizájn +
+a proxy.js "/" publikus-elérés javítása), utána a docs/karrier_ugynok_terv.md
+alapján folytatni a témakör-címkézéssel és a Flow-köszöntő véglegesítésével.
+
 ## MI EZ A PROJEKT
 Andi álláskeresést segítő Streamlit-alkalmazása (app.py) Supabase-adatbázissal.
 Versenyelőny: saját, készség-szintű hirdetés-adatbázis + munkapszichológiai

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { updateSession } from "./lib/supabase/proxy";
 
-const PUBLIC_PATHS = new Set(["/login", "/auth/confirm"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/auth/confirm"]);
 
 export async function proxy(request) {
   const { response, claims } = await updateSession(request);

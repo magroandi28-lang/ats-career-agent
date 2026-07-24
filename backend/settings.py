@@ -29,6 +29,14 @@ def _positive_int(name: str, default: int) -> int:
     return value
 
 
+def _choice(name: str, default: str, allowed: set[str]) -> str:
+    value = os.getenv(name, default).strip().lower()
+    if value not in allowed:
+        options = ", ".join(sorted(allowed))
+        raise RuntimeError(f"A(z) {name} értéke csak ez lehet: {options}.")
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     app_env: str
@@ -41,6 +49,18 @@ class Settings:
     api_requests_per_minute: int
     ai_requests_per_minute: int
     auth_requests_per_minute: int
+    ai_provider: str
+    gemini_api_key: str
+    openai_api_key: str
+    gemini_flow_model: str
+    openai_flow_model: str
+    gemini_advisor_model: str
+    openai_advisor_model: str
+    gemini_writer_model: str
+    openai_writer_model: str
+    ai_timeout_seconds: int
+    ai_max_steps_per_run: int
+    ai_max_tool_calls_per_run: int
 
     @property
     def production(self) -> bool:
@@ -53,6 +73,25 @@ class Settings:
     @property
     def database_ready(self) -> bool:
         return bool(self.supabase_url and self.supabase_secret_key)
+
+    @property
+    def ai_ready(self) -> bool:
+        if self.ai_provider == "gemini":
+            return bool(self.gemini_api_key)
+        return bool(self.openai_api_key)
+
+    def model_for_task(self, task_type: str) -> str:
+        """A feladat modelljét központilag választja ki.
+
+        Az üzleti kód ezért nem függ közvetlenül egyik szolgáltatótól sem.
+        """
+        model_group = {
+            "flow_routing": "flow",
+            "career_advice": "advisor",
+            "application_writing": "writer",
+            "portfolio_writing": "writer",
+        }.get(task_type, "flow")
+        return getattr(self, f"{self.ai_provider}_{model_group}_model")
 
 
 @lru_cache
@@ -77,4 +116,16 @@ def get_settings() -> Settings:
         api_requests_per_minute=_positive_int("API_REQUESTS_PER_MINUTE", 60),
         ai_requests_per_minute=_positive_int("AI_REQUESTS_PER_MINUTE", 12),
         auth_requests_per_minute=_positive_int("AUTH_REQUESTS_PER_MINUTE", 8),
+        ai_provider=_choice("AI_PROVIDER", "gemini", {"gemini", "openai"}),
+        gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
+        openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+        gemini_flow_model=os.getenv("GEMINI_FLOW_MODEL", "gemini-2.5-flash"),
+        openai_flow_model=os.getenv("OPENAI_FLOW_MODEL", "gpt-5.6-terra"),
+        gemini_advisor_model=os.getenv("GEMINI_ADVISOR_MODEL", "gemini-2.5-pro"),
+        openai_advisor_model=os.getenv("OPENAI_ADVISOR_MODEL", "gpt-5.6"),
+        gemini_writer_model=os.getenv("GEMINI_WRITER_MODEL", "gemini-2.5-pro"),
+        openai_writer_model=os.getenv("OPENAI_WRITER_MODEL", "gpt-5.6"),
+        ai_timeout_seconds=_positive_int("AI_TIMEOUT_SECONDS", 90),
+        ai_max_steps_per_run=_positive_int("AI_MAX_STEPS_PER_RUN", 8),
+        ai_max_tool_calls_per_run=_positive_int("AI_MAX_TOOL_CALLS_PER_RUN", 5),
     )

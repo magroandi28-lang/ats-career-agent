@@ -4,6 +4,11 @@
 A részletes specifikáció: [reszletes-terv/README.md](reszletes-terv/README.md).
 Programkód még nem készült.
 
+> **Kanonikus elsőbbség:** ez a rendszerterv megmarad architekturális és
+> történeti alapként, de a felhasználói utak, indítási feltételek,
+> állapotátmenetek és jóváhagyási pontok tekintetében a
+> [felhasznaloi-allapotgep.md](felhasznaloi-allapotgep.md) az irányadó.
+
 ## 1. Termékcél
 
 A Karrier-Ügynökség egy interaktív, személyre szabott karrierrendszer.
