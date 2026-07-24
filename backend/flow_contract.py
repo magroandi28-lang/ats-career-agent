@@ -13,18 +13,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# Zárt szándék-enum -- a terv "engedélyezett szándék-enumot ad" elvárása.
-FlowIntent = Literal[
-    "allast_keres_van_cv",
-    "allast_keres_nincs_cv",
-    "palyavaltas",
-    "altalanos_kerdes",
-    "bizonytalan",
-]
-
-# Zárt akció-enum -- egyelőre egyetlen engedélyezett automatikus akció van
-# (a Karrier Ügynök lánc indítása); a többi programozási csomaggal bővül.
-FlowAction = Literal["karrier_ugynok_inditasa"]
+from backend.career_state_machine import CareerAction, CareerIntent
 
 # A README.md 3. pontjában rögzített három specialista (Flow Manager saját
 # magát nem kérheti fel).
@@ -51,9 +40,9 @@ class FlowDecision(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    intent: FlowIntent
+    intent: CareerIntent
     response_message: str = Field(min_length=1, max_length=2000)
-    proposed_action: Optional[FlowAction] = None
+    proposed_action: Optional[CareerAction] = None
     required_fields: list[str] = Field(default_factory=list)
     specialist_request: Optional[FlowSpecialista] = None
     evidence_refs: list[str] = Field(default_factory=list)
@@ -66,7 +55,8 @@ def biztonsagos_alapertelmezes(uzenet: str) -> FlowDecision:
     után sem). A terv 8. pontja szerint: "Hibás agent-JSON: egyszeri
     javítási kísérlet, majd biztonságos fallback" — ez az a fallback."""
     return FlowDecision(
-        intent="bizonytalan",
+        intent=CareerIntent.BIZONYTALAN,
         response_message=uzenet,
+        proposed_action=CareerAction.TISZTAZO_KERDES,
         confidence=0.0,
     )

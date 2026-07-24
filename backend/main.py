@@ -38,9 +38,18 @@ from utils.flow_allapot import (
     session_lekeres_vagy_letrehozas,
     elozmenyek_lekerese,
     uzenet_mentese,
+    workflow_lekeres_vagy_letrehozas,
+    workflow_frissites,
     gps_esemeny_rogzitese,
     gps_snapshot_frissites,
     gps_projekcio,
+)
+from backend.career_state_machine import (
+    CareerAction,
+    CareerIntent,
+    CareerState,
+    allowed_actions,
+    confirm_intent_transition,
 )
 from backend.auth import (
     auth_keres_limit,
@@ -371,47 +380,102 @@ def flow_uzenet_vegpont(
     felhasznalo=Depends(jelenlegi_felhasznalo),
 ):
     """
-    Flow strukturált döntési végpontja — a 02-flow-career-gps.md terv
-    szerinti hivatalos utódja a régi /flow-chat + kliensoldali regex
-    ([FLOW_AKCIO: ...]) mintának:
-
-    - a beszélgetés-előzményt a backend saját maga tárolja és olvassa
-      (private.flow_messages), nem a kliens állítása szerint dolgozik;
-    - Flow válasza mindig FlowDecision-séma szerinti strukturált objektum,
-      sosem szabad szöveges jelölés;
-    - sikeres 'karrier_ugynok_inditasa' döntésnél a BACKEND maga ír
-      career_gps_events sort és frissíti a career_gps_snapshots-ot — Flow
-      (az LLM) sosem ír közvetlenül adatbázist, csak javasol.
+    Flow csak szándékot és következő műveletet javasol. A backend a
+    szerveroldali állapotgéppel ellenőrzi, hogy a javaslat megengedett-e.
+    CV-feltöltésből ezért nem indul automatikusan álláskeresés vagy ATS.
     """
     user_id = str(felhasznalo.id)
     session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    if not workflow:
+        raise HTTPException(503, "A karrierfolyamat állapota nem érhető el.")
+    try:
+        previous_state = CareerState(workflow["current_state"])
+    except (KeyError, ValueError):
+        raise HTTPException(500, "A karrierfolyamat állapota érvénytelen.")
     elozmenyek = elozmenyek_lekerese(user_id, session_id)
 
     uzenet_mentese(user_id, session_id, "user", bemenet.kerdes)
 
-    dontes = flow_dontes(bemenet.kerdes, bemenet.profil, bemenet.app_ismeret, elozmenyek)
+    dontes = flow_dontes(
+        bemenet.kerdes,
+        bemenet.profil,
+        bemenet.app_ismeret,
+        elozmenyek,
+        current_state=previous_state,
+    )
 
     uzenet_mentese(
         user_id, session_id, "flow", dontes.response_message, dontes.evidence_refs,
     )
 
+    current_state = previous_state
+    accepted_action = None
     gps_esemeny = None
-    if dontes.proposed_action == "karrier_ugynok_inditasa" and dontes.szakma:
-        esemeny_id = gps_esemeny_rogzitese(
-            user_id, session_id, "career_goal_selected",
-            {"szakma": dontes.szakma}, actor="flow",
+    if (
+        dontes.intent is not CareerIntent.BIZONYTALAN
+        and dontes.proposed_action is CareerAction.CEL_MEGEROSITESE
+    ):
+        next_workflow_state = confirm_intent_transition(
+            previous_state, dontes.intent
         )
-        gps_snapshot_frissites(user_id, "karriercel", "kivalasztott", esemeny_id)
-        gps_esemeny = {"tipus": "career_goal_selected", "szakma": dontes.szakma}
+        if next_workflow_state is not None:
+            context = dict(workflow.get("context") or {})
+            if dontes.szakma:
+                context["target_role"] = dontes.szakma
+            if not workflow_frissites(
+                user_id,
+                workflow["id"],
+                next_workflow_state,
+                dontes.intent,
+                context,
+            ):
+                raise HTTPException(503, "Az állapotváltás mentése nem sikerült.")
+            current_state = next_workflow_state
+            accepted_action = CareerAction.CEL_MEGEROSITESE
+
+            esemeny_id = gps_esemeny_rogzitese(
+                user_id,
+                session_id,
+                "career_intent_confirmed",
+                {
+                    "intent": dontes.intent.value,
+                    "previous_state": previous_state.value,
+                    "current_state": current_state.value,
+                    "target_role": dontes.szakma or None,
+                },
+                actor="system",
+            )
+            gps_snapshot_frissites(
+                user_id, "karriercel", "kivalasztott", esemeny_id
+            )
+            gps_esemeny = {
+                "tipus": "career_intent_confirmed",
+                "intent": dontes.intent.value,
+            }
+    elif dontes.intent is CareerIntent.BIZONYTALAN:
+        accepted_action = CareerAction.TISZTAZO_KERDES
+
+    proposed_action = dontes.proposed_action
+    if proposed_action not in allowed_actions(previous_state):
+        proposed_action = None
 
     return {
-        "intent": dontes.intent,
+        "workflow_id": workflow["id"],
+        "intent": dontes.intent.value,
         "response_message": dontes.response_message,
-        "proposed_action": dontes.proposed_action,
+        "proposed_action": proposed_action.value if proposed_action else None,
+        "accepted_action": accepted_action.value if accepted_action else None,
         "required_fields": dontes.required_fields,
         "specialist_request": dontes.specialist_request,
         "confidence": dontes.confidence,
         "szakma": dontes.szakma,
+        "previous_state": previous_state.value,
+        "current_state": current_state.value,
+        "state_changed": current_state != previous_state,
+        "allowed_actions": [
+            action.value for action in allowed_actions(current_state)
+        ],
         "gps_esemeny": gps_esemeny,
     }
 

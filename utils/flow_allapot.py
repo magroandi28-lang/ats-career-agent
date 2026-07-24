@@ -15,9 +15,64 @@ ezért minden hívásnál kifejezetten jelezni kell: db.schema("private").table(
 
 import datetime
 
+from backend.career_state_machine import CareerIntent, CareerState, RULE_VERSION
 from utils.adatbazis import kliens
 
 SZABALYVERZIO = "flow-gps-v1"
+
+
+def workflow_lekeres_vagy_letrehozas(
+    user_id: str,
+    session_id: str | None,
+) -> dict | None:
+    """A felhasználó egyetlen aktív, szerveroldali karrierfolyamata."""
+    db = kliens()
+    if not db:
+        return None
+    try:
+        r = (db.schema("private").table("career_workflows")
+               .select("id,current_state,intent,context,rule_version")
+               .eq("user_id", user_id).eq("status", "active")
+               .limit(1).execute())
+        if r.data:
+            return r.data[0]
+        uj = db.schema("private").table("career_workflows").insert({
+            "user_id": user_id,
+            "session_id": session_id,
+            "current_state": CareerState.CEL_TISZTAZATLAN.value,
+            "context": {},
+            "rule_version": RULE_VERSION,
+            "status": "active",
+        }).execute()
+        return uj.data[0] if uj.data else None
+    except Exception as exc:
+        print(f"[flow_allapot] workflow hiba: {exc}")
+        return None
+
+
+def workflow_frissites(
+    user_id: str,
+    workflow_id: str,
+    current_state: CareerState,
+    intent: CareerIntent,
+    context: dict | None = None,
+) -> bool:
+    """Csak a backend által már ellenőrzött állapotot menti el."""
+    db = kliens()
+    if not db:
+        return False
+    try:
+        r = (db.schema("private").table("career_workflows").update({
+                "current_state": current_state.value,
+                "intent": intent.value,
+                "context": context or {},
+                "rule_version": RULE_VERSION,
+                "updated_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            }).eq("id", workflow_id).eq("user_id", user_id).execute())
+        return bool(r.data)
+    except Exception as exc:
+        print(f"[flow_allapot] workflow-frissites hiba: {exc}")
+        return False
 
 
 def session_lekeres_vagy_letrehozas(user_id: str) -> str | None:
