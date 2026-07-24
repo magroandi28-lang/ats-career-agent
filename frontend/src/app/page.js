@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AuthMenu from "./AuthMenu";
 import ProfileGate from "./ProfileGate";
 import { apiFetch } from "../lib/api";
@@ -41,24 +41,26 @@ const GPS_LEPESEK = [
   { nev: "Pályázati csomag", allapot: "zart" },
 ];
 
+const KEZDO_UZENET = {
+  szerep: "flow",
+  szoveg:
+    "Szia, Flow vagyok. Először megértem, honnan indulsz, aztán mindig csak a következő értelmes lépést mutatom.",
+};
+
 function belepesUrl(kovetkezo = "/") {
   return `/login?next=${encodeURIComponent(kovetkezo)}`;
 }
 
 export default function Home() {
   const [session, setSession] = useState(undefined);
-  const [uzenetek, setUzenetek] = useState([
-    {
-      szerep: "flow",
-      szoveg:
-        "Szia, Flow vagyok. Először megértem, honnan indulsz, aztán mindig csak a következő értelmes lépést mutatom.",
-    },
-  ]);
+  const [uzenetek, setUzenetek] = useState([KEZDO_UZENET]);
   const [szoveg, setSzoveg] = useState("");
   const [kuldesFolyamatban, setKuldesFolyamatban] = useState(false);
   const [hiba, setHiba] = useState(null);
   const [workflowState, setWorkflowState] = useState(null);
   const [gpsNyitva, setGpsNyitva] = useState(false);
+  const [kezdoValasztas, setKezdoValasztas] = useState(null);
+  const kezdoValasztasRef = useRef(null);
   const belepve = Boolean(session);
 
   useEffect(() => {
@@ -98,6 +100,22 @@ export default function Home() {
         belepes: true,
       },
     ]);
+  }
+
+  function kezdoLepesValasztasa(lepes) {
+    if (kezdoValasztasRef.current || kuldesFolyamatban) return;
+    kezdoValasztasRef.current = lepes.id;
+    setKezdoValasztas(lepes.id);
+    uzenetKuldese(lepes.cim);
+  }
+
+  function kezdoAllapotVisszaallitasa() {
+    if (kuldesFolyamatban) return;
+    kezdoValasztasRef.current = null;
+    setKezdoValasztas(null);
+    setUzenetek([KEZDO_UZENET]);
+    setSzoveg("");
+    setHiba(null);
   }
 
   async function uzenetKuldese(uzenetSzoveg) {
@@ -286,26 +304,35 @@ export default function Home() {
               </div>
 
               <div className="min-h-[300px] space-y-4 p-5 sm:p-6">
-                {uzenetek.map((uzenet, index) => (
-                  <div
-                    key={`${uzenet.szerep}-${index}`}
-                    className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
-                      uzenet.szerep === "flow"
-                        ? "border border-amber-300/12 bg-amber-300/[0.05] text-slate-200"
-                        : "ml-auto bg-slate-100 text-slate-950"
-                    }`}
-                  >
-                    {uzenet.szoveg}
-                    {uzenet.belepes && (
+                {uzenetek.map((uzenet, index) =>
+                  uzenet.belepes ? (
+                    <div
+                      key={`${uzenet.szerep}-${index}`}
+                      className="max-w-sm rounded-2xl border border-amber-300/20 bg-slate-950/75 p-4 shadow-lg shadow-black/10"
+                    >
+                      <p className="text-xs leading-5 text-slate-300">
+                        {uzenet.szoveg}
+                      </p>
                       <Link
                         href={belepesUrl("/")}
-                        className="mt-3 inline-flex rounded-full bg-amber-300 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-200"
+                        className="mt-3 inline-flex rounded-full bg-amber-300 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-200"
                       >
                         Belépés a személyes folytatáshoz
                       </Link>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  ) : (
+                    <div
+                      key={`${uzenet.szerep}-${index}`}
+                      className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
+                        uzenet.szerep === "flow"
+                          ? "border border-amber-300/12 bg-amber-300/[0.05] text-slate-200"
+                          : "ml-auto bg-slate-100 text-slate-950"
+                      }`}
+                    >
+                      {uzenet.szoveg}
+                    </div>
+                  ),
+                )}
                 {kuldesFolyamatban && (
                   <div className="max-w-[82%] rounded-2xl border border-amber-300/12 bg-amber-300/[0.05] px-4 py-3 text-sm text-slate-400">
                     Flow feldolgozza a következő lépést…
@@ -313,12 +340,13 @@ export default function Home() {
                 )}
               </div>
 
-              <div className="grid gap-3 border-t border-white/8 p-5 sm:grid-cols-3 sm:p-6">
+              {!kezdoValasztas && (
+                <div className="grid gap-3 border-t border-white/8 p-5 sm:grid-cols-3 sm:p-6">
                   {KEZDO_LEPESEK.map((lepes) => (
                     <button
                       key={lepes.id}
                       type="button"
-                      onClick={() => uzenetKuldese(lepes.cim)}
+                      onClick={() => kezdoLepesValasztasa(lepes)}
                       disabled={kuldesFolyamatban}
                       className="group rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
                     >
@@ -330,7 +358,21 @@ export default function Home() {
                       </span>
                     </button>
                   ))}
-              </div>
+                </div>
+              )}
+
+              {kezdoValasztas && (
+                <div className="border-t border-white/8 px-5 py-3 sm:px-6">
+                  <button
+                    type="button"
+                    onClick={kezdoAllapotVisszaallitasa}
+                    disabled={kuldesFolyamatban}
+                    className="text-xs font-semibold text-amber-200/80 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ← Másik út választása
+                  </button>
+                </div>
+              )}
 
               <form
                 onSubmit={(event) => {
