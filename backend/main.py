@@ -384,6 +384,86 @@ class FlowUzenetBemenet(ApiModel):
     app_ismeret: str = Field(default="", max_length=20_000)
 
 
+class WorkflowIntentBemenet(ApiModel):
+    """Kifejezett felhasználói gombválasztás, LLM-értelmezés nélkül."""
+
+    intent: CareerIntent
+
+
+@app.post("/api/v1/workflow/intent")
+def workflow_intent_vegpont(
+    bemenet: WorkflowIntentBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Korai folyamatban determinisztikusan rögzíti a felhasználó célját.
+
+    A frontend fix műveletgombjaihoz nem kell modellhívás: a kiválasztott
+    intent közvetlenül, auditálhatóan kerül az állapotgépbe.
+    """
+    if bemenet.intent is CareerIntent.BIZONYTALAN:
+        raise HTTPException(422, "Bizonytalan cél nem választható műveletgombbal.")
+
+    user_id = str(felhasznalo.id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    if not workflow:
+        raise HTTPException(503, "A karrierfolyamat állapota nem érhető el.")
+
+    try:
+        previous_state = CareerState(workflow["current_state"])
+    except (KeyError, ValueError):
+        raise HTTPException(500, "A karrierfolyamat állapota érvénytelen.")
+
+    modosithato_allapotok = {
+        CareerState.CEL_TISZTAZATLAN,
+        CareerState.CEL_TISZTAZOTT,
+        CareerState.PROFIL_HIANYOS,
+    }
+    if previous_state not in modosithato_allapotok:
+        raise HTTPException(
+            409,
+            "A megkezdett műveletet előbb le kell zárni vagy újra kell indítani.",
+        )
+
+    context = dict(workflow.get("context") or {})
+    context["intent_source"] = "explicit_ui_selection"
+    if not workflow_frissites(
+        user_id,
+        workflow["id"],
+        CareerState.CEL_TISZTAZOTT,
+        bemenet.intent,
+        context,
+    ):
+        raise HTTPException(503, "A cél mentése nem sikerült.")
+
+    event_id = gps_esemeny_rogzitese(
+        user_id,
+        session_id,
+        "career_intent_selected",
+        {
+            "intent": bemenet.intent.value,
+            "source": "explicit_ui_selection",
+            "previous_state": previous_state.value,
+            "current_state": CareerState.CEL_TISZTAZOTT.value,
+        },
+        actor="user",
+    )
+    gps_snapshot_frissites(
+        user_id,
+        "karriercel",
+        "kivalasztott",
+        event_id,
+    )
+
+    return {
+        "ok": True,
+        "intent": bemenet.intent.value,
+        "previous_state": previous_state.value,
+        "current_state": CareerState.CEL_TISZTAZOTT.value,
+        "model_called": False,
+    }
+
+
 @app.post("/api/v1/flow/messages")
 def flow_uzenet_vegpont(
     bemenet: FlowUzenetBemenet,
@@ -817,3 +897,4 @@ def cv_letoltes_vegpont(felhasznalo=Depends(jelenlegi_felhasznalo)):
         raise HTTPException(404, "Nincs mentett CV-d.")
     return {"url": valasz.get("signedURL") or valasz.get("signedUrl"),
             "lejar_masodperc": 300}
+

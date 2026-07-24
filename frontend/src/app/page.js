@@ -25,6 +25,35 @@ const KEZDO_LEPESEK = [
   },
 ];
 
+const CV_MUVELETEK = [
+  {
+    id: "ellenorzes",
+    intent: "cv_ellenorzes",
+    cim: "Csak vizsgáld át",
+    leiras:
+      "Hibák, érthetőség és ATS-kockázatok. A CV szövegét nem írjuk át.",
+    kerdes: "A meglévő CV-met szeretném ellenőrizni, átírás nélkül.",
+  },
+  {
+    id: "frissites",
+    intent: "cv_frissites",
+    cim: "Írd át és frissítsd",
+    leiras:
+      "A célmunkakör valós elvárásaihoz igazítjuk, de nem találunk ki tapasztalatot.",
+    kerdes:
+      "A meglévő CV-met szeretném frissíteni és átírni a célmunkaköröm elvárásai alapján.",
+  },
+  {
+    id: "konkret",
+    intent: "konkret_palyazas",
+    cim: "Konkrét állásra szabás",
+    leiras:
+      "Már van egy hirdetésed. A link vagy a hirdetés szövege alapján készítjük el a célzott változatot.",
+    kerdes:
+      "Egy konkrét álláshirdetésre szeretném szabni a meglévő CV-met.",
+  },
+];
+
 const MODULOK = [
   { nev: "Piaci körkép", jel: "01", allapot: "adatkapcsolat következik" },
   { nev: "Álláslehetőségek", jel: "02", allapot: "adatkapcsolat következik" },
@@ -60,8 +89,10 @@ export default function Home() {
   const [workflowState, setWorkflowState] = useState(null);
   const [gpsNyitva, setGpsNyitva] = useState(false);
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
+  const [cvMuvelet, setCvMuvelet] = useState(null);
   const kezdoValasztasRef = useRef(null);
   const belepesKeresRef = useRef(false);
+  const folytatasRef = useRef(false);
   const belepve = Boolean(session);
   const belepesFuggoben = !belepve && Boolean(kezdoValasztas);
 
@@ -86,6 +117,27 @@ export default function Home() {
       .catch(() => {});
   }, [session]);
 
+  useEffect(() => {
+    if (!session || folytatasRef.current) return;
+    const fuggoben = window.localStorage.getItem("career_pending_start");
+    if (fuggoben !== "cv") return;
+
+    folytatasRef.current = true;
+    window.localStorage.removeItem("career_pending_start");
+    kezdoValasztasRef.current = "cv";
+    belepesKeresRef.current = false;
+    setKezdoValasztas("cv");
+    setUzenetek([
+      KEZDO_UZENET,
+      { szerep: "user", szoveg: "Van CV-m" },
+      {
+        szerep: "flow",
+        szoveg:
+          "Rendben. Nem indítok automatikusan álláskeresést és nem írom át engedély nélkül. Válaszd ki, mit szeretnél a CV-ddel.",
+      },
+    ]);
+  }, [session]);
+
   const gpsStatusz = useMemo(
     () => (belepve ? "Profilindításra kész" : "Vendég mód"),
     [belepve],
@@ -106,18 +158,81 @@ export default function Home() {
     ]);
   }
 
+  function cvFolyamatMegnyitasa() {
+    setUzenetek((elozo) => [
+      ...elozo,
+      { szerep: "user", szoveg: "Van CV-m" },
+      {
+        szerep: "flow",
+        szoveg:
+          "Rendben. Nem indítok automatikusan álláskeresést és nem írom át engedély nélkül. Válaszd ki, mit szeretnél a CV-ddel.",
+      },
+    ]);
+  }
+
   function kezdoLepesValasztasa(lepes) {
     if (kezdoValasztasRef.current || kuldesFolyamatban) return;
     kezdoValasztasRef.current = lepes.id;
     setKezdoValasztas(lepes.id);
+    if (lepes.id === "cv") {
+      if (!belepve) {
+        window.localStorage.setItem("career_pending_start", "cv");
+        belepesKeres("Van CV-m");
+        return;
+      }
+      cvFolyamatMegnyitasa();
+      return;
+    }
     uzenetKuldese(lepes.cim);
+  }
+
+  async function cvMuveletValasztasa(muvelet) {
+    if (cvMuvelet || kuldesFolyamatban) return;
+    setHiba(null);
+    setKuldesFolyamatban(true);
+    setUzenetek((elozo) => [
+      ...elozo,
+      { szerep: "user", szoveg: muvelet.cim },
+    ]);
+
+    try {
+      const valasz = await apiFetch("/api/v1/workflow/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intent: muvelet.intent }),
+      });
+      if (!valasz.ok) throw new Error(`workflow-intent: ${valasz.status}`);
+      const dontes = await valasz.json();
+      setCvMuvelet(muvelet.id);
+      setWorkflowState(dontes.current_state);
+      setUzenetek((elozo) => [
+        ...elozo,
+        {
+          szerep: "flow",
+          szoveg:
+            muvelet.id === "ellenorzes"
+              ? "Először töltsd fel a CV-det. Átvizsgálom, de nem írom át."
+              : muvelet.id === "frissites"
+                ? "Először a CV-det és a célmunkakört kérem. Csak valós, általad jóváhagyott adatokkal dolgozom."
+                : "Először a CV-det és a konkrét hirdetést kérem. Az illeszkedést ezek alapján ellenőrzöm.",
+        },
+      ]);
+    } catch {
+      setHiba("A CV-művelet indítása nem sikerült. Próbáld újra.");
+      setUzenetek((elozo) => elozo.slice(0, -1));
+    } finally {
+      setKuldesFolyamatban(false);
+    }
   }
 
   function kezdoAllapotVisszaallitasa() {
     if (kuldesFolyamatban) return;
+    window.localStorage.removeItem("career_pending_start");
     kezdoValasztasRef.current = null;
     belepesKeresRef.current = false;
     setKezdoValasztas(null);
+    setCvMuvelet(null);
+    setWorkflowState(null);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
@@ -348,6 +463,75 @@ export default function Home() {
                   </div>
                 )}
 
+                {kezdoValasztas === "cv" && belepve && (
+                  <section className="rounded-2xl border border-amber-300/18 bg-amber-300/[0.035] p-4 sm:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/70">
+                          Flow következő kérdése
+                        </p>
+                        <h3 className="mt-2 text-base font-semibold text-white">
+                          Mit szeretnél a meglévő CV-ddel?
+                        </h3>
+                      </div>
+                      {cvMuvelet && (
+                        <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
+                          kiválasztva
+                        </span>
+                      )}
+                    </div>
+
+                    {!cvMuvelet ? (
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        {CV_MUVELETEK.map((muvelet) => (
+                          <button
+                            key={muvelet.id}
+                            type="button"
+                            onClick={() => cvMuveletValasztasa(muvelet)}
+                            disabled={kuldesFolyamatban}
+                            className="group rounded-2xl border border-white/10 bg-slate-950/45 p-4 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
+                          >
+                            <span className="text-sm font-semibold text-slate-100 group-hover:text-amber-100">
+                              {muvelet.cim}
+                            </span>
+                            <span className="mt-2 block text-xs leading-5 text-slate-500">
+                              {muvelet.leiras}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3">
+                        <p className="text-sm font-semibold text-amber-100">
+                          {
+                            CV_MUVELETEK.find(
+                              (muvelet) => muvelet.id === cvMuvelet,
+                            )?.cim
+                          }
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Flow csak ehhez a célhoz kéri be a következő szükséges adatot.
+                        </p>
+                      </div>
+                    )}
+
+                    {cvMuvelet &&
+                      [
+                        "CEL_TISZTAZOTT",
+                        "PROFIL_HIANYOS",
+                        "PROFIL_ELLENORZOTT",
+                      ].includes(workflowState) && (
+                        <ProfileGate
+                          onStateChange={(result) =>
+                            setWorkflowState(
+                              result.current_state || workflowState,
+                            )
+                          }
+                        />
+                      )}
+                  </section>
+                )}
+
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -438,21 +622,6 @@ export default function Home() {
             {hiba && (
               <div className="mt-4 rounded-2xl border border-red-300/20 bg-red-300/[0.06] px-4 py-3 text-sm text-red-100">
                 {hiba}
-              </div>
-            )}
-
-            {["CEL_TISZTAZOTT", "PROFIL_HIANYOS", "PROFIL_ELLENORZOTT"].includes(
-              workflowState,
-            ) && (
-              <div className="glass-panel mt-6 rounded-3xl p-5 sm:p-6">
-                <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/70">
-                  Karrierprofil
-                </p>
-                <ProfileGate
-                  onStateChange={(result) =>
-                    setWorkflowState(result.current_state || workflowState)
-                  }
-                />
               </div>
             )}
 

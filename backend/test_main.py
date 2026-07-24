@@ -183,6 +183,48 @@ def test_flow_cv_frissites_nem_indit_allaskeresest(monkeypatch):
     assert len(frissitesek) == 1
 
 
+def test_fix_cv_gomb_modell_nelkul_rogziti_az_intentet(monkeypatch):
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {
+            "id": "workflow-1",
+            "current_state": "CEL_TISZTAZATLAN",
+            "context": {},
+        },
+    )
+    frissitesek = []
+    monkeypatch.setattr(
+        main,
+        "workflow_frissites",
+        lambda *args: frissitesek.append(args) or True,
+    )
+    monkeypatch.setattr(main, "gps_esemeny_rogzitese", lambda *_, **__: "event-1")
+    monkeypatch.setattr(main, "gps_snapshot_frissites", lambda *_, **__: None)
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/workflow/intent",
+            json={"intent": "cv_frissites"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert valasz.json()["intent"] == "cv_frissites"
+    assert valasz.json()["current_state"] == "CEL_TISZTAZOTT"
+    assert valasz.json()["model_called"] is False
+    assert len(frissitesek) == 1
+    assert frissitesek[0][3] is CareerIntent.CV_FRISSITES
+
+
 def test_megerositett_minimumprofil_atlep_ellenorzott_allapotba(monkeypatch):
     from backend import main
 
@@ -243,3 +285,4 @@ def test_megerositett_minimumprofil_atlep_ellenorzott_allapotba(monkeypatch):
     assert response.json()["current_state"] == "PROFIL_ELLENORZOTT"
     assert response.json()["state_changed"] is True
     assert len(updates) == 1
+
