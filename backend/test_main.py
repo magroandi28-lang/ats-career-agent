@@ -138,6 +138,16 @@ def test_flow_cv_frissites_nem_indit_allaskeresest(monkeypatch):
             "context": {},
         },
     )
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {
+            "id": "profile-1",
+            "confirmed_data": {},
+            "draft_data": {},
+            "draft_version": 0,
+        },
+    )
     frissitesek = []
     monkeypatch.setattr(
         main,
@@ -171,3 +181,65 @@ def test_flow_cv_frissites_nem_indit_allaskeresest(monkeypatch):
     assert valasz.json()["accepted_action"] == "cel_megerositese"
     assert "allaskereses_inditasa" not in valasz.json()["allowed_actions"]
     assert len(frissitesek) == 1
+
+
+def test_megerositett_minimumprofil_atlep_ellenorzott_allapotba(monkeypatch):
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(
+        main,
+        "profile_confirm",
+        lambda *_: {"id": "snapshot-1", "version": 1},
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {
+            "id": "profile-1",
+            "confirmed_data": {
+                "target_role": "automata tesztelő",
+                "skills": ["Python", "Playwright"],
+                "location": "Budapest",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {
+            "id": "workflow-1",
+            "current_state": "CEL_TISZTAZOTT",
+            "intent": "allas_kereses",
+            "context": {},
+        },
+    )
+    updates = []
+    monkeypatch.setattr(
+        main,
+        "workflow_frissites",
+        lambda *args: updates.append(args) or True,
+    )
+    monkeypatch.setattr(main, "gps_esemeny_rogzitese", lambda *_, **__: "event-1")
+    monkeypatch.setattr(main, "gps_snapshot_frissites", lambda *_, **__: None)
+
+    try:
+        response = kliens.post(
+            "/api/v1/profile/confirm",
+            json={
+                "fields": ["target_role", "skills", "location"],
+                "reason": "user_confirmation",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["readiness"]["ready"] is True
+    assert response.json()["current_state"] == "PROFIL_ELLENORZOTT"
+    assert response.json()["state_changed"] is True
+    assert len(updates) == 1

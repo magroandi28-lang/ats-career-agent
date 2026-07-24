@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import AuthMenu from "./AuthMenu";
-import KarrierUgynok from "./KarrierUgynok";
+import ProfileGate from "./ProfileGate";
 import { apiFetch } from "../lib/api";
 import { createClient } from "../lib/supabase/client";
 
@@ -57,7 +57,7 @@ export default function Home() {
   const [szoveg, setSzoveg] = useState("");
   const [kuldesFolyamatban, setKuldesFolyamatban] = useState(false);
   const [hiba, setHiba] = useState(null);
-  const [karrierSzakma, setKarrierSzakma] = useState(null);
+  const [workflowState, setWorkflowState] = useState(null);
   const [gpsNyitva, setGpsNyitva] = useState(false);
   const belepve = Boolean(session);
 
@@ -71,6 +71,16 @@ export default function Home() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    apiFetch("/api/v1/profile")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((profile) => {
+        if (profile?.current_state) setWorkflowState(profile.current_state);
+      })
+      .catch(() => {});
+  }, [session]);
 
   const gpsStatusz = useMemo(
     () => (belepve ? "Profilindításra kész" : "Vendég mód"),
@@ -127,12 +137,7 @@ export default function Home() {
         ...elozo,
         { szerep: "flow", szoveg: dontes.response_message || "" },
       ]);
-
-      // Strukturált döntés (FlowDecision) -- nincs kliensoldali regex,
-      // a proposed_action/szakma mező közvetlenül a backend válasza.
-      if (dontes.proposed_action === "karrier_ugynok_inditasa" && dontes.szakma) {
-        setKarrierSzakma(dontes.szakma);
-      }
+      setWorkflowState(dontes.current_state || null);
     } catch {
       setHiba(
         "Flow most nem érte el a háttérrendszert. Az üzeneted megmaradt, próbáld újra később.",
@@ -308,8 +313,7 @@ export default function Home() {
                 )}
               </div>
 
-              {!karrierSzakma && (
-                <div className="grid gap-3 border-t border-white/8 p-5 sm:grid-cols-3 sm:p-6">
+              <div className="grid gap-3 border-t border-white/8 p-5 sm:grid-cols-3 sm:p-6">
                   {KEZDO_LEPESEK.map((lepes) => (
                     <button
                       key={lepes.id}
@@ -326,8 +330,7 @@ export default function Home() {
                       </span>
                     </button>
                   ))}
-                </div>
-              )}
+              </div>
 
               <form
                 onSubmit={(event) => {
@@ -362,12 +365,18 @@ export default function Home() {
               </div>
             )}
 
-            {karrierSzakma && (
+            {["CEL_TISZTAZOTT", "PROFIL_HIANYOS", "PROFIL_ELLENORZOTT"].includes(
+              workflowState,
+            ) && (
               <div className="glass-panel mt-6 rounded-3xl p-5 sm:p-6">
                 <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/70">
-                  Flow elindította a keresést
+                  Karrierprofil
                 </p>
-                <KarrierUgynok kezdoSzakma={karrierSzakma} />
+                <ProfileGate
+                  onStateChange={(result) =>
+                    setWorkflowState(result.current_state || workflowState)
+                  }
+                />
               </div>
             )}
 
