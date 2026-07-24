@@ -1,5 +1,9 @@
 # 2. Flow és Career GPS
 
+> **Kanonikus elsőbbség:** a felhasználói utaknál, állapotátmeneteknél és
+> jóváhagyási pontoknál a
+> [felhasználói állapotgép](../felhasznaloi-allapotgep.md) az irányadó.
+
 ## 1. Cél és hatókör
 
 Flow az alkalmazás egyetlen látható beszélgetőtársa. Megérti a felhasználó

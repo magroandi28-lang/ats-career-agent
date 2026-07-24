@@ -1,5 +1,10 @@
 # Karrier-Ügynökség — részletes fejlesztési terv
 
+> **Kanonikus elsőbbség:** a részletes tervet nem töröljük, de a felhasználói
+> utak, indítási feltételek, állapotátmenetek és jóváhagyási pontok
+> tekintetében a [felhasználói állapotgép](../felhasznaloi-allapotgep.md) az
+> irányadó.
+
 Állapot: **3. fázis — az 1. megvalósítási csomag elindult**
 Alapja: a [jóváhagyott rendszerterv](../rendszerterv.md).
 Ez a dokumentáció még nem programkód és nem adatbázis-migráció.

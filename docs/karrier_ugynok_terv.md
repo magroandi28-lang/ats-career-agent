@@ -1,5 +1,11 @@
 # Karrier Ügynök fül — automatizált folyamat terve
 
+> **Történeti terv, kanonikus felülírással:** ezt a dokumentumot a korábbi
+> döntések megőrzésére nem töröljük. Az automatikus ATS-re, automatikus
+> álláskeresésre vagy automatikus pályázatianyag-generálásra vonatkozó részei
+> nem irányadók. A felhasználói utaknál a
+> [felhasznaloi-allapotgep.md](felhasznaloi-allapotgep.md) a kanonikus forrás.
+
 Ez a dokumentum a 2026.07.22-i tervezőbeszélgetés eredménye. Célja: mielőtt bármi
 megépül a React/Next.js frontenden, itt legyen leírva, MIT és MIÉRT építünk —
 hogy semmi ne vesszen el, és bármikor visszanézhető legyen.

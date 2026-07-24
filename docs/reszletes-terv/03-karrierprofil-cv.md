@@ -1,5 +1,9 @@
 # 3. Karrierprofil és CV
 
+> **Kanonikus elsőbbség:** a CV-feltöltésből induló felhasználói utaknál és az
+> ATS indítási feltételeinél a
+> [felhasználói állapotgép](../felhasznaloi-allapotgep.md) az irányadó.
+
 ## 1. Cél és hatókör
 
 Ez a főrész hozza létre a rendszer hiteles személyes alapját: a verziózott
