@@ -59,7 +59,7 @@ const FIELD_CONFIG = {
   },
 };
 
-export default function ProfileGate({ onStateChange }) {
+export default function ProfileGate({ onStateChange, embedded = false }) {
   const [profile, setProfile] = useState(null);
   const [values, setValues] = useState({});
   const [cvFile, setCvFile] = useState(null);
@@ -168,7 +168,11 @@ export default function ProfileGate({ onStateChange }) {
   return (
     <form
       onSubmit={submit}
-      className="mt-4 rounded-2xl border border-amber-300/18 bg-amber-300/[0.04] p-4 sm:p-5"
+      className={
+        embedded
+          ? "mt-6"
+          : "mt-4 rounded-2xl border border-amber-300/18 bg-amber-300/[0.04] p-4 sm:p-5"
+      }
     >
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/75">
         Következő ellenőrzött lépés
@@ -219,3 +223,4 @@ export default function ProfileGate({ onStateChange }) {
     </form>
   );
 }
+

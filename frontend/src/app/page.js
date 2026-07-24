@@ -127,15 +127,6 @@ export default function Home() {
     kezdoValasztasRef.current = "cv";
     belepesKeresRef.current = false;
     setKezdoValasztas("cv");
-    setUzenetek([
-      KEZDO_UZENET,
-      { szerep: "user", szoveg: "Van CV-m" },
-      {
-        szerep: "flow",
-        szoveg:
-          "Rendben. Nem indítok automatikusan álláskeresést és nem írom át engedély nélkül. Válaszd ki, mit szeretnél a CV-ddel.",
-      },
-    ]);
   }, [session]);
 
   const gpsStatusz = useMemo(
@@ -143,31 +134,9 @@ export default function Home() {
     [belepve],
   );
 
-  function belepesKeres(uzenet) {
+  function belepesKeres() {
     if (belepesKeresRef.current) return;
     belepesKeresRef.current = true;
-    setUzenetek((elozo) => [
-      ...elozo,
-      { szerep: "user", szoveg: uzenet },
-      {
-        szerep: "flow",
-        szoveg:
-          "Ehhez személyes adatokkal dolgozunk, ezért itt kérek belépést. A nyilvános felületet továbbra is használhatod fiók nélkül.",
-        belepes: true,
-      },
-    ]);
-  }
-
-  function cvFolyamatMegnyitasa() {
-    setUzenetek((elozo) => [
-      ...elozo,
-      { szerep: "user", szoveg: "Van CV-m" },
-      {
-        szerep: "flow",
-        szoveg:
-          "Rendben. Nem indítok automatikusan álláskeresést és nem írom át engedély nélkül. Válaszd ki, mit szeretnél a CV-ddel.",
-      },
-    ]);
   }
 
   function kezdoLepesValasztasa(lepes) {
@@ -177,10 +146,9 @@ export default function Home() {
     if (lepes.id === "cv") {
       if (!belepve) {
         window.localStorage.setItem("career_pending_start", "cv");
-        belepesKeres("Van CV-m");
+        belepesKeres();
         return;
       }
-      cvFolyamatMegnyitasa();
       return;
     }
     uzenetKuldese(lepes.cim);
@@ -190,10 +158,6 @@ export default function Home() {
     if (cvMuvelet || kuldesFolyamatban) return;
     setHiba(null);
     setKuldesFolyamatban(true);
-    setUzenetek((elozo) => [
-      ...elozo,
-      { szerep: "user", szoveg: muvelet.cim },
-    ]);
 
     try {
       const valasz = await apiFetch("/api/v1/workflow/intent", {
@@ -205,21 +169,8 @@ export default function Home() {
       const dontes = await valasz.json();
       setCvMuvelet(muvelet.id);
       setWorkflowState(dontes.current_state);
-      setUzenetek((elozo) => [
-        ...elozo,
-        {
-          szerep: "flow",
-          szoveg:
-            muvelet.id === "ellenorzes"
-              ? "Először töltsd fel a CV-det. Átvizsgálom, de nem írom át."
-              : muvelet.id === "frissites"
-                ? "Először a CV-det és a célmunkakört kérem. Csak valós, általad jóváhagyott adatokkal dolgozom."
-                : "Először a CV-det és a konkrét hirdetést kérem. Az illeszkedést ezek alapján ellenőrzöm.",
-        },
-      ]);
     } catch {
       setHiba("A CV-művelet indítása nem sikerült. Próbáld újra.");
-      setUzenetek((elozo) => elozo.slice(0, -1));
     } finally {
       setKuldesFolyamatban(false);
     }
@@ -248,7 +199,7 @@ export default function Home() {
         setKezdoValasztas("szabad-szoveg");
       }
       setSzoveg("");
-      belepesKeres(tiszta);
+      belepesKeres();
       return;
     }
 
@@ -427,24 +378,134 @@ export default function Home() {
                 </span>
               </div>
 
-              <div className="space-y-4 p-5 sm:p-6">
-                {uzenetek.map((uzenet, index) =>
-                  uzenet.belepes ? (
-                    <div
-                      key={`${uzenet.szerep}-${index}`}
-                      className="max-w-sm rounded-2xl border border-amber-300/20 bg-slate-950/75 p-4 shadow-lg shadow-black/10"
+              {belepesFuggoben ? (
+                <section className="flex min-h-[500px] flex-col justify-center px-6 py-10 sm:px-12">
+                  <button
+                    type="button"
+                    onClick={kezdoAllapotVisszaallitasa}
+                    className="mb-8 w-fit text-xs font-semibold text-slate-400 hover:text-amber-100"
+                  >
+                    ← Vissza a kezdéshez
+                  </button>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-300/70">
+                    Védett személyes folyamat
+                  </p>
+                  <h3 className="mt-3 max-w-xl font-serif text-3xl leading-tight text-white">
+                    A CV feldolgozásához fiók szükséges.
+                  </h3>
+                  <p className="mt-4 max-w-xl text-sm leading-6 text-slate-400">
+                    A CV személyes adatokat tartalmaz. A fiók biztosítja, hogy
+                    csak te férj hozzá a feltöltött dokumentumhoz és a mentett
+                    karrierutadhoz.
+                  </p>
+                  <div className="mt-7 flex flex-wrap items-center gap-4">
+                    <Link
+                      href={belepesUrl("/")}
+                      className="rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-200"
                     >
-                      <p className="text-xs leading-5 text-slate-300">
-                        {uzenet.szoveg}
-                      </p>
-                      <Link
-                        href={belepesUrl("/")}
-                        className="mt-3 inline-flex rounded-full bg-amber-300 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-amber-200"
-                      >
-                        Belépés a személyes folytatáshoz
-                      </Link>
+                      Belépés vagy regisztráció
+                    </Link>
+                    <span className="text-xs text-slate-500">
+                      Belépés után itt folytatod.
+                    </span>
+                  </div>
+                </section>
+              ) : kezdoValasztas === "cv" && belepve ? (
+                <section className="min-h-[500px] px-5 py-6 sm:px-8 sm:py-8">
+                  <button
+                    type="button"
+                    onClick={kezdoAllapotVisszaallitasa}
+                    disabled={kuldesFolyamatban}
+                    className="text-xs font-semibold text-slate-400 hover:text-amber-100 disabled:opacity-40"
+                  >
+                    ← Másik út választása
+                  </button>
+
+                  <div className="mt-8">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-300/70">
+                      Van CV-m
+                    </p>
+                    <h3 className="mt-3 font-serif text-2xl text-white sm:text-3xl">
+                      Mit szeretnél a meglévő CV-ddel?
+                    </h3>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+                      Semmit nem indítunk el automatikusan. Válassz célt, Flow
+                      pedig csak a szükséges következő lépést mutatja.
+                    </p>
+                  </div>
+
+                  {!cvMuvelet ? (
+                    <div className="mt-7 grid gap-3 md:grid-cols-3">
+                      {CV_MUVELETEK.map((muvelet) => (
+                        <button
+                          key={muvelet.id}
+                          type="button"
+                          onClick={() => cvMuveletValasztasa(muvelet)}
+                          disabled={kuldesFolyamatban}
+                          className="group min-h-40 rounded-2xl border border-white/10 bg-white/[0.025] p-5 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
+                        >
+                          <span className="text-sm font-semibold text-slate-100 group-hover:text-amber-100">
+                            {muvelet.cim}
+                          </span>
+                          <span className="mt-3 block text-xs leading-5 text-slate-500">
+                            {muvelet.leiras}
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   ) : (
+                    <div className="mt-7">
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 pb-4">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            Kiválasztott cél
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-amber-100">
+                            {
+                              CV_MUVELETEK.find(
+                                (muvelet) => muvelet.id === cvMuvelet,
+                              )?.cim
+                            }
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCvMuvelet(null);
+                            setWorkflowState(null);
+                          }}
+                          className="text-xs font-semibold text-slate-400 hover:text-amber-100"
+                        >
+                          Módosítás
+                        </button>
+                      </div>
+
+                      {[
+                        "CEL_TISZTAZOTT",
+                        "PROFIL_HIANYOS",
+                        "PROFIL_ELLENORZOTT",
+                      ].includes(workflowState) && (
+                        <ProfileGate
+                          embedded
+                          onStateChange={(result) =>
+                            setWorkflowState(
+                              result.current_state || workflowState,
+                            )
+                          }
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {kuldesFolyamatban && (
+                    <p className="mt-5 text-sm text-slate-400">
+                      A következő lépés előkészítése…
+                    </p>
+                  )}
+                </section>
+              ) : (
+                <div className="space-y-4 p-5 sm:p-6">
+                  {uzenetek.map((uzenet, index) => (
                     <div
                       key={`${uzenet.szerep}-${index}`}
                       className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
@@ -455,133 +516,77 @@ export default function Home() {
                     >
                       {uzenet.szoveg}
                     </div>
-                  ),
-                )}
-                {kuldesFolyamatban && (
-                  <div className="max-w-[82%] rounded-2xl border border-amber-300/12 bg-amber-300/[0.05] px-4 py-3 text-sm text-slate-400">
-                    Flow feldolgozza a következő lépést…
-                  </div>
-                )}
-
-                {kezdoValasztas === "cv" && belepve && (
-                  <section className="rounded-2xl border border-amber-300/18 bg-amber-300/[0.035] p-4 sm:p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/70">
-                          Flow következő kérdése
-                        </p>
-                        <h3 className="mt-2 text-base font-semibold text-white">
-                          Mit szeretnél a meglévő CV-ddel?
-                        </h3>
-                      </div>
-                      {cvMuvelet && (
-                        <span className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.07] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
-                          kiválasztva
-                        </span>
-                      )}
+                  ))}
+                  {kuldesFolyamatban && (
+                    <div className="max-w-[82%] rounded-2xl border border-amber-300/12 bg-amber-300/[0.05] px-4 py-3 text-sm text-slate-400">
+                      Flow feldolgozza a következő lépést…
                     </div>
+                  )}
 
-                    {!cvMuvelet ? (
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        {CV_MUVELETEK.map((muvelet) => (
-                          <button
-                            key={muvelet.id}
-                            type="button"
-                            onClick={() => cvMuveletValasztasa(muvelet)}
-                            disabled={kuldesFolyamatban}
-                            className="group rounded-2xl border border-white/10 bg-slate-950/45 p-4 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
-                          >
-                            <span className="text-sm font-semibold text-slate-100 group-hover:text-amber-100">
-                              {muvelet.cim}
-                            </span>
-                            <span className="mt-2 block text-xs leading-5 text-slate-500">
-                              {muvelet.leiras}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/45 px-4 py-3">
-                        <p className="text-sm font-semibold text-amber-100">
-                          {
-                            CV_MUVELETEK.find(
-                              (muvelet) => muvelet.id === cvMuvelet,
-                            )?.cim
-                          }
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          Flow csak ehhez a célhoz kéri be a következő szükséges adatot.
-                        </p>
-                      </div>
-                    )}
-
-                    {cvMuvelet &&
-                      [
-                        "CEL_TISZTAZOTT",
-                        "PROFIL_HIANYOS",
-                        "PROFIL_ELLENORZOTT",
-                      ].includes(workflowState) && (
-                        <ProfileGate
-                          onStateChange={(result) =>
-                            setWorkflowState(
-                              result.current_state || workflowState,
-                            )
-                          }
-                        />
-                      )}
-                  </section>
-                )}
-
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    uzenetKuldese(szoveg);
-                  }}
-                  className="relative mt-5"
-                >
-                  <label htmlFor="flow-message" className="sr-only">
-                    Üzenet Flow számára
-                  </label>
-                  <textarea
-                    id="flow-message"
-                    value={szoveg}
-                    onChange={(event) => setSzoveg(event.target.value)}
-                    disabled={belepesFuggoben}
-                    onKeyDown={(event) => {
-                      if (
-                        event.key === "Enter" &&
-                        !event.shiftKey &&
-                        !event.nativeEvent.isComposing
-                      ) {
-                        event.preventDefault();
-                        uzenetKuldese(szoveg);
-                      }
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      uzenetKuldese(szoveg);
                     }}
-                    placeholder={
-                      belepesFuggoben
-                        ? "A folytatáshoz lépj be, vagy válassz másik utat."
-                        : "Írd le néhány mondatban, hol tartasz és miben segítsek…"
-                    }
-                    rows={7}
-                    maxLength={4000}
-                    className="min-h-44 w-full resize-y rounded-2xl border border-white/12 bg-slate-950/55 px-5 py-4 pb-16 text-sm leading-6 text-white placeholder:text-slate-500 focus:border-amber-300/50 disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-                  <div className="absolute bottom-4 left-5 text-[11px] text-slate-600">
-                    Enter: küldés · Shift + Enter: új sor
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={
-                      kuldesFolyamatban || belepesFuggoben || !szoveg.trim()
-                    }
-                    className="absolute bottom-3 right-3 rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="relative mt-5"
                   >
-                    {kuldesFolyamatban ? "Küldés…" : "Küldés"}
-                  </button>
-                </form>
+                    <label htmlFor="flow-message" className="sr-only">
+                      Üzenet Flow számára
+                    </label>
+                    <textarea
+                      id="flow-message"
+                      value={szoveg}
+                      onChange={(event) => setSzoveg(event.target.value)}
+                      disabled={!belepve}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter" &&
+                          !event.shiftKey &&
+                          !event.nativeEvent.isComposing
+                        ) {
+                          event.preventDefault();
+                          uzenetKuldese(szoveg);
+                        }
+                      }}
+                      placeholder={
+                        belepve
+                          ? "Írd le néhány mondatban, hol tartasz és miben segítsek…"
+                          : "A személyes Flow-beszélgetéshez jelentkezz be."
+                      }
+                      rows={7}
+                      maxLength={4000}
+                      className="min-h-44 w-full resize-y rounded-2xl border border-white/12 bg-slate-950/55 px-5 py-4 pb-16 text-sm leading-6 text-white placeholder:text-slate-500 focus:border-amber-300/50 disabled:cursor-not-allowed disabled:opacity-60"
+                    />
+                    <div className="absolute bottom-4 left-5 text-[11px] text-slate-600">
+                      Enter: küldés · Shift + Enter: új sor
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={
+                        !belepve || kuldesFolyamatban || !szoveg.trim()
+                      }
+                      className="absolute bottom-3 right-3 rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {kuldesFolyamatban ? "Küldés…" : "Küldés"}
+                    </button>
+                  </form>
 
-                {!kezdoValasztas && (
-                  <div className="pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-xs leading-5 text-slate-500">
+                    <span>
+                      A nyitóoldal fiók nélkül böngészhető. Flow személyes
+                      segítsége és az adatok mentése bejelentkezést igényel.
+                    </span>
+                    {!belepve && (
+                      <Link
+                        href={belepesUrl("/")}
+                        className="shrink-0 font-semibold text-amber-200 hover:text-amber-100"
+                      >
+                        Belépés vagy regisztráció →
+                      </Link>
+                    )}
+                  </div>
+
+                  <div className="pt-1">
                     <p className="mb-3 text-xs font-medium text-slate-500">
                       Vagy indulj egy gyors választással:
                     </p>
@@ -604,19 +609,8 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
-                )}
-
-                {kezdoValasztas && (
-                  <button
-                    type="button"
-                    onClick={kezdoAllapotVisszaallitasa}
-                    disabled={kuldesFolyamatban}
-                    className="mt-1 inline-flex rounded-full border border-white/12 bg-white/[0.035] px-4 py-2 text-xs font-semibold text-amber-200/80 hover:border-amber-300/35 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    ← Másik út választása
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {hiba && (
