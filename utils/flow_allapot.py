@@ -75,6 +75,33 @@ def workflow_frissites(
         return False
 
 
+def workflow_ujrakezdes(user_id: str, workflow_id: str) -> bool:
+    """A felhasználó kifejezett visszalépésére tiszta kezdőállapotot ment."""
+
+    db = kliens()
+    if not db:
+        return False
+    try:
+        result = (
+            db.schema("private")
+            .table("career_workflows")
+            .update({
+                "current_state": CareerState.CEL_TISZTAZATLAN.value,
+                "intent": None,
+                "context": {},
+                "rule_version": RULE_VERSION,
+                "updated_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            })
+            .eq("id", workflow_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return bool(result.data)
+    except Exception as exc:
+        print(f"[flow_allapot] workflow-ujrakezdes hiba: {exc}")
+        return False
+
+
 def session_lekeres_vagy_letrehozas(user_id: str) -> str | None:
     """Visszaadja a felhasználó aktív flow_sessions sorának id-ját, vagy
     létrehoz egyet, ha még nincs. None, ha az adatbázis nem elérhető."""

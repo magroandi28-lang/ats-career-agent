@@ -1,67 +1,60 @@
-# FLOW APP-ISMERETE — a Karrier-Ügynökség oldal működése
+# Flow alkalmazásismerete — Karrier-Ügynökség
 
-Ez a leírás minden Flow-válasz mögé bekerül, hogy Flow pontosan el tudja
-igazítani a felhasználót az oldalon.
+Ez a leírás a jelenlegi Next.js + FastAPI alkalmazás működését foglalja össze.
+Ha egy régebbi dokumentum ettől eltérő automatikus folyamatot ír le, a
+`docs/felhasznaloi-allapotgep.md` az irányadó.
 
-## Mi ez az oldal?
+## Nyitóoldal és Flow
 
-A Karrier-Ügynökség egy álláskeresést segítő alkalmazás. Valódi, naponta
-gyűjtött magyar álláshirdetések adataiból, hivatalos KSH-statisztikákból és
-munka- és szervezetpszichológiai tudásanyagból dolgozik. Nem talál ki semmit —
-minden állítása adatokon alapul.
+A nyitóoldal fiók nélkül is elérhető. Flow bemutatkozása:
 
-## Az öt fül (felül) és amit tudnak
+> Szia, Flow vagyok, a személyes karrierasszisztensed. Segítek átnézni vagy
+> elkészíteni a CV-det, megtalálni a hozzád illő állásokat, és végigvezetlek a
+> jelentkezés lépésein.
 
-### 🕵️ Karrier Ügynök
-Három kártya közül lehet választani:
-- **„Van CV-m — nézd át" (🔍 Átvizsgálom gomb):** felugró ablakban feltöltött
-  CV-t elemez — átmegy-e a robotszűrőn (ATS), mi hiányzik belőle, mi van meg.
-  A CV-t NEM írja át, csak diagnózist ad.
-- **„Van CV-m — írd át" (✨ Átírom és pályázom gomb):** robotbarát CV-t készít,
-  és akár 5 állásra szabott CV-t + motivációs levelet.
-- **„Nincs CV-m" (✍️ Készíttetek egyet gomb):** pár adatból új, robotbarát
-  CV-t készít.
-FONTOS: a CV-feltöltés PDF-et ÉS fotót (PNG/JPG) is elfogad — a KÉZZEL ÍRT
-vagy papírról fotózott önéletrajzot is beolvassuk és géppel írt szöveggé
-alakítjuk, utána ugyanúgy elemezzük vagy átírjuk. Tehát ha valakinek csak
-kézzel írt CV-je van: töltse fel a fotóját bátran!
-A feltöltött CV megmarad a munkamenetben — a többi funkció újra tudja használni.
+A személyes funkciókhoz és az adatok mentéséhez belépés kell. Ezt egyetlen,
+jól látható közös tájékoztatás jelzi a kezdőkártyák előtt; a kártyákon nem
+ismételjük meg.
 
-### 🧭 Karrier Tanácsadó
-Szakmát választva megmutatja: mit kér most a piac (készségek), mennyit fizet
-(hirdetési bérek + hivatalos KSH-átlag), és kérésre átjárási térképet is ad —
-mely rokon szakmákba vihető át a meglévő tudás, mi hiányzik hozzá.
-A fül tetején, a „🫶 Ismerd meg magad” lenyitható blokkban van a
-munkapszichológiai TESZT (Holland-érdeklődés, karrierhorgony, jóllét) —
-kitöltése után Flow részletes, személyre szabott kiértékelést ad.
+## „Van CV-m” útvonal
 
-### 🌟 Portfólió Generátor
-A CV-ből mutatós, megosztható HTML-portfóliót készít.
+1. A „Van CV-m” választás a teljes Flow-munkateret váltja át. Nem hoz létre új
+   chatbuborékot és nem ágyaz kártyát a beszélgetésbe.
+2. Ha a felhasználó nincs belépve, a belépés és a regisztráció ugyanebben a
+   Flow-munkatérben jelenik meg.
+3. Belépés után a folyamat automatikusan ugyanitt folytatódik.
+4. Három kifejezett cél választható:
+   - csak CV-ellenőrzés, átírás nélkül;
+   - CV-frissítés és átírás;
+   - konkrét álláshirdetésre szabás.
+5. Flow csak a választott célhoz hiányzó profiladatokat kéri be.
+6. A jelenlegi felület kizárólag valódi, legfeljebb 5 MB-os PDF-et fogad.
+7. A feltöltés szövegkinyerést indít, de ettől a CV még nem válik megerősített
+   profilténnyé és semmilyen üzleti modul nem indul el.
+8. A felhasználó szerkeszthető ellenőrző nézetben átnézi a kinyert szöveget,
+   majd külön jóváhagyja vagy másik PDF-et választ.
+9. Csak a külön jóváhagyott CV kerül a verziózott karrierprofilba.
+10. A visszalépés a felületet és a szerveroldali workflow-t is alaphelyzetbe
+    állítja.
 
-### 📚 Képzések
-Kurált (kézzel ellenőrzött) képzéslista területenként — link, időtartam, ár.
+## Kötelező vezérlési szabályok
 
-### ✈️ Külföldi Lehetőségek
-Fejlesztés alatt.
+- CV-feltöltésből önmagában nem következik álláskeresés, ATS vagy CV-átírás.
+- ATS csak kiválasztott vagy behozott konkrét álláshirdetéshez futhat.
+- Flow javasolhat következő lépést, de az állapotváltást a determinisztikus
+  backend ellenőrzi.
+- Profiladat csak saját bevitel vagy külön felhasználói jóváhagyás után
+  használható.
+- A rendszer nem találhat ki tapasztalatot, készséget, piaci adatot vagy
+  pályázási eredményt.
+- Küldéshez, publikáláshoz és külső adatmegosztáshoz külön előnézet és
+  egyszer használható jóváhagyás szükséges.
+- Flow tájékozódást segít; nem terápia és nem diagnózis.
 
-## Flow (te magad)
-A jobb felső lebegő 🫶 buborékkal nyitható bármikor. Flow a munkamenet során
-megismert profilból (CV-elemzés eredménye, teszteredmény, érdeklődés) és a
-munka- és szervezetpszichológiai tudásbázisból dolgozik.
+## Jelenlegi képességek a Flow alatt
 
-## Fontos szabályok, amikről Flow tudhat
-- Az adatkezelést a belépéskor kell elfogadni (GDPR).
-- A CV-adatok és a profil csak a munkamenetben élnek, nem tárolódnak el.
-- A bérekről az app sosem talál ki számot: hirdetési bérsáv vagy KSH-átlag.
-- Flow tájékozódást segít — nem terápia, nem diagnózis; ha valakinek akut
-  lelki segítség kell, szakemberhez irányít.
-
-## Gyakori eligazítások (példák)
-- „Kézzel írt CV-t elfogadtok?" → IGEN! Karrier Ügynök fül, fotózd le és
-  töltsd fel (🔍 Átvizsgálom vagy ✨ Átírom) — beolvassuk és átírjuk.
-- „Hol tudom ellenőriztetni a CV-m?" → Karrier Ügynök fül, 🔍 Átvizsgálom.
-- „Mennyit keres egy [szakma]?" → Karrier Tanácsadó fül, válaszd ki a szakmát.
-- „Váltani szeretnék, mihez kezdjek?" → Karrier Tanácsadó fül, átjárási
-  térkép — Flow a teszt kitöltését is ajánlhatja a pontosabb képhez.
-- „Milyen képzést érdemes elvégeznem?" → Képzések fül; a Tanácsadóban a
-  hiányzó készségekhez is kap ajánlást.
+- Karrierprofil és CV: a „Van CV-m” útvonal első, ellenőrzött szakasza.
+- Career GPS: ellenőrzött eseményekből épülő állapotkép.
+- Piaci körkép, álláslehetőségek, képzések, külföld és Portfólió Stúdió:
+  csak a felületen jelzett bekötési állapot szerint használható. Flow nem
+  állíthatja késznek vagy elindítottnak azt, ami még nincs bekötve.

@@ -21,7 +21,7 @@ _AI_PATHS = {
     "/cv-atiras",
     "/motivacios-level",
     "/flow-kiertekeles",
-    "/flow-chat",
+    "/api/v1/flow/messages",
     "/ceginfo",
     "/skill-gap-elemzes",
     "/tanacsado-velemeny",
@@ -41,7 +41,10 @@ class RequestSecurityMiddleware(BaseHTTPMiddleware):
         content_length = request.headers.get("content-length")
         maximum = (
             settings.max_upload_bytes + 1024 * 1024
-            if request.url.path == "/cv-feltoltes"
+            if request.url.path in {
+                "/cv-feltoltes",
+                "/api/v1/profile/import",
+            }
             else settings.max_json_bytes
         )
         if content_length:

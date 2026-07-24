@@ -21,7 +21,8 @@ motivációs levél a 4. főrész feladata.
 
 | Bemenet | Forrás | Feldolgozás |
 |---|---|---|
-| PDF/DOCX/kép | felhasználó | biztonsági ellenőrzés, szövegkinyerés, jelöltek |
+| PDF | felhasználó | biztonsági ellenőrzés, szövegkinyerés, felhasználói review |
+| DOCX/kép | felhasználó | tervezett későbbi bővítés, a jelenlegi Flow még nem fogadja |
 | Szakmai válasz | Flow-interjú | mezőnkénti validálás és megerősítés |
 | Projekt/link | felhasználó | URL-ellenőrzés, tulajdonosi állítás, későbbi portfóliókapcsolat |
 | Készségfogalom | meglévő `keszsegek` | kanonikus azonosító és szinonima |
