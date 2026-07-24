@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AuthMenu from "./AuthMenu";
+import InlineAuth from "./InlineAuth";
 import ProfileGate from "./ProfileGate";
 import { apiFetch } from "../lib/api";
 import { createClient } from "../lib/supabase/client";
@@ -73,7 +74,7 @@ const GPS_LEPESEK = [
 const KEZDO_UZENET = {
   szerep: "flow",
   szoveg:
-    "Szia, Flow vagyok. Először megértem, honnan indulsz, aztán mindig csak a következő értelmes lépést mutatom.",
+    "Szia, Flow vagyok, a személyes karrierasszisztensed. Segítek átnézni vagy elkészíteni a CV-det, megtalálni a hozzád illő állásokat, és végigvezetlek a jelentkezés lépésein.",
 };
 
 function belepesUrl(kovetkezo = "/") {
@@ -176,9 +177,26 @@ export default function Home() {
     }
   }
 
-  function kezdoAllapotVisszaallitasa() {
+  async function kezdoAllapotVisszaallitasa() {
     if (kuldesFolyamatban) return;
+    setKuldesFolyamatban(true);
+    setHiba(null);
+    if (belepve && kezdoValasztas === "cv") {
+      try {
+        const response = await apiFetch("/api/v1/workflow/reset", {
+          method: "POST",
+        });
+        if (!response.ok) {
+          throw new Error(`workflow-reset: ${response.status}`);
+        }
+      } catch {
+        setHiba("A visszalépés nem sikerült. Próbáld újra.");
+        setKuldesFolyamatban(false);
+        return;
+      }
+    }
     window.localStorage.removeItem("career_pending_start");
+    window.localStorage.removeItem("career_pending_cv_import");
     kezdoValasztasRef.current = null;
     belepesKeresRef.current = false;
     setKezdoValasztas(null);
@@ -187,6 +205,7 @@ export default function Home() {
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
+    setKuldesFolyamatban(false);
   }
 
   async function uzenetKuldese(uzenetSzoveg) {
@@ -391,24 +410,14 @@ export default function Home() {
                     Védett személyes folyamat
                   </p>
                   <h3 className="mt-3 max-w-xl font-serif text-3xl leading-tight text-white">
-                    A CV feldolgozásához fiók szükséges.
+                    Lépj be a személyes CV-folyamat folytatásához
                   </h3>
                   <p className="mt-4 max-w-xl text-sm leading-6 text-slate-400">
                     A CV személyes adatokat tartalmaz. A fiók biztosítja, hogy
                     csak te férj hozzá a feltöltött dokumentumhoz és a mentett
                     karrierutadhoz.
                   </p>
-                  <div className="mt-7 flex flex-wrap items-center gap-4">
-                    <Link
-                      href={belepesUrl("/")}
-                      className="rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-200"
-                    >
-                      Belépés vagy regisztráció
-                    </Link>
-                    <span className="text-xs text-slate-500">
-                      Belépés után itt folytatod.
-                    </span>
-                  </div>
+                  <InlineAuth />
                 </section>
               ) : kezdoValasztas === "cv" && belepve ? (
                 <section className="min-h-[500px] px-5 py-6 sm:px-8 sm:py-8">
@@ -655,4 +664,3 @@ export default function Home() {
     </main>
   );
 }
-

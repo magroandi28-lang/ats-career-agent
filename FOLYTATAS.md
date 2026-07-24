@@ -4,6 +4,24 @@ Ez a fájl az új munkamenet indításához készült. Olvasd végig, mielőtt b
 RÉSZLETES FOLYAMAT-LEÍRÁS: docs/folyamat_terkep.md (ez a kánon — javaslat előtt ezzel vesd össze!)
 MIGRÁCIÓS TEENDŐK (Streamlit→FastAPI/React váltáskor törlendő régi kód!): docs/migracio_teendok.md
 
+## VALÓS ÁLLAPOT — 2026-07-24 (EZ FELÜLÍRJA A RÉGEBBI JEGYZETEKET)
+
+- A `main` már tartalmazza a korábbi `agent/determinisztikus-karrierallapot`
+  ág minden módosítását; a régi ág csak le van maradva, nincs külön
+  összevonandó commitja.
+- A kanonikus működés elsődleges forrása:
+  `docs/felhasznaloi-allapotgep.md`.
+- A mostani fejlesztési fókusz kizárólag a „Van CV-m” teljes útvonala.
+  Új modul nem kezdhető el, amíg ez nem működik végig.
+- A Flow-munkatérbe ágyazott belépés/regisztráció, a szerveroldali
+  visszalépés, a három CV-cél, a PDF-import, a szerkeszthető kivonat-review
+  és a külön jóváhagyás a `agent/flow-cv-utvonal-javitas` javítóágon készült.
+- A feltöltés önmagában nem erősít meg profilt és nem indít ATS-t,
+  álláskeresést vagy CV-átírást.
+- A frontend production build és a backend tesztcsomag a javítóágon sikeres.
+- Következő lépés: a javítóág publikálása, CI/Vercel/Render telepítés
+  ellenőrzése, majd az éles Flow-útvonal kézi végigtesztelése.
+
 ## VALÓS ÁLLAPOT — 2026-07-23 este (FONTOS, ELŐSZÖR EZT OLVASD!)
 
 A React/Next.js + FastAPI migráció közben KÉT PÁRHUZAMOS munka futott ezen a

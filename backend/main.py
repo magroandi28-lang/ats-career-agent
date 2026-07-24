@@ -40,6 +40,7 @@ from utils.flow_allapot import (
     uzenet_mentese,
     workflow_lekeres_vagy_letrehozas,
     workflow_frissites,
+    workflow_ujrakezdes,
     gps_esemeny_rogzitese,
     gps_snapshot_frissites,
     gps_projekcio,
@@ -58,6 +59,11 @@ from backend.profile_service import (
     profile_get_or_create,
     profile_readiness,
     profile_update_draft,
+)
+from backend.cv_import_service import (
+    cv_import_create,
+    cv_import_get,
+    cv_import_mark_approved,
 )
 from backend.auth import (
     auth_keres_limit,
@@ -390,6 +396,31 @@ class WorkflowIntentBemenet(ApiModel):
     intent: CareerIntent
 
 
+@app.post("/api/v1/workflow/reset")
+def workflow_reset_vegpont(
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Kifejezett visszalépés: a szerveroldali folyamatot is újrakezdi."""
+
+    user_id = str(felhasznalo.id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    if not workflow:
+        raise HTTPException(503, "A karrierfolyamat állapota nem érhető el.")
+    try:
+        previous_state = CareerState(workflow["current_state"])
+    except (KeyError, ValueError):
+        raise HTTPException(500, "A karrierfolyamat állapota érvénytelen.")
+
+    if not workflow_ujrakezdes(user_id, workflow["id"]):
+        raise HTTPException(503, "A karrierfolyamat újrakezdése nem sikerült.")
+    return {
+        "ok": True,
+        "previous_state": previous_state.value,
+        "current_state": CareerState.CEL_TISZTAZATLAN.value,
+    }
+
+
 @app.post("/api/v1/workflow/intent")
 def workflow_intent_vegpont(
     bemenet: WorkflowIntentBemenet,
@@ -414,23 +445,23 @@ def workflow_intent_vegpont(
     except (KeyError, ValueError):
         raise HTTPException(500, "A karrierfolyamat állapota érvénytelen.")
 
-    modosithato_allapotok = {
-        CareerState.CEL_TISZTAZATLAN,
-        CareerState.CEL_TISZTAZOTT,
-        CareerState.PROFIL_HIANYOS,
-    }
-    if previous_state not in modosithato_allapotok:
-        raise HTTPException(
-            409,
-            "A megkezdett műveletet előbb le kell zárni vagy újra kell indítani.",
-        )
+    profile = profile_get_or_create(user_id)
+    if not profile:
+        raise HTTPException(503, "A karrierprofil nem érhető el.")
+    readiness = profile_readiness(bemenet.intent, profile)
+    target_state = (
+        CareerState.PROFIL_ELLENORZOTT
+        if readiness["ready"]
+        else CareerState.PROFIL_HIANYOS
+    )
 
     context = dict(workflow.get("context") or {})
     context["intent_source"] = "explicit_ui_selection"
+    context["profile_rule_version"] = readiness["rule_version"]
     if not workflow_frissites(
         user_id,
         workflow["id"],
-        CareerState.CEL_TISZTAZOTT,
+        target_state,
         bemenet.intent,
         context,
     ):
@@ -439,12 +470,13 @@ def workflow_intent_vegpont(
     event_id = gps_esemeny_rogzitese(
         user_id,
         session_id,
-        "career_intent_selected",
+        "career_goal_selected",
         {
             "intent": bemenet.intent.value,
             "source": "explicit_ui_selection",
             "previous_state": previous_state.value,
-            "current_state": CareerState.CEL_TISZTAZOTT.value,
+            "current_state": target_state.value,
+            "profile_ready": readiness["ready"],
         },
         actor="user",
     )
@@ -459,7 +491,8 @@ def workflow_intent_vegpont(
         "ok": True,
         "intent": bemenet.intent.value,
         "previous_state": previous_state.value,
-        "current_state": CareerState.CEL_TISZTAZOTT.value,
+        "current_state": target_state.value,
+        "readiness": readiness,
         "model_called": False,
     }
 
@@ -581,6 +614,11 @@ class ProfileDraftPatchBemenet(ApiModel):
 class ProfileConfirmBemenet(ApiModel):
     fields: list[str] = Field(min_length=1, max_length=30)
     reason: str = Field(default="user_confirmation", min_length=1, max_length=100)
+
+
+class CvImportReviewBemenet(ApiModel):
+    import_id: str = Field(min_length=36, max_length=36)
+    approved_text: str = Field(min_length=1, max_length=120_000)
 
 
 def _active_intent_and_readiness(user_id: str, session_id: str | None, profile: dict):
@@ -713,6 +751,82 @@ def profile_confirm_vegpont(
         "readiness": readiness,
         "current_state": current_state.value if current_state else None,
         "state_changed": state_changed,
+    }
+
+
+@app.post("/api/v1/profile/import")
+async def profile_import_vegpont(
+    fajl: UploadFile = File(...),
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """PDF-feltöltés és szövegkinyerés; még nem erősít meg profiltényt."""
+
+    content = await read_validated_pdf(fajl)
+    try:
+        result = cv_import_create(
+            str(felhasznalo.id),
+            fajl.filename or "cv.pdf",
+            content,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    if not result:
+        raise HTTPException(503, "A CV importálása nem sikerült.")
+    return result
+
+
+@app.get("/api/v1/profile/imports/{import_id}")
+def profile_import_get_vegpont(
+    import_id: str,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Egy saját CV-import ellenőrzési állapotát adja vissza."""
+
+    result = cv_import_get(str(felhasznalo.id), import_id)
+    if not result:
+        raise HTTPException(404, "A CV-import nem található.")
+    return result
+
+
+@app.post("/api/v1/profile/facts/review")
+def profile_facts_review_vegpont(
+    bemenet: CvImportReviewBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Külön felhasználói jóváhagyással aktiválja az átnézett CV-t."""
+
+    user_id = str(felhasznalo.id)
+    try:
+        approved_import = cv_import_mark_approved(
+            user_id,
+            bemenet.import_id,
+            bemenet.approved_text,
+        )
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+    if not approved_import:
+        raise HTTPException(404, "A CV-import nem található.")
+
+    try:
+        draft = profile_update_draft(
+            user_id,
+            {"cv_document_id": bemenet.import_id},
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    if not draft:
+        raise HTTPException(409, "A profil közben megváltozott. Töltsd újra.")
+
+    confirmation = profile_confirm_vegpont(
+        ProfileConfirmBemenet(
+            fields=["cv_document_id"],
+            reason="cv_extraction_reviewed",
+        ),
+        felhasznalo,
+    )
+    return {
+        **confirmation,
+        "import": approved_import,
     }
 
 
@@ -897,4 +1011,3 @@ def cv_letoltes_vegpont(felhasznalo=Depends(jelenlegi_felhasznalo)):
         raise HTTPException(404, "Nincs mentett CV-d.")
     return {"url": valasz.get("signedURL") or valasz.get("signedUrl"),
             "lejar_masodperc": 300}
-
