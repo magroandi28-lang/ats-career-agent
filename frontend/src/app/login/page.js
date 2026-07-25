@@ -182,51 +182,57 @@ export default function LoginPage() {
                   hitelesites();
                 }}
               >
-                <label
-                  className="block text-xs font-semibold text-slate-300"
-                  htmlFor="email"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  maxLength={320}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="nev@email.hu"
-                  className="mt-2 w-full rounded-xl border border-white/12 bg-slate-950/55 px-4 py-[15px] text-sm text-white placeholder:text-slate-600 focus:border-amber-300/50"
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      className="block text-xs font-semibold text-slate-300"
+                      htmlFor="email"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      maxLength={320}
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="nev@email.hu"
+                      className="mt-2 w-full rounded-xl border border-white/12 bg-slate-950/55 px-3.5 py-3 text-sm text-white placeholder:text-slate-600 focus:border-amber-300/50"
+                    />
+                  </div>
 
-                <label
-                  className="mt-4 block text-xs font-semibold text-slate-300"
-                  htmlFor="password"
-                >
-                  Jelszó
-                </label>
-                <div className="relative mt-2">
-                  <input
-                    id="password"
-                    type={jelszoLathato ? "text" : "password"}
-                    autoComplete={
-                      mod === "belepes" ? "current-password" : "new-password"
-                    }
-                    required
-                    minLength={mod === "regisztracio" ? 12 : 1}
-                    maxLength={128}
-                    value={jelszo}
-                    onChange={(event) => setJelszo(event.target.value)}
-                    className="w-full rounded-xl border border-white/12 bg-slate-950/55 px-4 py-[15px] pr-20 text-sm text-white focus:border-amber-300/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setJelszoLathato((elozo) => !elozo)}
-                    className="absolute inset-y-0 right-3 text-xs font-semibold text-slate-500 hover:text-amber-200"
-                  >
-                    {jelszoLathato ? "Elrejtés" : "Mutatás"}
-                  </button>
+                  <div>
+                    <label
+                      className="block text-xs font-semibold text-slate-300"
+                      htmlFor="password"
+                    >
+                      Jelszó
+                    </label>
+                    <div className="relative mt-2">
+                      <input
+                        id="password"
+                        type={jelszoLathato ? "text" : "password"}
+                        autoComplete={
+                          mod === "belepes" ? "current-password" : "new-password"
+                        }
+                        required
+                        minLength={mod === "regisztracio" ? 12 : 1}
+                        maxLength={128}
+                        value={jelszo}
+                        onChange={(event) => setJelszo(event.target.value)}
+                        className="w-full rounded-xl border border-white/12 bg-slate-950/55 px-3.5 py-3 pr-16 text-sm text-white focus:border-amber-300/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setJelszoLathato((elozo) => !elozo)}
+                        className="absolute inset-y-0 right-2.5 text-[11px] font-semibold text-slate-500 hover:text-amber-200"
+                      >
+                        {jelszoLathato ? "Elrejtés" : "Mutatás"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {mod === "regisztracio" && (
@@ -265,31 +271,17 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <p className="mt-4 text-center text-xs text-slate-500">
-                {mod === "belepes" ? (
-                  <>
-                    Nincs még fiókod?{" "}
-                    <button
-                      type="button"
-                      onClick={() => modValtas("regisztracio")}
-                      className="font-semibold text-amber-200/80 hover:text-amber-100"
-                    >
-                      Regisztrálj
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Van már fiókod?{" "}
-                    <button
-                      type="button"
-                      onClick={() => modValtas("belepes")}
-                      className="font-semibold text-amber-200/80 hover:text-amber-100"
-                    >
-                      Jelentkezz be
-                    </button>
-                  </>
-                )}
-              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  modValtas(mod === "belepes" ? "regisztracio" : "belepes")
+                }
+                className="mt-4 w-full rounded-xl border border-[#b08d57]/40 bg-[#b08d57]/[0.06] px-4 py-3 text-center text-sm font-semibold text-amber-200/90 hover:border-[#b08d57]/70 hover:bg-[#b08d57]/[0.12]"
+              >
+                {mod === "belepes"
+                  ? "Nincs még fiókod? Regisztrálj itt →"
+                  : "Van már fiókod? Jelentkezz be →"}
+              </button>
             </div>
           </div>
         </section>
