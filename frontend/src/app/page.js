@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AuthMenu from "./AuthMenu";
 import InlineAuth from "./InlineAuth";
 import ProfileGate from "./ProfileGate";
@@ -63,13 +63,18 @@ const MODULOK = [
   { nev: "Portfólió Stúdió", jel: "05", allapot: "tervezés alatt" },
 ];
 
-const GPS_LEPESEK = [
-  { nev: "Kiindulópont", allapot: "aktiv" },
-  { nev: "Karrierprofil", allapot: "zart" },
-  { nev: "Cél és irány", allapot: "zart" },
-  { nev: "Piaci illeszkedés", allapot: "zart" },
-  { nev: "Pályázati csomag", allapot: "zart" },
+// A kulcsok a backend career_gps_snapshots.terulet értékei -- a panel
+// kizárólag szerveroldalon rögzített eseményekből dolgozik, nem becsül.
+const GPS_TERULETEK = [
+  { kulcs: "karriercel", nev: "Cél és irány", zartLeiras: "Válassz egy kiindulási módot." },
+  { kulcs: "profil", nev: "Karrierprofil", zartLeiras: "A cél kiválasztása után nyílik meg." },
+  { kulcs: "piaci_kep", nev: "Piaci illeszkedés", zartLeiras: "Ellenőrzött profil után nyílik meg." },
+  { kulcs: "felkeszultseg", nev: "Felkészültség", zartLeiras: "A piaci kép után nyílik meg." },
+  { kulcs: "palyazas", nev: "Pályázati csomag", zartLeiras: "Az utolsó lépés." },
 ];
+
+const KESZ_ALLAPOTOK = new Set(["megerositett", "kivalasztott", "kesz"]);
+const FOLYAMATBAN_ALLAPOTOK = new Set(["ellenorzendo", "folyamatban"]);
 
 const KEZDO_UZENET = {
   szerep: "flow",
@@ -89,6 +94,7 @@ export default function Home() {
   const [hiba, setHiba] = useState(null);
   const [workflowState, setWorkflowState] = useState(null);
   const [gpsNyitva, setGpsNyitva] = useState(false);
+  const [gpsTeruletek, setGpsTeruletek] = useState({});
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const [cvMuvelet, setCvMuvelet] = useState(null);
   const kezdoValasztasRef = useRef(null);
@@ -108,6 +114,24 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // A GPS-panel a szerveroldali projekcióból frissül. Minden olyan művelet
+  // után újrakérjük, ami eseményt rögzíthetett -- így a panel sosem a kliens
+  // találgatása, hanem a backend rögzített állapota.
+  const gpsFrissites = useCallback(async () => {
+    try {
+      const valasz = await apiFetch("/api/v1/career-gps");
+      if (!valasz.ok) return;
+      const adat = await valasz.json();
+      const terkep = {};
+      for (const sor of adat.teruletek || []) {
+        terkep[sor.terulet] = sor.allapot;
+      }
+      setGpsTeruletek(terkep);
+    } catch {
+      // A GPS-panel kiegészítő nézet: ha nem elérhető, a folyamat mehet tovább.
+    }
+  }, []);
+
   useEffect(() => {
     if (!session) return;
     apiFetch("/api/v1/profile")
@@ -116,6 +140,25 @@ export default function Home() {
         if (profile?.current_state) setWorkflowState(profile.current_state);
       })
       .catch(() => {});
+    gpsFrissites();
+  }, [session, gpsFrissites]);
+
+  // Kijelentkezéskor a komponens nem mountolódik újra, ezért a folyamat
+  // kliensoldali nyomait kifejezetten törölni kell -- különben a kilépett
+  // felhasználó a belépésre váró panelen ragad, a következő belépő pedig
+  // az előző választásait örökölné.
+  useEffect(() => {
+    if (session !== null) return;
+    folytatasRef.current = false;
+    kezdoValasztasRef.current = null;
+    belepesKeresRef.current = false;
+    setKezdoValasztas(null);
+    setCvMuvelet(null);
+    setWorkflowState(null);
+    setGpsTeruletek({});
+    setUzenetek([KEZDO_UZENET]);
+    setSzoveg("");
+    setHiba(null);
   }, [session]);
 
   useEffect(() => {
@@ -130,10 +173,38 @@ export default function Home() {
     setKezdoValasztas("cv");
   }, [session]);
 
-  const gpsStatusz = useMemo(
-    () => (belepve ? "Profilindításra kész" : "Vendég mód"),
-    [belepve],
+  const gpsLepesek = useMemo(() => {
+    let elsoNyitottMegvolt = false;
+    return GPS_TERULETEK.map((terulet) => {
+      const allapot = gpsTeruletek[terulet.kulcs];
+      if (KESZ_ALLAPOTOK.has(allapot)) return { ...terulet, allapot: "kesz" };
+      if (FOLYAMATBAN_ALLAPOTOK.has(allapot)) {
+        elsoNyitottMegvolt = true;
+        return { ...terulet, allapot: "folyamatban" };
+      }
+      if (!elsoNyitottMegvolt) {
+        elsoNyitottMegvolt = true;
+        return { ...terulet, allapot: "aktiv" };
+      }
+      return { ...terulet, allapot: "zart" };
+    });
+  }, [gpsTeruletek]);
+
+  const keszSzazalek = useMemo(() => {
+    const kesz = gpsLepesek.filter((lepes) => lepes.allapot === "kesz").length;
+    return Math.round((kesz / gpsLepesek.length) * 100);
+  }, [gpsLepesek]);
+
+  const kovetkezoLepes = useMemo(
+    () => gpsLepesek.find((lepes) => lepes.allapot !== "kesz") || null,
+    [gpsLepesek],
   );
+
+  const gpsStatusz = useMemo(() => {
+    if (!belepve) return "Vendég mód";
+    if (keszSzazalek === 100) return "Karrierút összeállt";
+    return keszSzazalek > 0 ? `${keszSzazalek}% kész` : "Profilindításra kész";
+  }, [belepve, keszSzazalek]);
 
   function belepesKeres() {
     if (belepesKeresRef.current) return;
@@ -170,6 +241,7 @@ export default function Home() {
       const dontes = await valasz.json();
       setCvMuvelet(muvelet.id);
       setWorkflowState(dontes.current_state);
+      gpsFrissites();
     } catch {
       setHiba("A CV-művelet indítása nem sikerült. Próbáld újra.");
     } finally {
@@ -206,6 +278,7 @@ export default function Home() {
     setSzoveg("");
     setHiba(null);
     setKuldesFolyamatban(false);
+    gpsFrissites();
   }
 
   async function uzenetKuldese(uzenetSzoveg) {
@@ -250,6 +323,7 @@ export default function Home() {
         { szerep: "flow", szoveg: dontes.response_message || "" },
       ]);
       setWorkflowState(dontes.current_state || null);
+      if (dontes.gps_esemeny) gpsFrissites();
     } catch {
       setHiba(
         "Flow most nem érte el a háttérrendszert. Az üzeneted megmaradt, próbáld újra később.",
@@ -276,10 +350,13 @@ export default function Home() {
       <div className="mb-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
         <div className="mb-2 flex items-center justify-between text-xs">
           <span className="text-slate-300">Karrierút készültsége</span>
-          <span className="font-semibold text-amber-200">0%</span>
+          <span className="font-semibold text-amber-200">{keszSzazalek}%</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
-          <div className="h-full w-[4%] rounded-full bg-gradient-to-r from-amber-500 to-amber-200" />
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-200 transition-[width] duration-500"
+            style={{ width: `${Math.max(keszSzazalek, 3)}%` }}
+          />
         </div>
         <p className="mt-3 text-xs leading-5 text-slate-400">
           Nem becsülünk találomra. A sáv csak ellenőrzött lépések után halad.
@@ -287,32 +364,48 @@ export default function Home() {
       </div>
 
       <ol className="space-y-1">
-        {GPS_LEPESEK.map((lepes, index) => (
-          <li key={lepes.nev} className="relative flex gap-3 pb-4">
-            {index < GPS_LEPESEK.length - 1 && (
-              <span className="absolute left-[13px] top-7 h-[calc(100%_-_18px)] w-px bg-white/10" />
+        {gpsLepesek.map((lepes, index) => (
+          <li key={lepes.kulcs} className="relative flex gap-3 pb-4">
+            {index < gpsLepesek.length - 1 && (
+              <span
+                className={`absolute left-[13px] top-7 h-[calc(100%_-_18px)] w-px ${
+                  lepes.allapot === "kesz" ? "bg-emerald-300/35" : "bg-white/10"
+                }`}
+              />
             )}
             <span
               className={`relative z-10 mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[10px] font-bold ${
-                lepes.allapot === "aktiv"
-                  ? "flow-pulse border-amber-300/60 bg-amber-300 text-slate-950"
-                  : "border-white/12 bg-slate-950/70 text-slate-500"
+                lepes.allapot === "kesz"
+                  ? "border-emerald-300/50 bg-emerald-300/15 text-emerald-200"
+                  : lepes.allapot === "folyamatban"
+                    ? "flow-pulse border-amber-300/60 bg-amber-300/20 text-amber-100"
+                    : lepes.allapot === "aktiv"
+                      ? "flow-pulse border-amber-300/60 bg-amber-300 text-slate-950"
+                      : "border-white/12 bg-slate-950/70 text-slate-500"
               }`}
             >
-              {String(index + 1).padStart(2, "0")}
+              {lepes.allapot === "kesz" ? "✓" : String(index + 1).padStart(2, "0")}
             </span>
             <div>
               <p
                 className={`text-sm font-medium ${
-                  lepes.allapot === "aktiv" ? "text-amber-100" : "text-slate-400"
+                  lepes.allapot === "kesz"
+                    ? "text-emerald-100"
+                    : lepes.allapot === "zart"
+                      ? "text-slate-400"
+                      : "text-amber-100"
                 }`}
               >
                 {lepes.nev}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                {lepes.allapot === "aktiv"
-                  ? "Válassz egy kiindulási módot."
-                  : "Az előző lépés után nyílik meg."}
+                {lepes.allapot === "kesz"
+                  ? "Ellenőrzött és rögzített."
+                  : lepes.allapot === "folyamatban"
+                    ? "Megkezdve, még nincs jóváhagyva."
+                    : lepes.allapot === "aktiv"
+                      ? lepes.zartLeiras
+                      : "Az előző lépés után nyílik meg."}
               </p>
             </div>
           </li>
@@ -324,9 +417,11 @@ export default function Home() {
           Következő lépés
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-200">
-          {belepve
-            ? "Mondd el Flow-nak, hogy van-e már CV-d."
-            : "A személyes karrierút indításához jelentkezz be."}
+          {!belepve
+            ? "A személyes karrierút indításához jelentkezz be."
+            : kovetkezoLepes
+              ? `${kovetkezoLepes.nev} — ${kovetkezoLepes.zartLeiras}`
+              : "Minden szakasz ellenőrizve. Készen állsz a pályázásra."}
         </p>
       </div>
     </aside>
@@ -496,11 +591,12 @@ export default function Home() {
                       ].includes(workflowState) && (
                         <ProfileGate
                           embedded
-                          onStateChange={(result) =>
+                          onStateChange={(result) => {
                             setWorkflowState(
                               result.current_state || workflowState,
-                            )
-                          }
+                            );
+                            gpsFrissites();
+                          }}
                         />
                       )}
                     </div>
