@@ -28,6 +28,32 @@ export default function LoginPage() {
     setUzenet("");
   }
 
+  async function googleBelepes() {
+    setDolgozik(true);
+    setHiba("");
+    setUzenet("");
+    const supabase = createClient();
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(
+            kovetkezoOldal(),
+          )}`,
+        },
+      });
+      if (error) {
+        setHiba("A Google-bejelentkezés most nem sikerült. Próbáld újra.");
+        setDolgozik(false);
+      }
+      // Sikeres indításkor a böngésző elnavigál a Google oldalára --
+      // nincs több teendő itt, a /auth/confirm útvonal veszi át onnantól.
+    } catch {
+      setHiba("A szolgáltatás most nem érhető el. Próbáld újra néhány perc múlva.");
+      setDolgozik(false);
+    }
+  }
+
   async function hitelesites() {
     if (mod === "regisztracio" && jelszo.length < 12) {
       setHiba("Az új jelszó legalább 12 karakter legyen.");
@@ -79,7 +105,7 @@ export default function LoginPage() {
 
   return (
     <main className="career-shell career-grid min-h-screen px-4 py-8 sm:py-12">
-      <div className="mx-auto w-full max-w-md">
+      <div className="mx-auto w-full max-w-2xl">
         <Link
           href="/"
           className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 text-xs font-semibold text-slate-300 hover:border-amber-300/35 hover:text-amber-100"
@@ -87,141 +113,184 @@ export default function LoginPage() {
           ← Vissza a kezdőoldalra
         </Link>
 
-        <section className="glass-panel overflow-hidden rounded-3xl">
-          <div className="border-b border-white/8 px-6 py-6 sm:px-8">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="flow-pulse grid h-11 w-11 place-items-center rounded-full border border-amber-300/45 bg-amber-300/10">
+        <section className="overflow-hidden rounded-3xl border border-white/8 bg-[#0b1220]">
+          <div className="grid grid-cols-1 sm:grid-cols-[42%_1fr]">
+            <div className="flex flex-col justify-center border-b border-white/8 bg-white/[0.02] px-7 py-9 sm:border-b-0 sm:border-r">
+              <div className="flow-pulse mb-4 grid h-11 w-11 place-items-center rounded-full border border-amber-300/45 bg-amber-300/10">
                 <span className="gold-text font-serif text-lg font-bold">K</span>
               </div>
-              <div>
-                <p className="font-serif text-xl font-semibold text-white">
-                  Karrier-Ügynökség
-                </p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                  Biztonságos személyes munkatér
-                </p>
-              </div>
-            </div>
+              <p className="whitespace-nowrap font-serif text-lg font-semibold text-white">
+                Karrier-Ügynökség
+              </p>
+              <p className="mb-6 mt-1.5 text-[9.5px] uppercase tracking-[0.1em] text-slate-500">
+                Biztonságos személyes munkatér
+              </p>
 
-            <h1 className="text-2xl font-semibold text-white">
-              {mod === "belepes" ? "Üdv újra!" : "Hozd létre a fiókodat"}
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              {mod === "belepes"
-                ? "Folytasd onnan a karrierutadat, ahol abbahagytad."
-                : "A fiók védi és több eszközön elérhetővé teszi a karrieradataidat."}
-            </p>
-          </div>
-
-          <div className="p-6 sm:p-8">
-            <div className="mb-6 grid grid-cols-2 rounded-xl border border-white/10 bg-black/20 p-1">
-              {[
-                ["belepes", "Belépés"],
-                ["regisztracio", "Regisztráció"],
-              ].map(([ertek, felirat]) => (
-                <button
-                  key={ertek}
-                  type="button"
-                  onClick={() => modValtas(ertek)}
-                  className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${
-                    mod === ertek
-                      ? "bg-amber-300 text-slate-950"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {felirat}
-                </button>
-              ))}
-            </div>
-
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                hitelesites();
-              }}
-            >
-              <label
-                className="block text-xs font-semibold text-slate-300"
-                htmlFor="email"
-              >
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                maxLength={320}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="nev@email.hu"
-                className="mt-2 w-full rounded-xl border border-white/12 bg-slate-950/55 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-amber-300/50"
+              <h1 className="text-xl font-semibold text-white">
+                {mod === "belepes" ? "Üdv újra!" : "Hozd létre a fiókodat"}
+              </h1>
+              <div
+                className="my-3.5 h-0.5 w-[52px] bg-gradient-to-r from-amber-200 to-[#b08d57]"
+                style={{ boxShadow: "0 0 12px rgba(176,141,87,0.5)" }}
               />
+              <p className="text-[13px] leading-relaxed text-slate-400">
+                {mod === "belepes"
+                  ? "Folytasd onnan a karrierutadat, ahol abbahagytad."
+                  : "A fiók védi és több eszközön elérhetővé teszi a karrieradataidat."}
+              </p>
+            </div>
 
-              <label
-                className="mt-5 block text-xs font-semibold text-slate-300"
-                htmlFor="password"
+            <div className="px-7 py-9 sm:px-9">
+              <button
+                type="button"
+                onClick={googleBelepes}
+                disabled={dolgozik}
+                className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-slate-100 hover:border-amber-300/40 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Jelszó
-              </label>
-              <div className="relative mt-2">
-                <input
-                  id="password"
-                  type={jelszoLathato ? "text" : "password"}
-                  autoComplete={
-                    mod === "belepes" ? "current-password" : "new-password"
-                  }
-                  required
-                  minLength={mod === "regisztracio" ? 12 : 1}
-                  maxLength={128}
-                  value={jelszo}
-                  onChange={(event) => setJelszo(event.target.value)}
-                  className="w-full rounded-xl border border-white/12 bg-slate-950/55 px-4 py-3 pr-20 text-sm text-white focus:border-amber-300/50"
-                />
-                <button
-                  type="button"
-                  onClick={() => setJelszoLathato((elozo) => !elozo)}
-                  className="absolute inset-y-0 right-3 text-xs font-semibold text-slate-500 hover:text-amber-200"
-                >
-                  {jelszoLathato ? "Elrejtés" : "Mutatás"}
-                </button>
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                  <path
+                    fill="#4285F4"
+                    d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.81.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58z"
+                  />
+                </svg>
+                Folytatás Google-lal
+              </button>
+
+              <div className="mb-5 flex items-center gap-3">
+                <span className="h-px flex-1 bg-white/10" />
+                <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  vagy
+                </span>
+                <span className="h-px flex-1 bg-white/10" />
               </div>
 
-              {mod === "regisztracio" && (
-                <p className="mt-2 text-xs text-slate-500">
-                  Legalább 12 karakter. Soha ne használd másik fiókod jelszavát.
-                </p>
-              )}
-
-              {hiba && (
-                <p
-                  role="alert"
-                  className="mt-4 rounded-xl border border-red-300/20 bg-red-300/[0.07] px-4 py-3 text-sm text-red-100"
-                >
-                  {hiba}
-                </p>
-              )}
-              {uzenet && (
-                <p
-                  role="status"
-                  className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-4 py-3 text-sm text-emerald-100"
-                >
-                  {uzenet}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={dolgozik}
-                className="mt-6 w-full rounded-xl bg-amber-300 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  hitelesites();
+                }}
               >
-                {dolgozik
-                  ? "Egy pillanat…"
-                  : mod === "belepes"
-                    ? "Belépés"
-                    : "Fiók létrehozása"}
-              </button>
-            </form>
+                <label
+                  className="block text-xs font-semibold text-slate-300"
+                  htmlFor="email"
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  maxLength={320}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="nev@email.hu"
+                  className="mt-2 w-full rounded-xl border border-white/12 bg-slate-950/55 px-4 py-[15px] text-sm text-white placeholder:text-slate-600 focus:border-amber-300/50"
+                />
+
+                <label
+                  className="mt-4 block text-xs font-semibold text-slate-300"
+                  htmlFor="password"
+                >
+                  Jelszó
+                </label>
+                <div className="relative mt-2">
+                  <input
+                    id="password"
+                    type={jelszoLathato ? "text" : "password"}
+                    autoComplete={
+                      mod === "belepes" ? "current-password" : "new-password"
+                    }
+                    required
+                    minLength={mod === "regisztracio" ? 12 : 1}
+                    maxLength={128}
+                    value={jelszo}
+                    onChange={(event) => setJelszo(event.target.value)}
+                    className="w-full rounded-xl border border-white/12 bg-slate-950/55 px-4 py-[15px] pr-20 text-sm text-white focus:border-amber-300/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setJelszoLathato((elozo) => !elozo)}
+                    className="absolute inset-y-0 right-3 text-xs font-semibold text-slate-500 hover:text-amber-200"
+                  >
+                    {jelszoLathato ? "Elrejtés" : "Mutatás"}
+                  </button>
+                </div>
+
+                {mod === "regisztracio" && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Legalább 12 karakter. Soha ne használd másik fiókod jelszavát.
+                  </p>
+                )}
+
+                {hiba && (
+                  <p
+                    role="alert"
+                    className="mt-4 rounded-xl border border-red-300/20 bg-red-300/[0.07] px-4 py-3 text-sm text-red-100"
+                  >
+                    {hiba}
+                  </p>
+                )}
+                {uzenet && (
+                  <p
+                    role="status"
+                    className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-4 py-3 text-sm text-emerald-100"
+                  >
+                    {uzenet}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={dolgozik}
+                  className="mt-6 w-full rounded-xl bg-[#b08d57] px-4 py-[15px] text-sm font-bold text-[#1e1206] hover:bg-[#c29c63] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {dolgozik
+                    ? "Egy pillanat…"
+                    : mod === "belepes"
+                      ? "Belépés"
+                      : "Fiók létrehozása"}
+                </button>
+              </form>
+
+              <p className="mt-4 text-center text-xs text-slate-500">
+                {mod === "belepes" ? (
+                  <>
+                    Nincs még fiókod?{" "}
+                    <button
+                      type="button"
+                      onClick={() => modValtas("regisztracio")}
+                      className="font-semibold text-amber-200/80 hover:text-amber-100"
+                    >
+                      Regisztrálj
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Van már fiókod?{" "}
+                    <button
+                      type="button"
+                      onClick={() => modValtas("belepes")}
+                      className="font-semibold text-amber-200/80 hover:text-amber-100"
+                    >
+                      Jelentkezz be
+                    </button>
+                  </>
+                )}
+              </p>
+            </div>
           </div>
         </section>
       </div>
