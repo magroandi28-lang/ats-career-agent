@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Final
 
 
-RULE_VERSION: Final = "career-state-v1"
+RULE_VERSION: Final = "career-state-v2"
 
 
 class CareerIntent(StrEnum):
@@ -55,11 +55,31 @@ class CareerAction(StrEnum):
     CV_ELLENORZES_INDITASA = "cv_ellenorzes_inditasa"
     CV_FRISSITES_INDITASA = "cv_frissites_inditasa"
     CV_KESZITES_INDITASA = "cv_keszites_inditasa"
+    CV_JOVAHAGYASA = "cv_jovahagyasa"
     ALLASKERESES_INDITASA = "allaskereses_inditasa"
+    ALLASOK_BEMUTATASA = "allasok_bemutatasa"
+    ALLAS_KIVALASZTASA = "allas_kivalasztasa"
     HIRDETES_BEOLVASASA = "hirdetes_beolvasasa"
     PALYAZAS_INDITASA = "palyazas_inditasa"
+    ATS_ELEMZES_INDITASA = "ats_elemzes_inditasa"
+    PALYAZATI_CSOMAG_KESZITESE = "palyazati_csomag_keszitese"
+    CSOMAG_JOVAHAGYASA = "csomag_jovahagyasa"
+    KULSO_MUVELET_INDITASA = "kulso_muvelet_inditasa"
+    BEADAS_IGAZOLASA = "beadas_igazolasa"
     KEPZES_KERESES_INDITASA = "kepzes_kereses_inditasa"
     PORTFOLIO_INDITASA = "portfolio_inditasa"
+
+
+class GlobalAction(StrEnum):
+    """Bármely állapotból elérhető kilépések (felhasznaloi-allapotgep.md 5.).
+
+    Ezek szándékosan nem részei a `TRANSITIONS` gráfnak: nem a folyamat
+    előrehaladását jelentik, hanem a felhasználó kifejezett visszalépését.
+    """
+
+    CEL_MODOSITASA = "cel_modositasa"
+    PROFIL_VALTOZOTT = "profil_valtozott"
+    FELADAT_MEGSZAKITASA = "feladat_megszakitasa"
 
 
 INTENT_START_ACTION: Final[dict[CareerIntent, CareerAction]] = {
@@ -99,7 +119,56 @@ TRANSITIONS: Final[dict[tuple[CareerState, CareerAction], CareerState]] = {
         CareerState.ALLASKERESES_AKTIV,
     (CareerState.PROFIL_ELLENORZOTT, CareerAction.HIRDETES_BEOLVASASA):
         CareerState.HIRDETES_ELLENORZOTT,
+
+    # CV-ág lezárása: tervezetből csak kifejezett jóváhagyással lesz
+    # használható verzió (felhasznaloi-allapotgep.md 6.).
+    (CareerState.CV_TERVEZET, CareerAction.CV_JOVAHAGYASA):
+        CareerState.CV_JOVAHAGYOTT,
+    (CareerState.CV_JOVAHAGYOTT, CareerAction.ALLASKERESES_INDITASA):
+        CareerState.ALLASKERESES_AKTIV,
+
+    # Álláskeresési ág. A találat megjelenítése külön lépés: a keresés
+    # lefutása önmagában még nem eredmény (7. pont).
+    (CareerState.ALLASKERESES_AKTIV, CareerAction.ALLASOK_BEMUTATASA):
+        CareerState.ALLASOK_BEMUTATVA,
+    (CareerState.ALLASOK_BEMUTATVA, CareerAction.ALLAS_KIVALASZTASA):
+        CareerState.ALLAS_KIVALASZTVA,
+    (CareerState.ALLAS_KIVALASZTVA, CareerAction.PALYAZAS_INDITASA):
+        CareerState.HIRDETES_ELLENORZOTT,
+
+    # Pályázási ág. Az ATS csak ellenőrzött konkrét hirdetésből indulhat
+    # (12. pont, 4. elfogadási feltétel).
+    (CareerState.HIRDETES_ELLENORZOTT, CareerAction.ATS_ELEMZES_INDITASA):
+        CareerState.ATS_KESZ,
+    (CareerState.ATS_KESZ, CareerAction.PALYAZATI_CSOMAG_KESZITESE):
+        CareerState.PALYAZATI_CSOMAG_TERVEZET,
+    (CareerState.PALYAZATI_CSOMAG_TERVEZET, CareerAction.CSOMAG_JOVAHAGYASA):
+        CareerState.KULDESRE_JOVAHAGYVA,
+    (CareerState.KULDESRE_JOVAHAGYVA, CareerAction.KULSO_MUVELET_INDITASA):
+        CareerState.PALYAZAS_ELINDITVA,
+    (CareerState.PALYAZAS_ELINDITVA, CareerAction.BEADAS_IGAZOLASA):
+        CareerState.PALYAZAS_BEADVA_NAPLOZVA,
 }
+
+
+GLOBAL_TRANSITIONS: Final[dict[GlobalAction, CareerState]] = {
+    GlobalAction.CEL_MODOSITASA: CareerState.CEL_TISZTAZOTT,
+    GlobalAction.PROFIL_VALTOZOTT: CareerState.PROFIL_HIANYOS,
+    GlobalAction.FELADAT_MEGSZAKITASA: CareerState.CEL_TISZTAZATLAN,
+}
+
+
+# A kanonikus terv (felhasznaloi-allapotgep.md 4. és 9.) a képzés- és
+# portfólió-utat visszatérő körként írja le, de nem nevez meg hozzájuk
+# célállapotot. Amíg ez a döntés nincs meg, ezek az akciók szándékosan nem
+# vezetnek átmenethez -- így a hiány látható és tesztelhető, nem csendes
+# zsákutca egy nem várt `None` visszatérésben.
+SPECIFIKACIORA_VARO_AKCIOK: Final[frozenset[CareerAction]] = frozenset({
+    CareerAction.KEPZES_KERESES_INDITASA,
+    CareerAction.PORTFOLIO_INDITASA,
+})
+
+TERMINAL_STATE: Final = CareerState.PALYAZAS_BEADVA_NAPLOZVA
 
 
 def allowed_actions(state: CareerState) -> tuple[CareerAction, ...]:
@@ -131,3 +200,26 @@ def next_state(state: CareerState, action: CareerAction) -> CareerState | None:
 
 def start_action_for_intent(intent: CareerIntent) -> CareerAction | None:
     return INTENT_START_ACTION.get(intent)
+
+
+def global_next_state(action: GlobalAction) -> CareerState:
+    """A felhasználó kifejezett visszalépése bármely állapotból érvényes."""
+    return GLOBAL_TRANSITIONS[action]
+
+
+def reachable_states() -> frozenset[CareerState]:
+    """A kezdőállapotból ténylegesen bejárható állapotok halmaza.
+
+    Az átmeneti gráf szélességi bejárása. Azért van kódban és nem csak
+    tesztben, mert így egy új állapot bevezetésekor azonnal kiderül, ha
+    nem vezet hozzá út.
+    """
+    elert = {CareerState.CEL_TISZTAZATLAN}
+    hatar = [CareerState.CEL_TISZTAZATLAN]
+    while hatar:
+        allapot = hatar.pop()
+        for (forras, _), cel in TRANSITIONS.items():
+            if forras is allapot and cel not in elert:
+                elert.add(cel)
+                hatar.append(cel)
+    return frozenset(elert)

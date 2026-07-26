@@ -22,6 +22,11 @@ export default function AuthMenu() {
 
   async function kijelentkezes() {
     await createClient().auth.signOut();
+    // A félbehagyott folyamat nyomai a böngészőben maradnának, és a következő
+    // belépő felhasználó örökölné őket ugyanezen a gépen.
+    window.localStorage.removeItem("career_pending_start");
+    window.localStorage.removeItem("career_pending_cv_import");
+    window.localStorage.removeItem("career_pending_message");
     router.replace("/");
     router.refresh();
   }

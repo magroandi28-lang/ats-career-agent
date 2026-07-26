@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AuthMenu from "./AuthMenu";
-import InlineAuth from "./InlineAuth";
+import FolyamatPanel from "./FolyamatPanel";
 import ProfileGate from "./ProfileGate";
 import { apiFetch } from "../lib/api";
 import { createClient } from "../lib/supabase/client";
@@ -63,12 +63,47 @@ const MODULOK = [
   { nev: "Portfólió Stúdió", jel: "05", allapot: "tervezés alatt" },
 ];
 
-const GPS_LEPESEK = [
-  { nev: "Kiindulópont", allapot: "aktiv" },
-  { nev: "Karrierprofil", allapot: "zart" },
-  { nev: "Cél és irány", allapot: "zart" },
-  { nev: "Piaci illeszkedés", allapot: "zart" },
-  { nev: "Pályázati csomag", allapot: "zart" },
+// A kulcsok a backend career_gps_snapshots.terulet értékei, a `kesz` és
+// `folyamatban` listák pedig az adott területre a tábla CHECK-jében
+// ténylegesen engedélyezett allapot-értékek. A szótár területenként eltér
+// (supabase/migrations/20260724072136_flow_career_gps_foundation.sql), ezért
+// nem egyetlen közös halmazzal dolgozunk.
+const GPS_TERULETEK = [
+  {
+    kulcs: "karriercel",
+    nev: "Cél és irány",
+    zartLeiras: "Válassz egy kiindulási módot.",
+    kesz: ["kivalasztott", "validalt"],
+    folyamatban: ["nyitott"],
+  },
+  {
+    kulcs: "profil",
+    nev: "Karrierprofil",
+    zartLeiras: "A cél kiválasztása után nyílik meg.",
+    kesz: ["megerositett"],
+    folyamatban: ["vazlat", "ellenorzendo"],
+  },
+  {
+    kulcs: "piaci_kep",
+    nev: "Piaci illeszkedés",
+    zartLeiras: "Ellenőrzött profil után nyílik meg.",
+    kesz: ["betoltve"],
+    folyamatban: ["elavult"],
+  },
+  {
+    kulcs: "felkeszultseg",
+    nev: "Felkészültség",
+    zartLeiras: "A piaci kép után nyílik meg.",
+    kesz: ["megfelelo"],
+    folyamatban: ["hianyok", "terv", "folyamatban"],
+  },
+  {
+    kulcs: "palyazas",
+    nev: "Pályázati csomag",
+    zartLeiras: "Az utolsó lépés.",
+    kesz: ["anyag_kesz", "beadas_kovetese"],
+    folyamatban: ["nincs_shortlist", "shortlist"],
+  },
 ];
 
 const KEZDO_UZENET = {
@@ -76,10 +111,6 @@ const KEZDO_UZENET = {
   szoveg:
     "Szia, Flow vagyok, a személyes karrierasszisztensed. Segítek átnézni vagy elkészíteni a CV-det, megtalálni a hozzád illő állásokat, és végigvezetlek a jelentkezés lépésein.",
 };
-
-function belepesUrl(kovetkezo = "/") {
-  return `/login?next=${encodeURIComponent(kovetkezo)}`;
-}
 
 export default function Home() {
   const [session, setSession] = useState(undefined);
@@ -89,13 +120,18 @@ export default function Home() {
   const [hiba, setHiba] = useState(null);
   const [workflowState, setWorkflowState] = useState(null);
   const [gpsNyitva, setGpsNyitva] = useState(false);
+  const [gpsTeruletek, setGpsTeruletek] = useState({});
+  const [valaszthatoLepesek, setValaszthatoLepesek] = useState([]);
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const [cvMuvelet, setCvMuvelet] = useState(null);
+  const [futoMuvelet, setFutoMuvelet] = useState(null);
+  const [belepesreVar, setBelepesreVar] = useState(false);
   const kezdoValasztasRef = useRef(null);
-  const belepesKeresRef = useRef(false);
   const folytatasRef = useRef(false);
+  const flowPanelRef = useRef(null);
+  const uzenetVegeRef = useRef(null);
+  const elsoRenderRef = useRef(true);
   const belepve = Boolean(session);
-  const belepesFuggoben = !belepve && Boolean(kezdoValasztas);
 
   useEffect(() => {
     const supabase = createClient();
@@ -108,56 +144,174 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // A GPS-panel a szerveroldali projekcióból frissül. Minden olyan művelet
+  // után újrakérjük, ami eseményt rögzíthetett -- így a panel sosem a kliens
+  // találgatása, hanem a backend rögzített állapota.
+  const gpsFrissites = useCallback(async () => {
+    try {
+      const valasz = await apiFetch("/api/v1/career-gps");
+      if (!valasz.ok) return;
+      const adat = await valasz.json();
+      const terkep = {};
+      for (const sor of adat.teruletek || []) {
+        terkep[sor.terulet] = sor.allapot;
+      }
+      setGpsTeruletek(terkep);
+    } catch {
+      // A GPS-panel kiegészítő nézet: ha nem elérhető, a folyamat mehet tovább.
+    }
+  }, []);
+
   useEffect(() => {
     if (!session) return;
     apiFetch("/api/v1/profile")
       .then((response) => (response.ok ? response.json() : null))
       .then((profile) => {
-        if (profile?.current_state) setWorkflowState(profile.current_state);
+        if (!profile) return;
+        if (profile.current_state) setWorkflowState(profile.current_state);
+        setValaszthatoLepesek(profile.available_actions || []);
       })
       .catch(() => {});
+    gpsFrissites();
+  }, [session, gpsFrissites]);
+
+  // Kijelentkezéskor a komponens nem mountolódik újra, ezért a folyamat
+  // kliensoldali nyomait kifejezetten törölni kell -- különben a kilépett
+  // felhasználó a belépésre váró panelen ragad, a következő belépő pedig
+  // az előző választásait örökölné.
+  useEffect(() => {
+    if (session !== null) return;
+    folytatasRef.current = false;
+    kezdoValasztasRef.current = null;
+    setKezdoValasztas(null);
+    setCvMuvelet(null);
+    setWorkflowState(null);
+    setGpsTeruletek({});
+    setValaszthatoLepesek([]);
+    setBelepesreVar(false);
+    setUzenetek([KEZDO_UZENET]);
+    setSzoveg("");
+    setHiba(null);
   }, [session]);
 
   useEffect(() => {
     if (!session || folytatasRef.current) return;
+
+    // A belépés előtt begépelt üzenet visszakerül a mezőbe. Szándékosan
+    // nem küldjük el automatikusan: a modellhívás pénzbe kerül, azt a
+    // felhasználó indítsa el kifejezetten.
+    const megorzottUzenet = window.localStorage.getItem(
+      "career_pending_message",
+    );
+    if (megorzottUzenet) {
+      window.localStorage.removeItem("career_pending_message");
+      setSzoveg(megorzottUzenet);
+    }
+
     const fuggoben = window.localStorage.getItem("career_pending_start");
     if (fuggoben !== "cv") return;
 
     folytatasRef.current = true;
     window.localStorage.removeItem("career_pending_start");
     kezdoValasztasRef.current = "cv";
-    belepesKeresRef.current = false;
     setKezdoValasztas("cv");
   }, [session]);
 
-  const gpsStatusz = useMemo(
-    () => (belepve ? "Profilindításra kész" : "Vendég mód"),
-    [belepve],
+  // A Flow-panel 500 pixelnél magasabb, ezért nézetváltáskor a változás
+  // könnyen a képernyőn kívülre esik: a felhasználó kattint, dolgozik a
+  // rendszer, de ő ebből semmit nem lát. Ezért minden nézetváltásnál a
+  // panel tetejére görgetünk -- az első betöltéskor viszont nem, mert ott
+  // nincs mit megmutatni.
+  useEffect(() => {
+    if (elsoRenderRef.current) {
+      elsoRenderRef.current = false;
+      return;
+    }
+    flowPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [kezdoValasztas, cvMuvelet]);
+
+  // Új üzenetnél a beszélgetés aljára: enélkül Flow válasza a látható
+  // terület fölött jelenik meg, és úgy tűnik, mintha semmi nem történt volna.
+  useEffect(() => {
+    if (uzenetek.length <= 1) return;
+    uzenetVegeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [uzenetek, kuldesFolyamatban]);
+
+  const gpsLepesek = useMemo(() => {
+    let elsoNyitottMegvolt = false;
+    return GPS_TERULETEK.map((terulet) => {
+      const allapot = gpsTeruletek[terulet.kulcs];
+      if (terulet.kesz.includes(allapot)) return { ...terulet, allapot: "kesz" };
+      if (terulet.folyamatban.includes(allapot)) {
+        elsoNyitottMegvolt = true;
+        return { ...terulet, allapot: "folyamatban" };
+      }
+      if (!elsoNyitottMegvolt) {
+        elsoNyitottMegvolt = true;
+        return { ...terulet, allapot: "aktiv" };
+      }
+      return { ...terulet, allapot: "zart" };
+    });
+  }, [gpsTeruletek]);
+
+  const keszSzazalek = useMemo(() => {
+    const kesz = gpsLepesek.filter((lepes) => lepes.allapot === "kesz").length;
+    return Math.round((kesz / gpsLepesek.length) * 100);
+  }, [gpsLepesek]);
+
+  const kovetkezoLepes = useMemo(
+    () => gpsLepesek.find((lepes) => lepes.allapot !== "kesz") || null,
+    [gpsLepesek],
   );
 
-  function belepesKeres() {
-    if (belepesKeresRef.current) return;
-    belepesKeresRef.current = true;
+  const gpsStatusz = useMemo(() => {
+    if (!belepve) return "Vendég mód";
+    if (keszSzazalek === 100) return "Karrierút összeállt";
+    return keszSzazalek > 0 ? `${keszSzazalek}% kész` : "Profilindításra kész";
+  }, [belepve, keszSzazalek]);
+
+  // Vendég módban nem néma átirányítás történik: Flow válaszol a
+  // beszélgetésben, és onnan hívja belépésre a felhasználót. Modellhívás
+  // itt nincs -- a szöveg fix, a válasz azonnali és ingyenes.
+  function vendegetBelepesreHiv(felhasznaloSzoveg, flowValasz, megorzendo) {
+    for (const [kulcs, ertek] of Object.entries(megorzendo)) {
+      window.localStorage.setItem(kulcs, ertek);
+    }
+    setUzenetek((elozo) => [
+      ...elozo,
+      { szerep: "user", szoveg: felhasznaloSzoveg },
+      { szerep: "flow", szoveg: flowValasz },
+    ]);
+    setSzoveg("");
+    setBelepesreVar(true);
   }
 
   function kezdoLepesValasztasa(lepes) {
     if (kezdoValasztasRef.current || kuldesFolyamatban) return;
-    kezdoValasztasRef.current = lepes.id;
-    setKezdoValasztas(lepes.id);
-    if (lepes.id === "cv") {
-      if (!belepve) {
-        window.localStorage.setItem("career_pending_start", "cv");
-        belepesKeres();
-        return;
-      }
+
+    if (!belepve) {
+      vendegetBelepesreHiv(
+        lepes.cim,
+        lepes.id === "cv"
+          ? "Szívesen nekilátok a CV-dnek! Előbb viszont lépj be vagy regisztrálj — a CV személyes adat, és csak fiókkal tudom biztonságosan kezelni és elmenteni neked. A választásod megmarad."
+          : "Szívesen segítek ebben! Ahhoz, hogy a válaszaimat és a karrierutadat el is tudjam menteni, előbb lépj be vagy regisztrálj. A választásod megmarad.",
+        lepes.id === "cv"
+          ? { career_pending_start: "cv" }
+          : { career_pending_message: lepes.cim },
+      );
       return;
     }
+
+    kezdoValasztasRef.current = lepes.id;
+    setKezdoValasztas(lepes.id);
+    if (lepes.id === "cv") return;
     uzenetKuldese(lepes.cim);
   }
 
   async function cvMuveletValasztasa(muvelet) {
     if (cvMuvelet || kuldesFolyamatban) return;
     setHiba(null);
+    setFutoMuvelet(muvelet.id);
     setKuldesFolyamatban(true);
 
     try {
@@ -170,9 +324,12 @@ export default function Home() {
       const dontes = await valasz.json();
       setCvMuvelet(muvelet.id);
       setWorkflowState(dontes.current_state);
+      setValaszthatoLepesek(dontes.available_actions || []);
+      gpsFrissites();
     } catch {
       setHiba("A CV-művelet indítása nem sikerült. Próbáld újra.");
     } finally {
+      setFutoMuvelet(null);
       setKuldesFolyamatban(false);
     }
   }
@@ -197,15 +354,18 @@ export default function Home() {
     }
     window.localStorage.removeItem("career_pending_start");
     window.localStorage.removeItem("career_pending_cv_import");
+    window.localStorage.removeItem("career_pending_message");
     kezdoValasztasRef.current = null;
-    belepesKeresRef.current = false;
     setKezdoValasztas(null);
     setCvMuvelet(null);
     setWorkflowState(null);
+    setValaszthatoLepesek([]);
+    setBelepesreVar(false);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
     setKuldesFolyamatban(false);
+    gpsFrissites();
   }
 
   async function uzenetKuldese(uzenetSzoveg) {
@@ -213,12 +373,13 @@ export default function Home() {
     if (!tiszta || kuldesFolyamatban) return;
 
     if (!belepve) {
-      if (!kezdoValasztasRef.current) {
-        kezdoValasztasRef.current = "szabad-szoveg";
-        setKezdoValasztas("szabad-szoveg");
-      }
-      setSzoveg("");
-      belepesKeres();
+      // Nem indul modellhívás: a vendég szövegét eltesszük, és a belépés
+      // után visszaadjuk. Fizetős hívás csak bejelentkezve történik.
+      vendegetBelepesreHiv(
+        tiszta,
+        "Köszönöm, elolvastam! Mielőtt nekilátunk, lépj be vagy regisztrálj — így tudom megjegyezni, amit mondasz, és elmenteni a karrierutadat. Amit beírtál, megmarad.",
+        { career_pending_message: tiszta },
+      );
       return;
     }
 
@@ -250,6 +411,7 @@ export default function Home() {
         { szerep: "flow", szoveg: dontes.response_message || "" },
       ]);
       setWorkflowState(dontes.current_state || null);
+      if (dontes.gps_esemeny) gpsFrissites();
     } catch {
       setHiba(
         "Flow most nem érte el a háttérrendszert. Az üzeneted megmaradt, próbáld újra később.",
@@ -276,10 +438,13 @@ export default function Home() {
       <div className="mb-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
         <div className="mb-2 flex items-center justify-between text-xs">
           <span className="text-slate-300">Karrierút készültsége</span>
-          <span className="font-semibold text-amber-200">0%</span>
+          <span className="font-semibold text-amber-200">{keszSzazalek}%</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
-          <div className="h-full w-[4%] rounded-full bg-gradient-to-r from-amber-500 to-amber-200" />
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-200 transition-[width] duration-500"
+            style={{ width: `${Math.max(keszSzazalek, 3)}%` }}
+          />
         </div>
         <p className="mt-3 text-xs leading-5 text-slate-400">
           Nem becsülünk találomra. A sáv csak ellenőrzött lépések után halad.
@@ -287,32 +452,48 @@ export default function Home() {
       </div>
 
       <ol className="space-y-1">
-        {GPS_LEPESEK.map((lepes, index) => (
-          <li key={lepes.nev} className="relative flex gap-3 pb-4">
-            {index < GPS_LEPESEK.length - 1 && (
-              <span className="absolute left-[13px] top-7 h-[calc(100%_-_18px)] w-px bg-white/10" />
+        {gpsLepesek.map((lepes, index) => (
+          <li key={lepes.kulcs} className="relative flex gap-3 pb-4">
+            {index < gpsLepesek.length - 1 && (
+              <span
+                className={`absolute left-[13px] top-7 h-[calc(100%_-_18px)] w-px ${
+                  lepes.allapot === "kesz" ? "bg-emerald-300/35" : "bg-white/10"
+                }`}
+              />
             )}
             <span
               className={`relative z-10 mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[10px] font-bold ${
-                lepes.allapot === "aktiv"
-                  ? "flow-pulse border-amber-300/60 bg-amber-300 text-slate-950"
-                  : "border-white/12 bg-slate-950/70 text-slate-500"
+                lepes.allapot === "kesz"
+                  ? "border-emerald-300/50 bg-emerald-300/15 text-emerald-200"
+                  : lepes.allapot === "folyamatban"
+                    ? "flow-pulse border-amber-300/60 bg-amber-300/20 text-amber-100"
+                    : lepes.allapot === "aktiv"
+                      ? "flow-pulse border-amber-300/60 bg-amber-300 text-slate-950"
+                      : "border-white/12 bg-slate-950/70 text-slate-500"
               }`}
             >
-              {String(index + 1).padStart(2, "0")}
+              {lepes.allapot === "kesz" ? "✓" : String(index + 1).padStart(2, "0")}
             </span>
             <div>
               <p
                 className={`text-sm font-medium ${
-                  lepes.allapot === "aktiv" ? "text-amber-100" : "text-slate-400"
+                  lepes.allapot === "kesz"
+                    ? "text-emerald-100"
+                    : lepes.allapot === "zart"
+                      ? "text-slate-400"
+                      : "text-amber-100"
                 }`}
               >
                 {lepes.nev}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                {lepes.allapot === "aktiv"
-                  ? "Válassz egy kiindulási módot."
-                  : "Az előző lépés után nyílik meg."}
+                {lepes.allapot === "kesz"
+                  ? "Ellenőrzött és rögzített."
+                  : lepes.allapot === "folyamatban"
+                    ? "Megkezdve, még nincs jóváhagyva."
+                    : lepes.allapot === "aktiv"
+                      ? lepes.zartLeiras
+                      : "Az előző lépés után nyílik meg."}
               </p>
             </div>
           </li>
@@ -324,9 +505,11 @@ export default function Home() {
           Következő lépés
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-200">
-          {belepve
-            ? "Mondd el Flow-nak, hogy van-e már CV-d."
-            : "A személyes karrierút indításához jelentkezz be."}
+          {!belepve
+            ? "Fiók nélkül körülnézhetsz és beírhatod, miben segítsünk. A CV-d, a karrierutad és Flow válaszai fiókhoz kötöttek."
+            : kovetkezoLepes
+              ? `${kovetkezoLepes.nev} — ${kovetkezoLepes.zartLeiras}`
+              : "Minden szakasz ellenőrizve. Készen állsz a pályázásra."}
         </p>
       </div>
     </aside>
@@ -381,7 +564,10 @@ export default function Home() {
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.72fr)]">
           <section className="min-w-0">
-            <div className="glass-panel overflow-hidden rounded-3xl">
+            <div
+              ref={flowPanelRef}
+              className="glass-panel scroll-mt-6 overflow-hidden rounded-3xl"
+            >
               <div className="flex items-center justify-between gap-4 border-b border-white/8 px-5 py-4 sm:px-6">
                 <div className="flex items-center gap-3">
                   <span className="flow-pulse h-2.5 w-2.5 rounded-full bg-amber-300" />
@@ -397,29 +583,7 @@ export default function Home() {
                 </span>
               </div>
 
-              {belepesFuggoben ? (
-                <section className="flex min-h-[500px] flex-col justify-center px-6 py-10 sm:px-12">
-                  <button
-                    type="button"
-                    onClick={kezdoAllapotVisszaallitasa}
-                    className="mb-8 w-fit text-xs font-semibold text-slate-400 hover:text-amber-100"
-                  >
-                    ← Vissza a kezdéshez
-                  </button>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-300/70">
-                    Védett személyes folyamat
-                  </p>
-                  <h3 className="mt-3 max-w-xl font-serif text-3xl leading-tight text-white">
-                    Lépj be a személyes CV-folyamat folytatásához
-                  </h3>
-                  <p className="mt-4 max-w-xl text-sm leading-6 text-slate-400">
-                    A CV személyes adatokat tartalmaz. A fiók biztosítja, hogy
-                    csak te férj hozzá a feltöltött dokumentumhoz és a mentett
-                    karrierutadhoz.
-                  </p>
-                  <InlineAuth />
-                </section>
-              ) : kezdoValasztas === "cv" && belepve ? (
+              {kezdoValasztas === "cv" && belepve ? (
                 <section className="min-h-[500px] px-5 py-6 sm:px-8 sm:py-8">
                   <button
                     type="button"
@@ -451,13 +615,35 @@ export default function Home() {
                           type="button"
                           onClick={() => cvMuveletValasztasa(muvelet)}
                           disabled={kuldesFolyamatban}
-                          className="group min-h-40 rounded-2xl border border-white/10 bg-white/[0.025] p-5 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
+                          aria-busy={futoMuvelet === muvelet.id}
+                          className={`group min-h-40 rounded-2xl border p-5 text-left transition ${
+                            futoMuvelet === muvelet.id
+                              ? "border-amber-300/60 bg-amber-300/10"
+                              : "border-white/10 bg-white/[0.025] hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05]"
+                          } ${
+                            futoMuvelet && futoMuvelet !== muvelet.id
+                              ? "opacity-30"
+                              : ""
+                          } disabled:cursor-not-allowed`}
                         >
-                          <span className="text-sm font-semibold text-slate-100 group-hover:text-amber-100">
+                          <span
+                            className={`text-sm font-semibold ${
+                              futoMuvelet === muvelet.id
+                                ? "text-amber-100"
+                                : "text-slate-100 group-hover:text-amber-100"
+                            }`}
+                          >
                             {muvelet.cim}
                           </span>
                           <span className="mt-3 block text-xs leading-5 text-slate-500">
-                            {muvelet.leiras}
+                            {futoMuvelet === muvelet.id ? (
+                              <span className="inline-flex items-center gap-2 text-amber-200/80">
+                                <span className="flow-pulse h-1.5 w-1.5 rounded-full bg-amber-300" />
+                                Indítás…
+                              </span>
+                            ) : (
+                              muvelet.leiras
+                            )}
                           </span>
                         </button>
                       ))}
@@ -496,13 +682,26 @@ export default function Home() {
                       ].includes(workflowState) && (
                         <ProfileGate
                           embedded
-                          onStateChange={(result) =>
+                          onStateChange={(result) => {
                             setWorkflowState(
                               result.current_state || workflowState,
-                            )
-                          }
+                            );
+                            setValaszthatoLepesek(
+                              result.available_actions || [],
+                            );
+                            gpsFrissites();
+                          }}
                         />
                       )}
+
+                      <FolyamatPanel
+                        availableActions={valaszthatoLepesek}
+                        onStateChange={(result) => {
+                          setWorkflowState(result.current_state);
+                          setValaszthatoLepesek(result.available_actions || []);
+                          gpsFrissites();
+                        }}
+                      />
                     </div>
                   )}
 
@@ -527,10 +726,27 @@ export default function Home() {
                     </div>
                   ))}
                   {kuldesFolyamatban && (
-                    <div className="max-w-[82%] rounded-2xl border border-amber-300/12 bg-amber-300/[0.05] px-4 py-3 text-sm text-slate-400">
+                    <div className="flex max-w-[82%] items-center gap-2.5 rounded-2xl border border-amber-300/12 bg-amber-300/[0.05] px-4 py-3 text-sm text-slate-400">
+                      <span className="flow-pulse h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
                       Flow feldolgozza a következő lépést…
                     </div>
                   )}
+                  {belepesreVar && !belepve && (
+                    <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
+                      <p className="text-xs leading-5 text-amber-100/80">
+                        Egy perc az egész, és utána pontosan onnan folytatjuk,
+                        ahol abbahagytuk.
+                      </p>
+                      <Link
+                        href="/login?next=%2F"
+                        className="mt-3 inline-block rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200"
+                      >
+                        Belépés vagy regisztráció →
+                      </Link>
+                    </div>
+                  )}
+
+                  <div ref={uzenetVegeRef} />
 
                   <form
                     onSubmit={(event) => {
@@ -546,7 +762,6 @@ export default function Home() {
                       id="flow-message"
                       value={szoveg}
                       onChange={(event) => setSzoveg(event.target.value)}
-                      disabled={!belepve}
                       onKeyDown={(event) => {
                         if (
                           event.key === "Enter" &&
@@ -560,7 +775,7 @@ export default function Home() {
                       placeholder={
                         belepve
                           ? "Írd le néhány mondatban, hol tartasz és miben segítsek…"
-                          : "A személyes Flow-beszélgetéshez jelentkezz be."
+                          : "Írd le, miben segítsek — küldés előtt belépünk, a szöveged megmarad."
                       }
                       rows={7}
                       maxLength={4000}
@@ -571,29 +786,16 @@ export default function Home() {
                     </div>
                     <button
                       type="submit"
-                      disabled={
-                        !belepve || kuldesFolyamatban || !szoveg.trim()
-                      }
+                      disabled={kuldesFolyamatban || !szoveg.trim()}
                       className="absolute bottom-3 right-3 rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      {kuldesFolyamatban ? "Küldés…" : "Küldés"}
+                      {kuldesFolyamatban
+                        ? "Küldés…"
+                        : belepve
+                          ? "Küldés"
+                          : "Belépés és küldés"}
                     </button>
                   </form>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-xs leading-5 text-slate-500">
-                    <span>
-                      A nyitóoldal fiók nélkül böngészhető. Flow személyes
-                      segítsége és az adatok mentése bejelentkezést igényel.
-                    </span>
-                    {!belepve && (
-                      <Link
-                        href={belepesUrl("/")}
-                        className="shrink-0 font-semibold text-amber-200 hover:text-amber-100"
-                      >
-                        Belépés vagy regisztráció →
-                      </Link>
-                    )}
-                  </div>
 
                   <div className="pt-1">
                     <p className="mb-3 text-xs font-medium text-slate-500">
