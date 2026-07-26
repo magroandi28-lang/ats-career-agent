@@ -218,7 +218,10 @@ export default function LoginPage() {
                     <input
                       id="keresztnev"
                       type="text"
-                      autoComplete="given-name"
+                      /* A böngésző „keresztnév" bejegyzése gyakran a
+                         vezetéknevet tartalmazza, és így rossz néven
+                         szólítanánk a felhasználót. Ne találgasson. */
+                      autoComplete="off"
                       required
                       maxLength={80}
                       value={keresztnev}

@@ -206,7 +206,7 @@ function MegszolitasMezo({ onKesz }) {
         value={nev}
         onChange={(event) => setNev(event.target.value)}
         maxLength={80}
-        autoComplete="given-name"
+        autoComplete="off"
         className="min-w-40 flex-1 rounded-xl border border-amber-300/40 bg-slate-950/70 px-3.5 py-2 text-sm text-white focus:border-amber-300/70 focus:outline-none"
       />
       <button
