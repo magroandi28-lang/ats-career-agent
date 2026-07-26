@@ -124,7 +124,7 @@ const VENDEG_UZENET = {
 /** Betűnként jeleníti meg a szöveget, mintha Flow épp írná. Kattintásra
  *  azonnal kiírja a többit; csökkentett animációt kérő beállításnál
  *  eleve nem animál. */
-function GepeloSzoveg({ szoveg, sebessegMs = 14 }) {
+function GepeloSzoveg({ szoveg, sebessegMs = 32 }) {
   const [hossz, setHossz] = useState(0);
 
   useEffect(() => {
@@ -287,7 +287,12 @@ export default function Home() {
   // terület fölött jelenik meg, és úgy tűnik, mintha semmi nem történt volna.
   useEffect(() => {
     if (uzenetek.length <= 1) return;
-    uzenetVegeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    // `nearest`: csak annyit görget, amennyi tényleg kell. A `end` mindig
+    // az aljára rántotta a nézetet, ettől ugrott egyet az oldal küldéskor.
+    uzenetVegeRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
   }, [uzenetek, kuldesFolyamatban]);
 
   const gpsLepesek = useMemo(() => {
