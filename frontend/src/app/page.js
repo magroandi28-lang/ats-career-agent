@@ -121,7 +121,7 @@ const VENDEG_UZENET = {
   gepel: true,
   // Az érkezéskori köszöntő lassabban íródik, hogy a látogató észrevegye.
   // A későbbi válaszok az alapértelmezett, gyorsabb ütemet kapják.
-  gepelSebesseg: 45,
+  gepelSebesseg: 60,
 };
 
 /** Betűnként jeleníti meg a szöveget, mintha Flow épp írná. Kattintásra
