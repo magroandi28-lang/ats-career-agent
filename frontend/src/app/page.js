@@ -129,9 +129,13 @@ export default function Home() {
   const [valaszthatoLepesek, setValaszthatoLepesek] = useState([]);
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const [cvMuvelet, setCvMuvelet] = useState(null);
+  const [futoMuvelet, setFutoMuvelet] = useState(null);
   const kezdoValasztasRef = useRef(null);
   const belepesKeresRef = useRef(false);
   const folytatasRef = useRef(false);
+  const flowPanelRef = useRef(null);
+  const uzenetVegeRef = useRef(null);
+  const elsoRenderRef = useRef(true);
   const belepve = Boolean(session);
   const belepesFuggoben = !belepve && Boolean(kezdoValasztas);
 
@@ -208,6 +212,26 @@ export default function Home() {
     setKezdoValasztas("cv");
   }, [session]);
 
+  // A Flow-panel 500 pixelnél magasabb, ezért nézetváltáskor a változás
+  // könnyen a képernyőn kívülre esik: a felhasználó kattint, dolgozik a
+  // rendszer, de ő ebből semmit nem lát. Ezért minden nézetváltásnál a
+  // panel tetejére görgetünk -- az első betöltéskor viszont nem, mert ott
+  // nincs mit megmutatni.
+  useEffect(() => {
+    if (elsoRenderRef.current) {
+      elsoRenderRef.current = false;
+      return;
+    }
+    flowPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [kezdoValasztas, cvMuvelet, belepesFuggoben]);
+
+  // Új üzenetnél a beszélgetés aljára: enélkül Flow válasza a látható
+  // terület fölött jelenik meg, és úgy tűnik, mintha semmi nem történt volna.
+  useEffect(() => {
+    if (uzenetek.length <= 1) return;
+    uzenetVegeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [uzenetek, kuldesFolyamatban]);
+
   const gpsLepesek = useMemo(() => {
     let elsoNyitottMegvolt = false;
     return GPS_TERULETEK.map((terulet) => {
@@ -264,6 +288,7 @@ export default function Home() {
   async function cvMuveletValasztasa(muvelet) {
     if (cvMuvelet || kuldesFolyamatban) return;
     setHiba(null);
+    setFutoMuvelet(muvelet.id);
     setKuldesFolyamatban(true);
 
     try {
@@ -281,6 +306,7 @@ export default function Home() {
     } catch {
       setHiba("A CV-művelet indítása nem sikerült. Próbáld újra.");
     } finally {
+      setFutoMuvelet(null);
       setKuldesFolyamatban(false);
     }
   }
@@ -513,7 +539,10 @@ export default function Home() {
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.72fr)]">
           <section className="min-w-0">
-            <div className="glass-panel overflow-hidden rounded-3xl">
+            <div
+              ref={flowPanelRef}
+              className="glass-panel scroll-mt-6 overflow-hidden rounded-3xl"
+            >
               <div className="flex items-center justify-between gap-4 border-b border-white/8 px-5 py-4 sm:px-6">
                 <div className="flex items-center gap-3">
                   <span className="flow-pulse h-2.5 w-2.5 rounded-full bg-amber-300" />
@@ -583,13 +612,35 @@ export default function Home() {
                           type="button"
                           onClick={() => cvMuveletValasztasa(muvelet)}
                           disabled={kuldesFolyamatban}
-                          className="group min-h-40 rounded-2xl border border-white/10 bg-white/[0.025] p-5 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
+                          aria-busy={futoMuvelet === muvelet.id}
+                          className={`group min-h-40 rounded-2xl border p-5 text-left transition ${
+                            futoMuvelet === muvelet.id
+                              ? "border-amber-300/60 bg-amber-300/10"
+                              : "border-white/10 bg-white/[0.025] hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05]"
+                          } ${
+                            futoMuvelet && futoMuvelet !== muvelet.id
+                              ? "opacity-30"
+                              : ""
+                          } disabled:cursor-not-allowed`}
                         >
-                          <span className="text-sm font-semibold text-slate-100 group-hover:text-amber-100">
+                          <span
+                            className={`text-sm font-semibold ${
+                              futoMuvelet === muvelet.id
+                                ? "text-amber-100"
+                                : "text-slate-100 group-hover:text-amber-100"
+                            }`}
+                          >
                             {muvelet.cim}
                           </span>
                           <span className="mt-3 block text-xs leading-5 text-slate-500">
-                            {muvelet.leiras}
+                            {futoMuvelet === muvelet.id ? (
+                              <span className="inline-flex items-center gap-2 text-amber-200/80">
+                                <span className="flow-pulse h-1.5 w-1.5 rounded-full bg-amber-300" />
+                                Indítás…
+                              </span>
+                            ) : (
+                              muvelet.leiras
+                            )}
                           </span>
                         </button>
                       ))}
@@ -672,10 +723,12 @@ export default function Home() {
                     </div>
                   ))}
                   {kuldesFolyamatban && (
-                    <div className="max-w-[82%] rounded-2xl border border-amber-300/12 bg-amber-300/[0.05] px-4 py-3 text-sm text-slate-400">
+                    <div className="flex max-w-[82%] items-center gap-2.5 rounded-2xl border border-amber-300/12 bg-amber-300/[0.05] px-4 py-3 text-sm text-slate-400">
+                      <span className="flow-pulse h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
                       Flow feldolgozza a következő lépést…
                     </div>
                   )}
+                  <div ref={uzenetVegeRef} />
 
                   <form
                     onSubmit={(event) => {
