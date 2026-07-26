@@ -157,6 +157,67 @@ function GepeloSzoveg({ szoveg, sebessegMs = 18 }) {
   );
 }
 
+/** Apró mező Flow kérdése alatt: a megszólítás mentése a profilba.
+ *  A meglévő vázlat + megerősítés végpontokat használja, tehát ugyanaz
+ *  az út, mint bármely más profiladatnál. A nevet szándékosan nem a
+ *  modell nyeri ki a mondatból -- azt beírod, és úgy kerül be. */
+function MegszolitasMezo({ onKesz }) {
+  const [nev, setNev] = useState("");
+  const [dolgozik, setDolgozik] = useState(false);
+  const [hiba, setHiba] = useState(null);
+
+  async function mentes(event) {
+    event.preventDefault();
+    const tiszta = nev.trim();
+    if (!tiszta || dolgozik) return;
+    setDolgozik(true);
+    setHiba(null);
+    try {
+      const vazlat = await apiFetch("/api/v1/profile/draft", {
+        method: "PATCH",
+        body: JSON.stringify({ fields: { display_name: tiszta } }),
+      });
+      if (!vazlat.ok) throw new Error("vazlat");
+      const megerosites = await apiFetch("/api/v1/profile/confirm", {
+        method: "POST",
+        body: JSON.stringify({
+          fields: ["display_name"],
+          reason: "user_confirmation",
+        }),
+      });
+      if (!megerosites.ok) throw new Error("megerosites");
+      onKesz(tiszta);
+    } catch {
+      setHiba("A név mentése nem sikerült. Próbáld újra.");
+      setDolgozik(false);
+    }
+  }
+
+  return (
+    <form onSubmit={mentes} className="mt-3 flex flex-wrap items-center gap-2">
+      <label htmlFor="megszolitas" className="sr-only">
+        Megszólítás
+      </label>
+      <input
+        id="megszolitas"
+        value={nev}
+        onChange={(event) => setNev(event.target.value)}
+        maxLength={80}
+        autoComplete="given-name"
+        className="min-w-40 flex-1 rounded-xl border border-amber-300/40 bg-slate-950/70 px-3.5 py-2 text-sm text-white focus:border-amber-300/70 focus:outline-none"
+      />
+      <button
+        type="submit"
+        disabled={dolgozik || !nev.trim()}
+        className="rounded-xl bg-amber-300 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-200 disabled:opacity-40"
+      >
+        {dolgozik ? "Mentés…" : "Mentés"}
+      </button>
+      {hiba && <span className="w-full text-xs text-red-200">{hiba}</span>}
+    </form>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const [session, setSession] = useState(undefined);
@@ -519,7 +580,14 @@ export default function Home() {
 
       setUzenetek((elozo) => [
         ...elozo,
-        { szerep: "flow", szoveg: dontes.response_message || "" },
+        {
+          szerep: "flow",
+          szoveg: dontes.response_message || "",
+          // Ha Flow a nevet kéri, alatta egy apró mező jelenik meg. A nevet
+          // szándékosan nem a modell nyeri ki a mondatból: azt beírod, és
+          // úgy kerül a profilba.
+          nevetKer: (dontes.required_fields || []).includes("display_name"),
+        },
       ]);
       setWorkflowState(dontes.current_state || null);
       if (dontes.gps_esemeny) gpsFrissites();
@@ -841,6 +909,25 @@ export default function Home() {
                       ) : (
                         uzenet.szoveg
                       )}
+                      {belepve &&
+                        uzenet.nevetKer &&
+                        index === uzenetek.length - 1 && (
+                          <MegszolitasMezo
+                            onKesz={(nev) =>
+                              setUzenetek((elozo) =>
+                                elozo.map((sor, i) =>
+                                  i === elozo.length - 1
+                                    ? {
+                                        ...sor,
+                                        nevetKer: false,
+                                        szoveg: `${sor.szoveg}\n\nRendben, mostantól így szólítalak: ${nev}.`,
+                                      }
+                                    : sor,
+                                ),
+                              )
+                            }
+                          />
+                        )}
                       {!belepve &&
                         uzenet.szerep === "flow" &&
                         index === uzenetek.length - 1 && (
