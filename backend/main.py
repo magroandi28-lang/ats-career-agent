@@ -72,6 +72,7 @@ from backend.cv_import_service import (
     cv_import_get,
     cv_import_mark_approved,
 )
+from backend.app_ismeret import alkalmazas_ismeret
 from backend.workflow_actions import (
     ActionContext,
     ActionError,
@@ -719,7 +720,9 @@ def flow_uzenet_vegpont(
     dontes = flow_dontes(
         bemenet.kerdes,
         server_profile,
-        bemenet.app_ismeret,
+        # Szándékosan NEM a kliens által küldött szöveg: az alkalmazás
+        # leírása szerveroldali tény, nem a böngésző állítása.
+        alkalmazas_ismeret(),
         elozmenyek,
         current_state=previous_state,
         felhasznalo_neve=_megszolitas(felhasznalo, server_profile),
