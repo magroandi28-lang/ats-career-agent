@@ -1,22 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 
 export default function LoginPage() {
-  // A useSearchParams()-ot hasznalo tartalmat Suspense-be kell csomagolni,
-  // kulonben a production build elhasal ("should be wrapped in a suspense
-  // boundary") -- ezt csak az eles build buktatja meg, `next dev` nem jelzi.
-  return (
-    <Suspense fallback={null}>
-      <LoginPageTartalom />
-    </Suspense>
-  );
-}
-
-function LoginPageTartalom() {
   const router = useRouter();
   const searchParams = useSearchParams();
   // A `mod` query-paramétert olvassuk (pl. Flow "Regisztráció" CTA-ja
