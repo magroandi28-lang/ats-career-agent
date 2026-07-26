@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AuthMenu from "./AuthMenu";
+import FolyamatPanel from "./FolyamatPanel";
 import InlineAuth from "./InlineAuth";
 import ProfileGate from "./ProfileGate";
 import { apiFetch } from "../lib/api";
@@ -125,6 +126,7 @@ export default function Home() {
   const [workflowState, setWorkflowState] = useState(null);
   const [gpsNyitva, setGpsNyitva] = useState(false);
   const [gpsTeruletek, setGpsTeruletek] = useState({});
+  const [valaszthatoLepesek, setValaszthatoLepesek] = useState([]);
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const [cvMuvelet, setCvMuvelet] = useState(null);
   const kezdoValasztasRef = useRef(null);
@@ -167,7 +169,9 @@ export default function Home() {
     apiFetch("/api/v1/profile")
       .then((response) => (response.ok ? response.json() : null))
       .then((profile) => {
-        if (profile?.current_state) setWorkflowState(profile.current_state);
+        if (!profile) return;
+        if (profile.current_state) setWorkflowState(profile.current_state);
+        setValaszthatoLepesek(profile.available_actions || []);
       })
       .catch(() => {});
     gpsFrissites();
@@ -186,6 +190,7 @@ export default function Home() {
     setCvMuvelet(null);
     setWorkflowState(null);
     setGpsTeruletek({});
+    setValaszthatoLepesek([]);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
@@ -271,6 +276,7 @@ export default function Home() {
       const dontes = await valasz.json();
       setCvMuvelet(muvelet.id);
       setWorkflowState(dontes.current_state);
+      setValaszthatoLepesek(dontes.available_actions || []);
       gpsFrissites();
     } catch {
       setHiba("A CV-művelet indítása nem sikerült. Próbáld újra.");
@@ -304,6 +310,7 @@ export default function Home() {
     setKezdoValasztas(null);
     setCvMuvelet(null);
     setWorkflowState(null);
+    setValaszthatoLepesek([]);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
@@ -625,10 +632,22 @@ export default function Home() {
                             setWorkflowState(
                               result.current_state || workflowState,
                             );
+                            setValaszthatoLepesek(
+                              result.available_actions || [],
+                            );
                             gpsFrissites();
                           }}
                         />
                       )}
+
+                      <FolyamatPanel
+                        availableActions={valaszthatoLepesek}
+                        onStateChange={(result) => {
+                          setWorkflowState(result.current_state);
+                          setValaszthatoLepesek(result.available_actions || []);
+                          gpsFrissites();
+                        }}
+                      />
                     </div>
                   )}
 

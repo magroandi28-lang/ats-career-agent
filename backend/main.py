@@ -494,6 +494,7 @@ def workflow_intent_vegpont(
     )
 
     return {
+        **_akcio_lista(target_state),
         "ok": True,
         "intent": bemenet.intent.value,
         "previous_state": previous_state.value,
@@ -596,14 +597,12 @@ def workflow_action_vegpont(
         )
 
     return {
+        **_akcio_lista(target_state),
         "ok": True,
         "action": bemenet.action.value,
         "previous_state": previous_state.value,
         "current_state": target_state.value,
         "state_changed": target_state != previous_state,
-        "allowed_actions": [
-            action.value for action in allowed_actions(target_state)
-        ],
         "result": outcome.result,
     }
 
@@ -732,6 +731,24 @@ class CvImportReviewBemenet(ApiModel):
     approved_text: str = Field(min_length=1, max_length=120_000)
 
 
+def _akcio_lista(state: CareerState | None) -> dict:
+    """Mit enged az állapotgép, és abból mi van ténylegesen bekötve.
+
+    A kettő szándékosan külön: az `allowed_actions` a kanonikus terv
+    szerinti lehetőség, az `available_actions` az, amire ma van modul.
+    A felület csak az utóbbit kínálja fel, így nem fut 501-be.
+    """
+    if state is None:
+        return {"allowed_actions": [], "available_actions": []}
+    engedett = allowed_actions(state)
+    return {
+        "allowed_actions": [akcio.value for akcio in engedett],
+        "available_actions": [
+            akcio.value for akcio in engedett if vegrehajthato(akcio)
+        ],
+    }
+
+
 def _active_intent_and_readiness(user_id: str, session_id: str | None, profile: dict):
     workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
     intent = None
@@ -756,7 +773,14 @@ def profile_get_vegpont(felhasznalo=Depends(jelenlegi_felhasznalo)):
     workflow, intent, readiness = _active_intent_and_readiness(
         user_id, session_id, profile
     )
+    aktualis_allapot = None
+    if workflow and workflow.get("current_state"):
+        try:
+            aktualis_allapot = CareerState(workflow["current_state"])
+        except ValueError:
+            aktualis_allapot = None
     return {
+        **_akcio_lista(aktualis_allapot),
         "id": profile["id"],
         "draft_data": profile.get("draft_data") or {},
         "draft_version": profile.get("draft_version", 0),
@@ -859,6 +883,7 @@ def profile_confirm_vegpont(
         event_id,
     )
     return {
+        **_akcio_lista(current_state),
         "ok": True,
         "snapshot_id": snapshot["id"],
         "snapshot_version": snapshot["version"],
