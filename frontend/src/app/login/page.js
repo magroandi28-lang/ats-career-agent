@@ -5,10 +5,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 
+// Az adatkezelési tájékoztató aktuális változata. Ha a tájékoztató
+// érdemben változik, ezt is emelni kell, és a meglévő felhasználóktól
+// újra be kell kérni a hozzájárulást.
+const ADATKEZELES_VERZIO = "2026-07-26";
+
 export default function LoginPage() {
   const router = useRouter();
   const [mod, setMod] = useState("belepes");
   const [keresztnev, setKeresztnev] = useState("");
+  const [elfogadva, setElfogadva] = useState(false);
 
   // A `?mod=regisztracio` paraméterrel érkezőt rögtön a regisztrációs
   // űrlapon fogadjuk (Flow „Regisztráció" gombja így hivatkozik ide).
@@ -88,7 +94,13 @@ export default function LoginPage() {
               options: {
                 // Ugyanabba a mezőbe kerül, amit a Google-belépés is tölt,
                 // így Flow-nak egyetlen névforrása van, nem kettő.
-                data: { given_name: keresztnev.trim() },
+                data: {
+                  given_name: keresztnev.trim(),
+                  // A hozzájárulás nyoma: mikor és melyik szövegváltozatra
+                  // adta. Verzióváltáskor újra be kell kérni.
+                  gdpr_consent_version: ADATKEZELES_VERZIO,
+                  gdpr_consent_at: new Date().toISOString(),
+                },
                 emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(
                   kovetkezoOldal(),
                 )}`,
@@ -157,7 +169,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={googleBelepes}
-                disabled={dolgozik}
+                disabled={dolgozik || (mod === "regisztracio" && !elfogadva)}
                 className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-slate-100 hover:border-amber-300/40 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
@@ -271,9 +283,33 @@ export default function LoginPage() {
                 </div>
 
                 {mod === "regisztracio" && (
-                  <p className="mt-2 text-xs text-slate-500">
-                    Legalább 12 karakter. Soha ne használd másik fiókod jelszavát.
-                  </p>
+                  <>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Legalább 12 karakter. Soha ne használd másik fiókod jelszavát.
+                    </p>
+
+                    <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-xs leading-5 text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={elfogadva}
+                        onChange={(event) => setElfogadva(event.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-amber-300"
+                      />
+                      <span>
+                        Elolvastam és elfogadom az{" "}
+                        <Link
+                          href="/adatkezeles"
+                          target="_blank"
+                          className="font-semibold text-amber-200 underline hover:text-amber-100"
+                        >
+                          adatkezelési tájékoztatót
+                        </Link>
+                        . Tudomásul veszem, hogy a CV-m és a Flow-val folytatott
+                        beszélgetésem a válasz elkészítéséhez a Google Gemini
+                        szolgáltatásába kerül.
+                      </span>
+                    </label>
+                  </>
                 )}
 
                 {hiba && (
@@ -295,7 +331,7 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={dolgozik}
+                  disabled={dolgozik || (mod === "regisztracio" && !elfogadva)}
                   className="mt-6 w-full rounded-xl bg-[#b08d57] px-4 py-[15px] text-sm font-bold text-[#1e1206] hover:bg-[#c29c63] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {dolgozik

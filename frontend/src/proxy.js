@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { updateSession } from "./lib/supabase/proxy";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/auth/confirm"]);
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/login",
+  "/auth/confirm",
+  // A tájékoztatót a regisztráció ELŐTT kell tudni elolvasni.
+  "/adatkezeles",
+]);
 
 export async function proxy(request) {
   const { response, claims } = await updateSession(request);
