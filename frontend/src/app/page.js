@@ -985,19 +985,6 @@ export default function Home() {
                           Elmentve: {uzenet.nevMentve}
                         </p>
                       )}
-                      {uzenet.megerositendoIntent &&
-                        index === uzenetek.length - 1 && (
-                          <button
-                            type="button"
-                            disabled={kuldesFolyamatban}
-                            onClick={() =>
-                              celMegerositese(uzenet.megerositendoIntent)
-                            }
-                            className="mt-3 rounded-full bg-amber-300 px-4 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-200 disabled:opacity-40"
-                          >
-                            Igen, ez a célom
-                          </button>
-                        )}
                       {uzenet.eredmeny && (
                         <div className="mt-3 rounded-xl border border-white/8 bg-black/25 p-4">
                           <FlowEredmeny
