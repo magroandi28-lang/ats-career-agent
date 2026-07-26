@@ -4,6 +4,16 @@ import { createClient } from "./supabase/client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
+/** Bejelentkezés nélkül hívható végpontokhoz. Tokent nem küld, és
+ *  401-nél nem irányít át -- a hívó dönti el, mit kezd a válasszal. */
+export async function publicApiFetch(path, options = {}) {
+  const headers = new Headers(options.headers);
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  return fetch(`${API_URL}${path}`, { ...options, headers });
+}
+
 export async function apiFetch(path, options = {}) {
   const supabase = createClient();
   const {

@@ -16,7 +16,7 @@ Utana a bongeszoben:
     http://localhost:8000/docs      -> automatikus, kattintgathato API-dokumentacio
 """
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,7 +33,7 @@ from agents.karrier_ugynok import (
 )
 from utils.adatbazis import kereslet_korkep, szakma_statisztika, kliens
 from utils.teszt import ENERGIA_SKALA, STRESSZ_SKALA, holland_tipus, jollet_jelzes
-from utils.flow_agy import flow_kiertekeles, flow_dontes
+from utils.flow_agy import flow_kiertekeles, flow_dontes, flow_vendeg_valasz
 from utils.flow_allapot import (
     session_lekeres_vagy_letrehozas,
     elozmenyek_lekerese,
@@ -76,7 +76,11 @@ from backend.auth import (
     friss_auth_kliens,
     jelenlegi_felhasznalo,
 )
-from backend.security import RequestSecurityMiddleware, read_validated_pdf
+from backend.security import (
+    RequestSecurityMiddleware,
+    limit_guest_ai_request,
+    read_validated_pdf,
+)
 from backend.settings import get_settings
 
 settings = get_settings()
@@ -605,6 +609,33 @@ def workflow_action_vegpont(
         "state_changed": target_state != previous_state,
         "result": outcome.result,
     }
+
+
+class FlowVendegUzenetBemenet(ApiModel):
+    """Vendégmódú (be nem jelentkezett) Flow-csevegés bemenete."""
+
+    kerdes: str = Field(min_length=1, max_length=600)
+
+
+VENDEG_ALAPERTELMEZETT_VALASZ = (
+    "Most nem érem el a válaszhoz szükséges szolgáltatást. Próbáld újra "
+    "kicsit később, vagy lépj be, és onnan folytatjuk."
+)
+
+
+@app.post("/api/v1/flow/guest-messages")
+def flow_vendeg_uzenet_vegpont(
+    bemenet: FlowVendegUzenetBemenet,
+    request: Request,
+):
+    """Vendégmódú Flow: szűk hatókör, nincs profil, nincs előzménymentés.
+
+    Ez NEM a bejelentkezett Flow (/api/v1/flow/messages): nincs mögötte
+    állapotgép, nem ír adatbázist, és nem ad személyre szabott tanácsot.
+    Bejelentkezés nélkül hívható, ezért IP-alapú korlát védi.
+    """
+    limit_guest_ai_request(request)
+    return {"valasz": flow_vendeg_valasz(bemenet.kerdes) or VENDEG_ALAPERTELMEZETT_VALASZ}
 
 
 @app.post("/api/v1/flow/messages")

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import AuthMenu from "./AuthMenu";
 import FolyamatPanel from "./FolyamatPanel";
 import ProfileGate from "./ProfileGate";
-import { apiFetch } from "../lib/api";
+import { apiFetch, publicApiFetch } from "../lib/api";
 import { createClient } from "../lib/supabase/client";
 
 const KEZDO_LEPESEK = [
@@ -112,10 +112,52 @@ const KEZDO_UZENET = {
     "Szia, Flow vagyok, a személyes karrierasszisztensed. Segítek átnézni vagy elkészíteni a CV-det, megtalálni a hozzád illő állásokat, és végigvezetlek a jelentkezés lépésein.",
 };
 
+// Vendégként Flow maga köszönt, betűnként kiírva. Fix szöveg, nincs
+// mögötte modellhívás.
+const VENDEG_UZENET = {
+  szerep: "flow",
+  szoveg:
+    "Szia! Flow vagyok. Örülök, hogy benéztél. Mondd el nyugodtan, mi jár a fejedben a munkáddal kapcsolatban — szívesen meghallgatlak. Ha regisztrálsz, sokkal többet tudok segíteni: átnézem a CV-det és végigkísérlek az egész úton. Ha már jártál itt, lépj be, és onnan folytatjuk, ahol abbahagytuk.",
+  gepel: true,
+};
+
+/** Betűnként jeleníti meg a szöveget, mintha Flow épp írná. Kattintásra
+ *  azonnal kiírja a többit; csökkentett animációt kérő beállításnál
+ *  eleve nem animál. */
+function GepeloSzoveg({ szoveg, sebessegMs = 14 }) {
+  const [hossz, setHossz] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setHossz(szoveg.length);
+      return;
+    }
+    setHossz(0);
+    const idozito = setInterval(() => {
+      setHossz((elozo) => (elozo >= szoveg.length ? elozo : elozo + 1));
+    }, sebessegMs);
+    return () => clearInterval(idozito);
+  }, [szoveg, sebessegMs]);
+
+  const kesz = hossz >= szoveg.length;
+
+  return (
+    <span
+      onClick={() => setHossz(szoveg.length)}
+      className={kesz ? undefined : "cursor-pointer"}
+    >
+      {szoveg.slice(0, hossz)}
+      {!kesz && (
+        <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-amber-300/80" />
+      )}
+    </span>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const [session, setSession] = useState(undefined);
-  const [uzenetek, setUzenetek] = useState([KEZDO_UZENET]);
+  const [uzenetek, setUzenetek] = useState([VENDEG_UZENET]);
   const [szoveg, setSzoveg] = useState("");
   const [kuldesFolyamatban, setKuldesFolyamatban] = useState(false);
   const [hiba, setHiba] = useState(null);
@@ -188,9 +230,21 @@ export default function Home() {
     setWorkflowState(null);
     setGpsTeruletek({});
     setValaszthatoLepesek([]);
-    setUzenetek([KEZDO_UZENET]);
+    setUzenetek([VENDEG_UZENET]);
     setSzoveg("");
     setHiba(null);
+  }, [session]);
+
+  // Belépés után a vendégköszöntő helyére a bejelentkezett köszöntő kerül,
+  // de csak akkor, ha a látogató még nem kezdett beszélgetni -- különben
+  // elveszne, amit már írt.
+  useEffect(() => {
+    if (!session) return;
+    setUzenetek((elozo) =>
+      elozo.length === 1 && elozo[0] === VENDEG_UZENET
+        ? [KEZDO_UZENET]
+        : elozo,
+    );
   }, [session]);
 
   useEffect(() => {
@@ -348,7 +402,7 @@ export default function Home() {
     setCvMuvelet(null);
     setWorkflowState(null);
     setValaszthatoLepesek([]);
-    setUzenetek([KEZDO_UZENET]);
+    setUzenetek([belepve ? KEZDO_UZENET : VENDEG_UZENET]);
     setSzoveg("");
     setHiba(null);
     setKuldesFolyamatban(false);
@@ -360,9 +414,31 @@ export default function Home() {
     if (!tiszta || kuldesFolyamatban) return;
 
     if (!belepve) {
-      // Nem indul modellhívás: a vendég szövegét eltesszük, és a belépés
-      // után visszaadjuk. Fizetős hívás csak bejelentkezve történik.
-      belepesreKuldes({ career_pending_message: tiszta });
+      // Vendégmód: szűk hatókörű, bejelentkezés nélküli Flow-válasz.
+      // Nincs profil, nincs előzmény, nincs állapotgép -- a szerver
+      // prompt korlátozza, mit mondhat, és IP-alapú keret védi.
+      setHiba(null);
+      setUzenetek((elozo) => [...elozo, { szerep: "user", szoveg: tiszta }]);
+      setSzoveg("");
+      setKuldesFolyamatban(true);
+      try {
+        const valasz = await publicApiFetch("/api/v1/flow/guest-messages", {
+          method: "POST",
+          body: JSON.stringify({ kerdes: tiszta }),
+        });
+        if (!valasz.ok) throw new Error(`flow-guest: ${valasz.status}`);
+        const adat = await valasz.json();
+        setUzenetek((elozo) => [
+          ...elozo,
+          { szerep: "flow", szoveg: adat.valasz || "", gepel: true },
+        ]);
+      } catch {
+        setHiba(
+          "Flow most nem érte el a háttérrendszert. Próbáld újra kicsit később.",
+        );
+      } finally {
+        setKuldesFolyamatban(false);
+      }
       return;
     }
 
@@ -705,7 +781,11 @@ export default function Home() {
                           : "ml-auto bg-slate-100 text-slate-950"
                       }`}
                     >
-                      {uzenet.szoveg}
+                      {uzenet.gepel ? (
+                        <GepeloSzoveg szoveg={uzenet.szoveg} />
+                      ) : (
+                        uzenet.szoveg
+                      )}
                     </div>
                   ))}
                   {kuldesFolyamatban && (

@@ -137,6 +137,20 @@ def limit_auth_request(request: Request) -> None:
     )
 
 
+def limit_guest_ai_request(request: Request) -> None:
+    """Vendégmódú Flow-csevegés IP-alapú korlátja.
+
+    Ugyanazt a szűk keretet kapja, mint a belépés/regisztráció: ez is
+    bejelentkezés nélküli, modellhívást indító kérés, tehát közvetlenül
+    a szolgáltatói kvótát terheli.
+    """
+    settings = get_settings()
+    rate_limiter.check(
+        f"guest_flow:{_client_ip(request)}",
+        settings.auth_requests_per_minute,
+    )
+
+
 def limit_user_request(request: Request, user_id: str) -> None:
     settings = get_settings()
     limit = (

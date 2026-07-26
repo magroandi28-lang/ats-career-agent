@@ -42,6 +42,49 @@ def test_live_health_kulso_kapcsolat_nelkul_is_valaszol():
     assert valasz.json() == {"status": "ok"}
 
 
+def test_vendeg_flow_bejelentkezes_nelkul_valaszol(monkeypatch):
+    from backend import main
+
+    monkeypatch.setattr(
+        main, "flow_vendeg_valasz", lambda _: "Szia, szívesen segítek."
+    )
+    valasz = kliens.post(
+        "/api/v1/flow/guest-messages", json={"kerdes": "Mit tud ez az oldal?"}
+    )
+
+    assert valasz.status_code == 200
+    assert valasz.json() == {"valasz": "Szia, szívesen segítek."}
+
+
+def test_vendeg_flow_modell_nelkul_is_ad_valaszt(monkeypatch):
+    """Üres modellválasz esetén sem marad néma a felület."""
+    from backend import main
+
+    monkeypatch.setattr(main, "flow_vendeg_valasz", lambda _: "")
+    valasz = kliens.post("/api/v1/flow/guest-messages", json={"kerdes": "Szia"})
+
+    assert valasz.status_code == 200
+    assert valasz.json()["valasz"] == main.VENDEG_ALAPERTELMEZETT_VALASZ
+
+
+def test_vendeg_flow_ip_alapon_korlatozott(monkeypatch):
+    """Bejelentkezés nélküli modellhívás nem futhat korlátlanul."""
+    from backend import main
+    from backend.settings import get_settings
+
+    monkeypatch.setattr(main, "flow_vendeg_valasz", lambda _: "ok")
+    for _ in range(get_settings().auth_requests_per_minute):
+        assert (
+            kliens.post(
+                "/api/v1/flow/guest-messages", json={"kerdes": "Szia"}
+            ).status_code
+            == 200
+        )
+
+    tullepes = kliens.post("/api/v1/flow/guest-messages", json={"kerdes": "Szia"})
+    assert tullepes.status_code == 429
+
+
 def test_uzleti_vegpont_bejelentkezes_nelkul_nem_elerheto():
     valasz = kliens.get("/piaci-korkep")
 
