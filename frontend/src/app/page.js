@@ -241,6 +241,7 @@ export default function Home() {
   const uzenetVegeRef = useRef(null);
   const elsoRenderRef = useRef(true);
   const vendegElozmenyRef = useRef([]);
+  const belepesUdvozletRef = useRef(false);
   const belepve = Boolean(session);
 
   useEffect(() => {
@@ -343,6 +344,29 @@ export default function Home() {
         ? [KEZDO_UZENET]
         : elozo,
     );
+
+    // Flow szólal meg először: felveszi a fonalat, néven szólít, és
+    // javasol egy kezdést. Egyetlen hívás, csak közvetlenül belépés után.
+    if (belepesUdvozletRef.current) return;
+    belepesUdvozletRef.current = true;
+    apiFetch("/api/v1/flow/belepes-utan", {
+      method: "POST",
+      body: JSON.stringify({ vendeg_elozmeny: vendegSorok.slice(-6) }),
+    })
+      .then((valasz) => (valasz.ok ? valasz.json() : null))
+      .then((adat) => {
+        if (!adat?.uzenet) return;
+        setUzenetek((elozo) => [
+          ...elozo,
+          {
+            szerep: "flow",
+            szoveg: adat.uzenet,
+            gepel: true,
+            nevetKer: Boolean(adat.megszolitas_hianyzik),
+          },
+        ]);
+      })
+      .catch(() => {});
   }, [session]);
 
   useEffect(() => {

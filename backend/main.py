@@ -35,7 +35,12 @@ from agents.karrier_ugynok import (
 )
 from utils.adatbazis import kereslet_korkep, szakma_statisztika, kliens
 from utils.teszt import ENERGIA_SKALA, STRESSZ_SKALA, holland_tipus, jollet_jelzes
-from utils.flow_agy import flow_kiertekeles, flow_dontes, flow_vendeg_valasz
+from utils.flow_agy import (
+    flow_belepes_utan,
+    flow_dontes,
+    flow_kiertekeles,
+    flow_vendeg_valasz,
+)
 from utils.flow_allapot import (
     session_lekeres_vagy_letrehozas,
     elozmenyek_lekerese,
@@ -641,6 +646,47 @@ def flow_vendeg_uzenet_vegpont(
         ],
     )
     return {"valasz": valasz or VENDEG_ALAPERTELMEZETT_VALASZ}
+
+
+class FlowBelepesBemenet(ApiModel):
+    """A belépés előtti vendégbeszélgetés, hogy Flow felvehesse a fonalat."""
+
+    vendeg_elozmeny: list[FlowVendegElozmeny] = Field(
+        default_factory=list, max_length=6
+    )
+
+
+@app.post("/api/v1/flow/belepes-utan")
+def flow_belepes_utan_vegpont(
+    bemenet: FlowBelepesBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Flow megszólal magától, közvetlenül a belépés után.
+
+    Nem változtat állapotot és nem hajt végre modult -- csak felveszi a
+    fonalat és javasol egy következő lépést. A felhasználó üzenete nem
+    keletkezik, mert nem ő írt: csak Flow válasza kerül a naplóba.
+    """
+    user_id = str(felhasznalo.id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    profile = profile_get_or_create(user_id) or {}
+    server_profile = dict(profile.get("confirmed_data") or {})
+
+    uzenet = flow_belepes_utan(
+        nev=_megszolitas(felhasznalo, server_profile),
+        vendeg_elozmeny=[
+            {"szerep": sor.szerep, "szoveg": sor.szoveg}
+            for sor in bemenet.vendeg_elozmeny
+        ],
+        gps_osszefoglalo=gps_projekcio(user_id),
+    )
+    if uzenet:
+        uzenet_mentese(user_id, session_id, "flow", uzenet)
+
+    return {
+        "uzenet": uzenet,
+        "megszolitas_hianyzik": not _megszolitas(felhasznalo, server_profile),
+    }
 
 
 @app.post("/api/v1/flow/messages")
