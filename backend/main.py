@@ -65,6 +65,12 @@ from backend.cv_import_service import (
     cv_import_get,
     cv_import_mark_approved,
 )
+from backend.workflow_actions import (
+    ActionContext,
+    ActionError,
+    execute_action,
+    vegrehajthato,
+)
 from backend.auth import (
     auth_keres_limit,
     friss_auth_kliens,
@@ -497,6 +503,105 @@ def workflow_intent_vegpont(
     }
 
 
+class WorkflowActionBemenet(ApiModel):
+    """Kifejezett felhasználói művelet, LLM-javaslat nélkül."""
+
+    action: CareerAction
+    payload: dict = Field(default_factory=dict)
+
+
+@app.post("/api/v1/workflow/action")
+def workflow_action_vegpont(
+    bemenet: WorkflowActionBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """A folyamat előreléptetése: kapu, végrehajtás, GPS-nyom, mentés.
+
+    A sorrend nem cserélhető fel. Előbb az állapotgép dönti el, hogy a
+    művelet ebből az állapotból egyáltalán indítható-e; csak utána fut le a
+    modul; és csak sikeres futás után változik az állapot. Így egy elhasalt
+    modul nem tud félkész állapotot hagyni a folyamatban.
+    """
+    user_id = str(felhasznalo.id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    if not workflow:
+        raise HTTPException(503, "A karrierfolyamat állapota nem érhető el.")
+    try:
+        previous_state = CareerState(workflow["current_state"])
+    except (KeyError, ValueError):
+        raise HTTPException(500, "A karrierfolyamat állapota érvénytelen.")
+
+    if not workflow.get("intent"):
+        raise HTTPException(409, "Előbb válaszd ki, mi a célod.")
+    try:
+        intent = CareerIntent(workflow["intent"])
+    except ValueError:
+        raise HTTPException(500, "A folyamat célja érvénytelen.")
+
+    target_state = next_state(previous_state, bemenet.action)
+    if target_state is None:
+        raise HTTPException(
+            409, "Ez a lépés a folyamat jelenlegi állapotából nem indítható."
+        )
+    if not vegrehajthato(bemenet.action):
+        raise HTTPException(
+            501, "Ez a lépés még nem érhető el. Dolgozunk rajta."
+        )
+
+    profile = profile_get_or_create(user_id)
+    if not profile:
+        raise HTTPException(503, "A karrierprofil nem érhető el.")
+
+    try:
+        outcome = execute_action(
+            bemenet.action,
+            ActionContext(
+                user_id=user_id,
+                workflow=workflow,
+                profile=profile,
+                payload=bemenet.payload,
+            ),
+        )
+    except ActionError as exc:
+        raise HTTPException(422, str(exc))
+
+    context = dict(workflow.get("context") or {})
+    context.update(outcome.context_patch)
+    if not workflow_frissites(
+        user_id, workflow["id"], target_state, intent, context
+    ):
+        raise HTTPException(503, "Az állapotváltás mentése nem sikerült.")
+
+    if outcome.gps_esemeny:
+        event_id = gps_esemeny_rogzitese(
+            user_id,
+            session_id,
+            outcome.gps_esemeny,
+            {
+                "action": bemenet.action.value,
+                "previous_state": previous_state.value,
+                "current_state": target_state.value,
+            },
+            actor="user",
+        )
+        gps_snapshot_frissites(
+            user_id, outcome.gps_terulet, outcome.gps_allapot, event_id
+        )
+
+    return {
+        "ok": True,
+        "action": bemenet.action.value,
+        "previous_state": previous_state.value,
+        "current_state": target_state.value,
+        "state_changed": target_state != previous_state,
+        "allowed_actions": [
+            action.value for action in allowed_actions(target_state)
+        ],
+        "result": outcome.result,
+    }
+
+
 @app.post("/api/v1/flow/messages")
 def flow_uzenet_vegpont(
     bemenet: FlowUzenetBemenet,
@@ -729,7 +834,10 @@ def profile_confirm_vegpont(
     event_id = gps_esemeny_rogzitese(
         user_id,
         session_id,
-        "profile_snapshot_activated",
+        # A career_gps_events zárt típuslistájának eleme. Korábban itt egy
+        # nem engedélyezett típus szerepelt, ezért a beszúrás minden
+        # megerősítésnél csendben elbukott, és az audit nyom elveszett.
+        "profile_fact_confirmed",
         {
             "snapshot_id": snapshot["id"],
             "version": snapshot["version"],

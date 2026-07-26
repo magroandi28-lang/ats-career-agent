@@ -63,18 +63,48 @@ const MODULOK = [
   { nev: "Portfólió Stúdió", jel: "05", allapot: "tervezés alatt" },
 ];
 
-// A kulcsok a backend career_gps_snapshots.terulet értékei -- a panel
-// kizárólag szerveroldalon rögzített eseményekből dolgozik, nem becsül.
+// A kulcsok a backend career_gps_snapshots.terulet értékei, a `kesz` és
+// `folyamatban` listák pedig az adott területre a tábla CHECK-jében
+// ténylegesen engedélyezett allapot-értékek. A szótár területenként eltér
+// (supabase/migrations/20260724072136_flow_career_gps_foundation.sql), ezért
+// nem egyetlen közös halmazzal dolgozunk.
 const GPS_TERULETEK = [
-  { kulcs: "karriercel", nev: "Cél és irány", zartLeiras: "Válassz egy kiindulási módot." },
-  { kulcs: "profil", nev: "Karrierprofil", zartLeiras: "A cél kiválasztása után nyílik meg." },
-  { kulcs: "piaci_kep", nev: "Piaci illeszkedés", zartLeiras: "Ellenőrzött profil után nyílik meg." },
-  { kulcs: "felkeszultseg", nev: "Felkészültség", zartLeiras: "A piaci kép után nyílik meg." },
-  { kulcs: "palyazas", nev: "Pályázati csomag", zartLeiras: "Az utolsó lépés." },
+  {
+    kulcs: "karriercel",
+    nev: "Cél és irány",
+    zartLeiras: "Válassz egy kiindulási módot.",
+    kesz: ["kivalasztott", "validalt"],
+    folyamatban: ["nyitott"],
+  },
+  {
+    kulcs: "profil",
+    nev: "Karrierprofil",
+    zartLeiras: "A cél kiválasztása után nyílik meg.",
+    kesz: ["megerositett"],
+    folyamatban: ["vazlat", "ellenorzendo"],
+  },
+  {
+    kulcs: "piaci_kep",
+    nev: "Piaci illeszkedés",
+    zartLeiras: "Ellenőrzött profil után nyílik meg.",
+    kesz: ["betoltve"],
+    folyamatban: ["elavult"],
+  },
+  {
+    kulcs: "felkeszultseg",
+    nev: "Felkészültség",
+    zartLeiras: "A piaci kép után nyílik meg.",
+    kesz: ["megfelelo"],
+    folyamatban: ["hianyok", "terv", "folyamatban"],
+  },
+  {
+    kulcs: "palyazas",
+    nev: "Pályázati csomag",
+    zartLeiras: "Az utolsó lépés.",
+    kesz: ["anyag_kesz", "beadas_kovetese"],
+    folyamatban: ["nincs_shortlist", "shortlist"],
+  },
 ];
-
-const KESZ_ALLAPOTOK = new Set(["megerositett", "kivalasztott", "kesz"]);
-const FOLYAMATBAN_ALLAPOTOK = new Set(["ellenorzendo", "folyamatban"]);
 
 const KEZDO_UZENET = {
   szerep: "flow",
@@ -177,8 +207,8 @@ export default function Home() {
     let elsoNyitottMegvolt = false;
     return GPS_TERULETEK.map((terulet) => {
       const allapot = gpsTeruletek[terulet.kulcs];
-      if (KESZ_ALLAPOTOK.has(allapot)) return { ...terulet, allapot: "kesz" };
-      if (FOLYAMATBAN_ALLAPOTOK.has(allapot)) {
+      if (terulet.kesz.includes(allapot)) return { ...terulet, allapot: "kesz" };
+      if (terulet.folyamatban.includes(allapot)) {
         elsoNyitottMegvolt = true;
         return { ...terulet, allapot: "folyamatban" };
       }
