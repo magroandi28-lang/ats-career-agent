@@ -473,7 +473,22 @@ export default function Home() {
 
     kezdoValasztasRef.current = lepes.id;
     setKezdoValasztas(lepes.id);
-    if (lepes.id === "cv") return;
+    if (lepes.id === "cv") {
+      // A választás a beszélgetésben történik, nem egy külön képernyőn:
+      // Flow nyugtázza, és a kártyák az ő üzenete alatt jelennek meg.
+      setUzenetek((elozo) => [
+        ...elozo,
+        { szerep: "user", szoveg: lepes.cim },
+        {
+          szerep: "flow",
+          szoveg:
+            "Mit szeretnél a meglévő CV-ddel? Semmit nem indítok el " +
+            "automatikusan — válassz célt, és csak a szükséges következő " +
+            "lépést mutatom.",
+        },
+      ]);
+      return;
+    }
     uzenetKuldese(lepes.cim);
   }
 
@@ -482,6 +497,10 @@ export default function Home() {
     setHiba(null);
     setFutoMuvelet(muvelet.id);
     setKuldesFolyamatban(true);
+    setUzenetek((elozo) => [
+      ...elozo,
+      { szerep: "user", szoveg: muvelet.kerdes },
+    ]);
 
     try {
       const valasz = await apiFetch("/api/v1/workflow/intent", {
@@ -534,36 +553,6 @@ export default function Home() {
     setHiba(null);
     setKuldesFolyamatban(false);
     gpsFrissites();
-  }
-
-  /** A karriercél rögzítése kifejezett rábólintásra. Ugyanaz a végpont,
-   *  amit a fix műveletgombok használnak -- nem a modell dönt helyetted. */
-  async function celMegerositese(intent) {
-    if (kuldesFolyamatban) return;
-    setKuldesFolyamatban(true);
-    setHiba(null);
-    try {
-      const valasz = await apiFetch("/api/v1/workflow/intent", {
-        method: "POST",
-        body: JSON.stringify({ intent }),
-      });
-      if (!valasz.ok) throw new Error(`workflow-intent: ${valasz.status}`);
-      const dontes = await valasz.json();
-      setWorkflowState(dontes.current_state);
-      setValaszthatoLepesek(dontes.available_actions || []);
-      setUzenetek((elozo) =>
-        elozo.map((sor, i) =>
-          i === elozo.length - 1
-            ? { ...sor, megerositendoIntent: null, celRogzitve: true }
-            : sor,
-        ),
-      );
-      gpsFrissites();
-    } catch {
-      setHiba("A cél rögzítése nem sikerült. Próbáld újra.");
-    } finally {
-      setKuldesFolyamatban(false);
-    }
   }
 
   async function uzenetKuldese(uzenetSzoveg) {
@@ -823,140 +812,23 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-200/80">
-                  elérhető
-                </span>
+                <div className="flex items-center gap-3">
+                  {belepve && kezdoValasztas && (
+                    <button
+                      type="button"
+                      onClick={kezdoAllapotVisszaallitasa}
+                      disabled={kuldesFolyamatban}
+                      className="text-[11px] font-semibold text-slate-400 hover:text-amber-100 disabled:opacity-40"
+                    >
+                      Másik út választása
+                    </button>
+                  )}
+                  <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-200/80">
+                    elérhető
+                  </span>
+                </div>
               </div>
 
-              {kezdoValasztas === "cv" && belepve ? (
-                <section className="min-h-[500px] px-5 py-6 sm:px-8 sm:py-8">
-                  <button
-                    type="button"
-                    onClick={kezdoAllapotVisszaallitasa}
-                    disabled={kuldesFolyamatban}
-                    className="text-xs font-semibold text-slate-400 hover:text-amber-100 disabled:opacity-40"
-                  >
-                    ← Másik út választása
-                  </button>
-
-                  <div className="mt-8">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-300/70">
-                      Van CV-m
-                    </p>
-                    <h3 className="mt-3 font-serif text-2xl text-white sm:text-3xl">
-                      Mit szeretnél a meglévő CV-ddel?
-                    </h3>
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-                      Semmit nem indítunk el automatikusan. Válassz célt, Flow
-                      pedig csak a szükséges következő lépést mutatja.
-                    </p>
-                  </div>
-
-                  {!cvMuvelet ? (
-                    <div className="mt-7 grid gap-3 md:grid-cols-3">
-                      {CV_MUVELETEK.map((muvelet) => (
-                        <button
-                          key={muvelet.id}
-                          type="button"
-                          onClick={() => cvMuveletValasztasa(muvelet)}
-                          disabled={kuldesFolyamatban}
-                          aria-busy={futoMuvelet === muvelet.id}
-                          className={`group min-h-40 rounded-2xl border p-5 text-left transition ${
-                            futoMuvelet === muvelet.id
-                              ? "border-amber-300/60 bg-amber-300/10"
-                              : "border-white/10 bg-white/[0.025] hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05]"
-                          } ${
-                            futoMuvelet && futoMuvelet !== muvelet.id
-                              ? "opacity-30"
-                              : ""
-                          } disabled:cursor-not-allowed`}
-                        >
-                          <span
-                            className={`text-sm font-semibold ${
-                              futoMuvelet === muvelet.id
-                                ? "text-amber-100"
-                                : "text-slate-100 group-hover:text-amber-100"
-                            }`}
-                          >
-                            {muvelet.cim}
-                          </span>
-                          <span className="mt-3 block text-xs leading-5 text-slate-500">
-                            {futoMuvelet === muvelet.id ? (
-                              <span className="inline-flex items-center gap-2 text-amber-200/80">
-                                <span className="flow-pulse h-1.5 w-1.5 rounded-full bg-amber-300" />
-                                Indítás…
-                              </span>
-                            ) : (
-                              muvelet.leiras
-                            )}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-7">
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/8 pb-4">
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            Kiválasztott cél
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-amber-100">
-                            {
-                              CV_MUVELETEK.find(
-                                (muvelet) => muvelet.id === cvMuvelet,
-                              )?.cim
-                            }
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCvMuvelet(null);
-                            setWorkflowState(null);
-                          }}
-                          className="text-xs font-semibold text-slate-400 hover:text-amber-100"
-                        >
-                          Módosítás
-                        </button>
-                      </div>
-
-                      {[
-                        "CEL_TISZTAZOTT",
-                        "PROFIL_HIANYOS",
-                        "PROFIL_ELLENORZOTT",
-                      ].includes(workflowState) && (
-                        <ProfileGate
-                          embedded
-                          onStateChange={(result) => {
-                            setWorkflowState(
-                              result.current_state || workflowState,
-                            );
-                            setValaszthatoLepesek(
-                              result.available_actions || [],
-                            );
-                            gpsFrissites();
-                          }}
-                        />
-                      )}
-
-                      <FolyamatPanel
-                        availableActions={valaszthatoLepesek}
-                        onStateChange={(result) => {
-                          setWorkflowState(result.current_state);
-                          setValaszthatoLepesek(result.available_actions || []);
-                          gpsFrissites();
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {kuldesFolyamatban && (
-                    <p className="mt-5 text-sm text-slate-400">
-                      A következő lépés előkészítése…
-                    </p>
-                  )}
-                </section>
-              ) : (
                 <div className="space-y-4 p-5 sm:p-6">
                   {uzenetek.map((uzenet, index) => (
                     <div
@@ -1047,6 +919,81 @@ export default function Home() {
                       Flow feldolgozza a következő lépést…
                     </div>
                   )}
+                  {/* A panelek a beszélgetésen BELÜL jelennek meg, Flow
+                      üzenete alatt -- nem cserélik le a chatet. Így ő vezet,
+                      a panelek pedig a válaszlehetőségei. */}
+                  {belepve && kezdoValasztas === "cv" && !cvMuvelet && (
+                    <div className="grid gap-3 md:grid-cols-3">
+                      {CV_MUVELETEK.map((muvelet) => (
+                        <button
+                          key={muvelet.id}
+                          type="button"
+                          onClick={() => cvMuveletValasztasa(muvelet)}
+                          disabled={kuldesFolyamatban}
+                          aria-busy={futoMuvelet === muvelet.id}
+                          className={`group rounded-2xl border p-4 text-left transition ${
+                            futoMuvelet === muvelet.id
+                              ? "border-amber-300/60 bg-amber-300/10"
+                              : "border-white/10 bg-white/[0.025] hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05]"
+                          } ${
+                            futoMuvelet && futoMuvelet !== muvelet.id
+                              ? "opacity-30"
+                              : ""
+                          } disabled:cursor-not-allowed`}
+                        >
+                          <span
+                            className={`text-sm font-semibold ${
+                              futoMuvelet === muvelet.id
+                                ? "text-amber-100"
+                                : "text-slate-100 group-hover:text-amber-100"
+                            }`}
+                          >
+                            {muvelet.cim}
+                          </span>
+                          <span className="mt-2 block text-xs leading-5 text-slate-500">
+                            {futoMuvelet === muvelet.id ? (
+                              <span className="inline-flex items-center gap-2 text-amber-200/80">
+                                <span className="flow-pulse h-1.5 w-1.5 rounded-full bg-amber-300" />
+                                Indítás…
+                              </span>
+                            ) : (
+                              muvelet.leiras
+                            )}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {belepve &&
+                    [
+                      "CEL_TISZTAZOTT",
+                      "PROFIL_HIANYOS",
+                      "PROFIL_ELLENORZOTT",
+                    ].includes(workflowState) && (
+                      <ProfileGate
+                        embedded
+                        onStateChange={(result) => {
+                          setWorkflowState(
+                            result.current_state || workflowState,
+                          );
+                          setValaszthatoLepesek(result.available_actions || []);
+                          gpsFrissites();
+                        }}
+                      />
+                    )}
+
+                  {belepve && valaszthatoLepesek.length > 0 && (
+                    <FolyamatPanel
+                      availableActions={valaszthatoLepesek}
+                      onStateChange={(result) => {
+                        setWorkflowState(result.current_state);
+                        setValaszthatoLepesek(result.available_actions || []);
+                        gpsFrissites();
+                      }}
+                    />
+                  )}
+
                   <div ref={uzenetVegeRef} />
 
                   <form
@@ -1090,6 +1037,7 @@ export default function Home() {
                     </button>
                   </form>
 
+                  {!kezdoValasztas && (
                   <div className="pt-1">
                     <p className="mb-3 text-xs font-medium text-slate-500">
                       Vagy indulj egy gyors választással:
@@ -1113,8 +1061,8 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
+                  )}
                 </div>
-              )}
             </div>
 
             {hiba && (
