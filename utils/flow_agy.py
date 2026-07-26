@@ -277,8 +277,7 @@ FLOW_VENDEG_SZABALYOK = """SZIGORÚ SZABÁLYOK VENDÉGMÓDBAN:
 - TILOS személyre szabott tanácsot adni, CV-t véleményezni, állást
   ajánlani vagy bármilyen valódi szolgáltatást nyújtani -- ezek csak
   regisztrált, bejelentkezett felhasználóknak érhetők el.
-- Minden válasz NAGYON rövid (max 2 mondat), tömör, barátságos, tegező.
-  Ne magyarázz hosszan, ne sorolj fel mindent -- csak a lényeget mondd el.
+- Minden válasz rövid (max 4 mondat), barátságos, tegező.
 - Ha a kérdés valódi szolgáltatást igényelne (CV, állás, személyes
   tanács), mondd meg kedvesen, hogy ehhez regisztráció vagy belépés
   szükséges, és bátorítsd erre.

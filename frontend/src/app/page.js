@@ -118,7 +118,7 @@ const KEZDO_UZENET = {
 const VENDEG_UZENET = {
   szerep: "flow",
   szoveg:
-    "Szia, örülök, hogy itt vagy! Kérlek jelentkezz be, vagy regisztrálj, hogy tudjak segíteni. Addig is szívesen mesélek arról, hogyan működik az oldal.",
+    "Szia, örülök, hogy itt vagy! Flow vagyok. Vendégként szívesen mesélek arról, hogyan működik az oldal -- a személyre szabott segítséghez (CV, állások, karrierút) viszont kérlek jelentkezz be, vagy regisztrálj egy percben.",
 };
 
 function vendegMeghivoUzenet(cim) {
@@ -142,7 +142,6 @@ export default function Home() {
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const [cvMuvelet, setCvMuvelet] = useState(null);
   const [futoMuvelet, setFutoMuvelet] = useState(null);
-  const [udvozloIrasAlatt, setUdvozloIrasAlatt] = useState(true);
   const kezdoValasztasRef = useRef(null);
   const folytatasRef = useRef(false);
   const flowPanelRef = useRef(null);
@@ -247,17 +246,6 @@ export default function Home() {
     kezdoValasztasRef.current = "cv";
     setKezdoValasztas("cv");
   }, [session]);
-
-  // Amikor egyetlen (kezdő) üzenetre esik vissza a beszélgetés -- új
-  // látogatáskor, be- vagy kijelentkezéskor, "Másik út választása" után --
-  // Flow rövid ideig "ír", mielőtt az üzenet megjelenik. Ettől az oldal az
-  // első pillanattól élőnek hat, nem statikus szövegnek.
-  useEffect(() => {
-    if (uzenetek.length !== 1) return;
-    setUdvozloIrasAlatt(true);
-    const idozito = setTimeout(() => setUdvozloIrasAlatt(false), 1100);
-    return () => clearTimeout(idozito);
-  }, [uzenetek]);
 
   // A Flow-panel 500 pixelnél magasabb, ezért nézetváltáskor a változás
   // könnyen a képernyőn kívülre esik: a felhasználó kattint, dolgozik a
@@ -778,14 +766,7 @@ export default function Home() {
                 </section>
               ) : (
                 <div className="space-y-4 p-5 sm:p-6">
-                  {uzenetek.length === 1 && udvozloIrasAlatt && (
-                    <div className="flex max-w-[82%] items-center gap-2.5 rounded-2xl border border-amber-300/12 bg-amber-300/[0.05] px-4 py-3 text-sm text-slate-400">
-                      <span className="flow-pulse h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
-                      Flow ír…
-                    </div>
-                  )}
-                  {!(uzenetek.length === 1 && udvozloIrasAlatt) &&
-                    uzenetek.map((uzenet, index) => (
+                  {uzenetek.map((uzenet, index) => (
                     <div key={`${uzenet.szerep}-${index}`}>
                       <div
                         className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
