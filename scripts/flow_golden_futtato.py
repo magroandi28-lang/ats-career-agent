@@ -18,12 +18,19 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Final
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from backend.career_state_machine import allowed_actions  # noqa: E402
 from backend.golden_flow import ESETEK, GOLDEN_VERZIO  # noqa: E402
 from utils.flow_agy import flow_dontes  # noqa: E402
+
+
+# Ha a modell nem szólal meg, ennyit várunk, mielőtt továbbmennénk. A
+# Gemini ingyenes kerete perces ablakban telik, ezért egy percnél kicsit
+# hosszabb pihenő biztosan felszabadítja.
+PIHENO_MP: Final = 65
 
 
 def _jeloles(rendben: bool) -> str:
@@ -74,7 +81,14 @@ def main() -> int:
             "Nem sikerült pontosan értelmeznem"
         ):
             kvotahiba += 1
-            print(f"NINCS {eset.azonosito}  (a modell nem válaszolt)")
+            print(
+                f"NINCS {eset.azonosito}  (a modell nem válaszolt — "
+                f"{PIHENO_MP} mp pihenő)"
+            )
+            # A sikertelen hívás is fogyasztja a percenkénti keretet, ezért
+            # tovább rohanva a futás sosem lábalna ki. Megvárjuk, amíg az
+            # ablak felszabadul.
+            time.sleep(PIHENO_MP)
             continue
 
         if eset.vart_intent is not None:
