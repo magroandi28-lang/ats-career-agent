@@ -783,13 +783,21 @@ def flow_uzenet_vegpont(
     if proposed_action not in allowed_actions(previous_state):
         proposed_action = None
 
+    # A megszólítás bekérése nem a modell jóindulatán múlik: a szerver tudja,
+    # hogy nincs név, tehát ő teszi be a kérendő mezők közé. Korábban ezt a
+    # promptra bíztuk, és a modell rendszeresen megfeledkezett róla.
+    kerendo_mezok = list(dontes.required_fields)
+    if not _megszolitas(felhasznalo, server_profile):
+        if "display_name" not in kerendo_mezok:
+            kerendo_mezok.append("display_name")
+
     return {
         "workflow_id": workflow["id"],
         "intent": dontes.intent.value,
         "response_message": dontes.response_message,
         "proposed_action": proposed_action.value if proposed_action else None,
         "accepted_action": accepted_action.value if accepted_action else None,
-        "required_fields": dontes.required_fields,
+        "required_fields": kerendo_mezok,
         "specialist_request": dontes.specialist_request,
         "confidence": dontes.confidence,
         "szakma": dontes.szakma,

@@ -441,7 +441,11 @@ Kizárólag a megadott strukturált sémát töltsd ki.
         except ModelGatewayError as exc:
             print(f"[flow] modellkapu hiba ({kiserlet + 1}. kiserlet): {exc}")
 
+    # Ide csak akkor jutunk, ha a modell egyszer sem szólalt meg. Ez NEM
+    # értési probléma, hanem technikai (kvóta, hálózat, szolgáltatói hiba).
+    # Ha ezt "nem értettelek" üzenettel fedjük el, a felhasználó azt hiszi,
+    # Flow buta -- pedig a kérdése el sem jutott hozzá.
     return biztonsagos_alapertelmezes(
-        "Nem sikerült pontosan értelmeznem a kérdésed. Mondanád el kicsit "
-        "másképp, miben segíthetek?"
+        "Most nem érem el a válaszhoz szükséges szolgáltatást — nem rajtad "
+        "múlt. Próbáld újra egy perc múlva, addig is itt vagyok."
     )

@@ -195,8 +195,11 @@ function MegszolitasMezo({ onKesz }) {
 
   return (
     <form onSubmit={mentes} className="mt-3 flex flex-wrap items-center gap-2">
-      <label htmlFor="megszolitas" className="sr-only">
-        Megszólítás
+      <label
+        htmlFor="megszolitas"
+        className="w-full text-xs font-medium text-amber-100/80"
+      >
+        Hogy szólítsalak?
       </label>
       <input
         id="megszolitas"
