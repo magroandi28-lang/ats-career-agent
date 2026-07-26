@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthMenu from "./AuthMenu";
-import FolyamatPanel from "./FolyamatPanel";
+import FolyamatPanel, { Eredmeny as FlowEredmeny } from "./FolyamatPanel";
 import ProfileGate from "./ProfileGate";
 import { apiFetch, publicApiFetch } from "../lib/api";
 import { createClient } from "../lib/supabase/client";
@@ -587,8 +587,14 @@ export default function Home() {
           // szándékosan nem a modell nyeri ki a mondatból: azt beírod, és
           // úgy kerül a profilba.
           nevetKer: (dontes.required_fields || []).includes("display_name"),
+          // Ha Flow nemcsak beszélt, hanem le is futtatott egy modult, az
+          // eredménye itt, a válasza alatt jelenik meg.
+          akcio: dontes.accepted_action || null,
+          eredmeny: dontes.eredmeny || null,
+          muveletHiba: dontes.muvelet_hiba || null,
         },
       ]);
+      setValaszthatoLepesek(dontes.available_actions || []);
       setWorkflowState(dontes.current_state || null);
       if (dontes.gps_esemeny) gpsFrissites();
     } catch {
@@ -908,6 +914,19 @@ export default function Home() {
                         />
                       ) : (
                         uzenet.szoveg
+                      )}
+                      {uzenet.eredmeny && (
+                        <div className="mt-3 rounded-xl border border-white/8 bg-black/25 p-4">
+                          <FlowEredmeny
+                            action={uzenet.akcio}
+                            adat={uzenet.eredmeny}
+                          />
+                        </div>
+                      )}
+                      {uzenet.muveletHiba && (
+                        <p className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/[0.07] px-3.5 py-2.5 text-xs leading-5 text-amber-100">
+                          {uzenet.muveletHiba}
+                        </p>
                       )}
                       {belepve &&
                         uzenet.nevetKer &&

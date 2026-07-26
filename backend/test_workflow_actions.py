@@ -415,6 +415,140 @@ def test_cv_ellenorzes_hirdetes_nelkul_is_ad_hianylistat(monkeypatch):
     assert outcome.gps_allapot == "hianyok"
 
 
+# ── Flow mint orchestrator ────────────────────────────────────────────
+
+def _flow_mockok(monkeypatch, allapot, javasolt_akcio, intent="piaci_korkep"):
+    """A Flow-üzenet végpont körüli szerveroldali réteg kiváltása."""
+    from backend import main
+    from backend.career_state_machine import CareerIntent
+    from backend.flow_contract import FlowDecision
+
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "elozmenyek_lekerese", lambda *_: [])
+    monkeypatch.setattr(main, "uzenet_mentese", lambda *_, **__: None)
+    monkeypatch.setattr(main, "gps_projekcio", lambda *_: [])
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {
+            "id": "workflow-1",
+            "current_state": allapot,
+            "intent": intent,
+            "context": {},
+        },
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"confirmed_data": {"target_role": "automata tesztelő"}},
+    )
+    monkeypatch.setattr(main, "gps_esemeny_rogzitese", lambda *_, **__: "event-1")
+    monkeypatch.setattr(main, "gps_snapshot_frissites", lambda *_, **__: None)
+    monkeypatch.setattr(
+        main,
+        "flow_dontes",
+        lambda *_, **__: FlowDecision(
+            intent=CareerIntent.PIACI_KORKEP,
+            response_message="Megnézem a piaci helyzetet.",
+            proposed_action=javasolt_akcio,
+            confidence=0.95,
+        ),
+    )
+    return main
+
+
+def test_flow_javaslata_le_is_fut(monkeypatch):
+    """Elég annyit mondani Flow-nak, hogy csinálja -- nem kell gombot keresni."""
+    main = _flow_mockok(
+        monkeypatch, "PROFIL_ELLENORZOTT", CareerAction.PIACI_KORKEP_INDITASA
+    )
+    from backend import workflow_actions
+
+    monkeypatch.setattr(
+        workflow_actions,
+        "szakma_statisztika",
+        lambda _: {"hirdetesek_szama": 41, "keszsegek": [], "bersavok": []},
+    )
+    monkeypatch.setattr(workflow_actions, "kereslet_korkep", lambda: [])
+    monkeypatch.setattr(workflow_actions, "ksh_kereset", lambda _: None)
+    frissitesek = []
+    monkeypatch.setattr(
+        main, "workflow_frissites", lambda *args: frissitesek.append(args) or True
+    )
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/messages", json={"kerdes": "Nézzük a piacot."}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    test = valasz.json()
+    assert valasz.status_code == 200
+    assert test["accepted_action"] == "piaci_korkep_inditasa"
+    assert test["current_state"] == "PIACI_KEP_KESZ"
+    assert test["eredmeny"]["hirdetesek_szama"] == 41
+    assert len(frissitesek) == 1
+
+
+def test_flow_tiltott_javaslata_nem_fut_le(monkeypatch):
+    """A chat ugyanazon a kapun megy át, mint a gombok: ATS hirdetés nélkül nem indul."""
+    main = _flow_mockok(
+        monkeypatch, "PROFIL_ELLENORZOTT", CareerAction.ATS_ELEMZES_INDITASA
+    )
+    frissitesek = []
+    monkeypatch.setattr(
+        main, "workflow_frissites", lambda *args: frissitesek.append(args) or True
+    )
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/messages", json={"kerdes": "Csinálj ATS-t."}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    test = valasz.json()
+    assert valasz.status_code == 200
+    assert test["accepted_action"] is None
+    assert test["current_state"] == "PROFIL_ELLENORZOTT"
+    assert test["eredmeny"] is None
+    assert frissitesek == []
+
+
+def test_elhasalt_modul_utan_a_beszelgetes_megy_tovabb(monkeypatch):
+    """Flow már megszólalt: a hibától ne álljon meg a chat, de az állapot se változzon."""
+    main = _flow_mockok(
+        monkeypatch, "PROFIL_ELLENORZOTT", CareerAction.PIACI_KORKEP_INDITASA
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"confirmed_data": {}},  # nincs megerősített célmunkakör
+    )
+    frissitesek = []
+    monkeypatch.setattr(
+        main, "workflow_frissites", lambda *args: frissitesek.append(args) or True
+    )
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/messages", json={"kerdes": "Nézzük a piacot."}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    test = valasz.json()
+    assert valasz.status_code == 200
+    assert test["response_message"] == "Megnézem a piaci helyzetet."
+    assert "célmunkakörödet" in test["muvelet_hiba"]
+    assert test["current_state"] == "PROFIL_ELLENORZOTT"
+    assert frissitesek == []
+
+
 # ── A végpont kapuja ──────────────────────────────────────────────────
 
 def _alap_mockok(monkeypatch, allapot, intent="piaci_korkep", context=None):

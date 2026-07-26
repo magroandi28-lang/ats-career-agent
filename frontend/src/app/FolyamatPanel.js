@@ -259,7 +259,9 @@ function CvAtvizsgalas({ adat }) {
   );
 }
 
-function Eredmeny({ action, adat }) {
+/** Ugyanaz a megjelenítés a gombos indításnál és Flow válaszánál -- két
+ *  külön változat óhatatlanul elcsúszna egymástól. */
+export function Eredmeny({ action, adat }) {
   if (!adat) return null;
   if (action === "cv_ellenorzes_inditasa") return <CvAtvizsgalas adat={adat} />;
   if (action === "piaci_korkep_inditasa") return <PiaciKorkep adat={adat} />;

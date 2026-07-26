@@ -574,46 +574,20 @@ def workflow_action_vegpont(
         raise HTTPException(503, "A karrierprofil nem érhető el.")
 
     try:
-        outcome = execute_action(
-            bemenet.action,
-            ActionContext(
-                user_id=user_id,
-                workflow=workflow,
-                profile=profile,
-                payload=bemenet.payload,
-            ),
+        outcome = _muvelet_futtatasa(
+            user_id=user_id,
+            session_id=session_id,
+            workflow=workflow,
+            profile=profile,
+            akcio=bemenet.action,
+            previous_state=previous_state,
+            target_state=target_state,
+            intent=intent,
+            payload=bemenet.payload,
+            actor="user",
         )
     except ActionError as exc:
         raise HTTPException(422, str(exc))
-
-    context = dict(workflow.get("context") or {})
-    context.update(outcome.context_patch)
-    if not workflow_frissites(
-        user_id, workflow["id"], target_state, intent, context
-    ):
-        raise HTTPException(503, "Az állapotváltás mentése nem sikerült.")
-
-    event_id = None
-    if outcome.gps_esemeny:
-        event_id = gps_esemeny_rogzitese(
-            user_id,
-            session_id,
-            outcome.gps_esemeny,
-            {
-                "action": bemenet.action.value,
-                "previous_state": previous_state.value,
-                "current_state": target_state.value,
-                **outcome.gps_payload,
-            },
-            actor="user",
-        )
-    # A területjelzés eseménynapló nélkül is érvényes: van olyan lépés, ami
-    # a folyamat állását változtatja, de nem keletkezik hozzá önálló,
-    # auditálandó domain-esemény (utolso_esemeny_id nullable).
-    if outcome.gps_terulet:
-        gps_snapshot_frissites(
-            user_id, outcome.gps_terulet, outcome.gps_allapot, event_id
-        )
 
     return {
         **_akcio_lista(target_state),
@@ -761,6 +735,50 @@ def flow_uzenet_vegpont(
     elif dontes.intent is CareerIntent.BIZONYTALAN:
         accepted_action = CareerAction.TISZTAZO_KERDES
 
+    # Flow nemcsak javasol: ha a művelet az aktuális állapotból engedélyezett
+    # ÉS be van kötve, itt le is fut -- ugyanazon a kapun, amit a gombok
+    # használnak. Így a felhasználónak elég annyit mondania, hogy „nézd át a
+    # CV-met", nem kell gombot keresnie.
+    eredmeny = None
+    muvelet_hiba = None
+    javasolt = dontes.proposed_action
+    if (
+        javasolt is not None
+        and javasolt is not CareerAction.CEL_MEGEROSITESE
+        and javasolt is not CareerAction.TISZTAZO_KERDES
+        and vegrehajthato(javasolt)
+    ):
+        kovetkezo = next_state(current_state, javasolt)
+        aktiv_intent = dontes.intent
+        if workflow.get("intent"):
+            try:
+                aktiv_intent = CareerIntent(workflow["intent"])
+            except ValueError:
+                pass
+        if kovetkezo is not None:
+            profile_futtatashoz = profile_get_or_create(user_id) or profile
+            try:
+                outcome = _muvelet_futtatasa(
+                    user_id=user_id,
+                    session_id=session_id,
+                    workflow=workflow,
+                    profile=profile_futtatashoz,
+                    akcio=javasolt,
+                    previous_state=current_state,
+                    target_state=kovetkezo,
+                    intent=aktiv_intent,
+                    payload={},
+                    actor="flow",
+                )
+            except ActionError as exc:
+                # A modul nem futott le, de Flow már megszólalt: a
+                # beszélgetés menjen tovább, az állapot ne változzon.
+                muvelet_hiba = str(exc)
+            else:
+                eredmeny = outcome.result
+                accepted_action = javasolt
+                current_state = kovetkezo
+
     proposed_action = dontes.proposed_action
     if proposed_action not in allowed_actions(previous_state):
         proposed_action = None
@@ -778,9 +796,9 @@ def flow_uzenet_vegpont(
         "previous_state": previous_state.value,
         "current_state": current_state.value,
         "state_changed": current_state != previous_state,
-        "allowed_actions": [
-            action.value for action in allowed_actions(current_state)
-        ],
+        "eredmeny": eredmeny,
+        "muvelet_hiba": muvelet_hiba,
+        **_akcio_lista(current_state),
         "gps_esemeny": gps_esemeny,
     }
 
@@ -816,6 +834,66 @@ def _megszolitas(felhasznalo, megerositett_profil: dict) -> str:
     # néven szólítaná a felhasználót -- ami rosszabb, mint a név hiánya.
     metaadat = getattr(felhasznalo, "user_metadata", None) or {}
     return str(metaadat.get("given_name") or "").strip()
+
+
+def _muvelet_futtatasa(
+    *,
+    user_id: str,
+    session_id: str | None,
+    workflow: dict,
+    profile: dict,
+    akcio: CareerAction,
+    previous_state: CareerState,
+    target_state: CareerState,
+    intent: CareerIntent,
+    payload: dict,
+    actor: str,
+):
+    """Egyetlen közös végrehajtási út a gomboknak és Flow javaslatainak.
+
+    Azért közös, mert két külön út óhatatlanul elcsúszna egymástól, és a
+    szigorúbbik kapu megkerülhetővé válna. A sorrend itt is kötött: a
+    modul előbb lefut, és csak sikeres futás után változik az állapot.
+    """
+    outcome = execute_action(
+        akcio,
+        ActionContext(
+            user_id=user_id,
+            workflow=workflow,
+            profile=profile,
+            payload=payload,
+        ),
+    )
+
+    context = dict(workflow.get("context") or {})
+    context.update(outcome.context_patch)
+    if not workflow_frissites(
+        user_id, workflow["id"], target_state, intent, context
+    ):
+        raise HTTPException(503, "Az állapotváltás mentése nem sikerült.")
+
+    event_id = None
+    if outcome.gps_esemeny:
+        event_id = gps_esemeny_rogzitese(
+            user_id,
+            session_id,
+            outcome.gps_esemeny,
+            {
+                "action": akcio.value,
+                "previous_state": previous_state.value,
+                "current_state": target_state.value,
+                **outcome.gps_payload,
+            },
+            actor=actor,
+        )
+    # A területjelzés eseménynapló nélkül is érvényes: van olyan lépés, ami
+    # a folyamat állását változtatja, de nem keletkezik hozzá önálló,
+    # auditálandó domain-esemény (utolso_esemeny_id nullable).
+    if outcome.gps_terulet:
+        gps_snapshot_frissites(
+            user_id, outcome.gps_terulet, outcome.gps_allapot, event_id
+        )
+    return outcome
 
 
 def _akcio_lista(state: CareerState | None) -> dict:
