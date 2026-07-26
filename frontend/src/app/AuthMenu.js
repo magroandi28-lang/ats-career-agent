@@ -26,6 +26,7 @@ export default function AuthMenu() {
     // belépő felhasználó örökölné őket ugyanezen a gépen.
     window.localStorage.removeItem("career_pending_start");
     window.localStorage.removeItem("career_pending_cv_import");
+    window.localStorage.removeItem("career_pending_message");
     router.replace("/");
     router.refresh();
   }

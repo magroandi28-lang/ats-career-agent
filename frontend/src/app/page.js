@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AuthMenu from "./AuthMenu";
 import FolyamatPanel from "./FolyamatPanel";
-import InlineAuth from "./InlineAuth";
 import ProfileGate from "./ProfileGate";
 import { apiFetch } from "../lib/api";
 import { createClient } from "../lib/supabase/client";
@@ -113,10 +112,6 @@ const KEZDO_UZENET = {
     "Szia, Flow vagyok, a személyes karrierasszisztensed. Segítek átnézni vagy elkészíteni a CV-det, megtalálni a hozzád illő állásokat, és végigvezetlek a jelentkezés lépésein.",
 };
 
-function belepesUrl(kovetkezo = "/") {
-  return `/login?next=${encodeURIComponent(kovetkezo)}`;
-}
-
 export default function Home() {
   const [session, setSession] = useState(undefined);
   const [uzenetek, setUzenetek] = useState([KEZDO_UZENET]);
@@ -130,14 +125,13 @@ export default function Home() {
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const [cvMuvelet, setCvMuvelet] = useState(null);
   const [futoMuvelet, setFutoMuvelet] = useState(null);
+  const [belepesreVar, setBelepesreVar] = useState(false);
   const kezdoValasztasRef = useRef(null);
-  const belepesKeresRef = useRef(false);
   const folytatasRef = useRef(false);
   const flowPanelRef = useRef(null);
   const uzenetVegeRef = useRef(null);
   const elsoRenderRef = useRef(true);
   const belepve = Boolean(session);
-  const belepesFuggoben = !belepve && Boolean(kezdoValasztas);
 
   useEffect(() => {
     const supabase = createClient();
@@ -189,12 +183,12 @@ export default function Home() {
     if (session !== null) return;
     folytatasRef.current = false;
     kezdoValasztasRef.current = null;
-    belepesKeresRef.current = false;
     setKezdoValasztas(null);
     setCvMuvelet(null);
     setWorkflowState(null);
     setGpsTeruletek({});
     setValaszthatoLepesek([]);
+    setBelepesreVar(false);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
@@ -202,13 +196,24 @@ export default function Home() {
 
   useEffect(() => {
     if (!session || folytatasRef.current) return;
+
+    // A belépés előtt begépelt üzenet visszakerül a mezőbe. Szándékosan
+    // nem küldjük el automatikusan: a modellhívás pénzbe kerül, azt a
+    // felhasználó indítsa el kifejezetten.
+    const megorzottUzenet = window.localStorage.getItem(
+      "career_pending_message",
+    );
+    if (megorzottUzenet) {
+      window.localStorage.removeItem("career_pending_message");
+      setSzoveg(megorzottUzenet);
+    }
+
     const fuggoben = window.localStorage.getItem("career_pending_start");
     if (fuggoben !== "cv") return;
 
     folytatasRef.current = true;
     window.localStorage.removeItem("career_pending_start");
     kezdoValasztasRef.current = "cv";
-    belepesKeresRef.current = false;
     setKezdoValasztas("cv");
   }, [session]);
 
@@ -223,7 +228,7 @@ export default function Home() {
       return;
     }
     flowPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [kezdoValasztas, cvMuvelet, belepesFuggoben]);
+  }, [kezdoValasztas, cvMuvelet]);
 
   // Új üzenetnél a beszélgetés aljára: enélkül Flow válasza a látható
   // terület fölött jelenik meg, és úgy tűnik, mintha semmi nem történt volna.
@@ -265,23 +270,41 @@ export default function Home() {
     return keszSzazalek > 0 ? `${keszSzazalek}% kész` : "Profilindításra kész";
   }, [belepve, keszSzazalek]);
 
-  function belepesKeres() {
-    if (belepesKeresRef.current) return;
-    belepesKeresRef.current = true;
+  // Vendég módban nem néma átirányítás történik: Flow válaszol a
+  // beszélgetésben, és onnan hívja belépésre a felhasználót. Modellhívás
+  // itt nincs -- a szöveg fix, a válasz azonnali és ingyenes.
+  function vendegetBelepesreHiv(felhasznaloSzoveg, flowValasz, megorzendo) {
+    for (const [kulcs, ertek] of Object.entries(megorzendo)) {
+      window.localStorage.setItem(kulcs, ertek);
+    }
+    setUzenetek((elozo) => [
+      ...elozo,
+      { szerep: "user", szoveg: felhasznaloSzoveg },
+      { szerep: "flow", szoveg: flowValasz },
+    ]);
+    setSzoveg("");
+    setBelepesreVar(true);
   }
 
   function kezdoLepesValasztasa(lepes) {
     if (kezdoValasztasRef.current || kuldesFolyamatban) return;
-    kezdoValasztasRef.current = lepes.id;
-    setKezdoValasztas(lepes.id);
-    if (lepes.id === "cv") {
-      if (!belepve) {
-        window.localStorage.setItem("career_pending_start", "cv");
-        belepesKeres();
-        return;
-      }
+
+    if (!belepve) {
+      vendegetBelepesreHiv(
+        lepes.cim,
+        lepes.id === "cv"
+          ? "Szívesen nekilátok a CV-dnek! Előbb viszont lépj be vagy regisztrálj — a CV személyes adat, és csak fiókkal tudom biztonságosan kezelni és elmenteni neked. A választásod megmarad."
+          : "Szívesen segítek ebben! Ahhoz, hogy a válaszaimat és a karrierutadat el is tudjam menteni, előbb lépj be vagy regisztrálj. A választásod megmarad.",
+        lepes.id === "cv"
+          ? { career_pending_start: "cv" }
+          : { career_pending_message: lepes.cim },
+      );
       return;
     }
+
+    kezdoValasztasRef.current = lepes.id;
+    setKezdoValasztas(lepes.id);
+    if (lepes.id === "cv") return;
     uzenetKuldese(lepes.cim);
   }
 
@@ -331,12 +354,13 @@ export default function Home() {
     }
     window.localStorage.removeItem("career_pending_start");
     window.localStorage.removeItem("career_pending_cv_import");
+    window.localStorage.removeItem("career_pending_message");
     kezdoValasztasRef.current = null;
-    belepesKeresRef.current = false;
     setKezdoValasztas(null);
     setCvMuvelet(null);
     setWorkflowState(null);
     setValaszthatoLepesek([]);
+    setBelepesreVar(false);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
@@ -349,12 +373,13 @@ export default function Home() {
     if (!tiszta || kuldesFolyamatban) return;
 
     if (!belepve) {
-      if (!kezdoValasztasRef.current) {
-        kezdoValasztasRef.current = "szabad-szoveg";
-        setKezdoValasztas("szabad-szoveg");
-      }
-      setSzoveg("");
-      belepesKeres();
+      // Nem indul modellhívás: a vendég szövegét eltesszük, és a belépés
+      // után visszaadjuk. Fizetős hívás csak bejelentkezve történik.
+      vendegetBelepesreHiv(
+        tiszta,
+        "Köszönöm, elolvastam! Mielőtt nekilátunk, lépj be vagy regisztrálj — így tudom megjegyezni, amit mondasz, és elmenteni a karrierutadat. Amit beírtál, megmarad.",
+        { career_pending_message: tiszta },
+      );
       return;
     }
 
@@ -481,7 +506,7 @@ export default function Home() {
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-200">
           {!belepve
-            ? "A személyes karrierút indításához jelentkezz be."
+            ? "Fiók nélkül körülnézhetsz és beírhatod, miben segítsünk. A CV-d, a karrierutad és Flow válaszai fiókhoz kötöttek."
             : kovetkezoLepes
               ? `${kovetkezoLepes.nev} — ${kovetkezoLepes.zartLeiras}`
               : "Minden szakasz ellenőrizve. Készen állsz a pályázásra."}
@@ -558,29 +583,7 @@ export default function Home() {
                 </span>
               </div>
 
-              {belepesFuggoben ? (
-                <section className="flex min-h-[500px] flex-col justify-center px-6 py-10 sm:px-12">
-                  <button
-                    type="button"
-                    onClick={kezdoAllapotVisszaallitasa}
-                    className="mb-8 w-fit text-xs font-semibold text-slate-400 hover:text-amber-100"
-                  >
-                    ← Vissza a kezdéshez
-                  </button>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-300/70">
-                    Védett személyes folyamat
-                  </p>
-                  <h3 className="mt-3 max-w-xl font-serif text-3xl leading-tight text-white">
-                    Lépj be a személyes CV-folyamat folytatásához
-                  </h3>
-                  <p className="mt-4 max-w-xl text-sm leading-6 text-slate-400">
-                    A CV személyes adatokat tartalmaz. A fiók biztosítja, hogy
-                    csak te férj hozzá a feltöltött dokumentumhoz és a mentett
-                    karrierutadhoz.
-                  </p>
-                  <InlineAuth />
-                </section>
-              ) : kezdoValasztas === "cv" && belepve ? (
+              {kezdoValasztas === "cv" && belepve ? (
                 <section className="min-h-[500px] px-5 py-6 sm:px-8 sm:py-8">
                   <button
                     type="button"
@@ -728,6 +731,21 @@ export default function Home() {
                       Flow feldolgozza a következő lépést…
                     </div>
                   )}
+                  {belepesreVar && !belepve && (
+                    <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
+                      <p className="text-xs leading-5 text-amber-100/80">
+                        Egy perc az egész, és utána pontosan onnan folytatjuk,
+                        ahol abbahagytuk.
+                      </p>
+                      <Link
+                        href="/login?next=%2F"
+                        className="mt-3 inline-block rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200"
+                      >
+                        Belépés vagy regisztráció →
+                      </Link>
+                    </div>
+                  )}
+
                   <div ref={uzenetVegeRef} />
 
                   <form
@@ -744,7 +762,6 @@ export default function Home() {
                       id="flow-message"
                       value={szoveg}
                       onChange={(event) => setSzoveg(event.target.value)}
-                      disabled={!belepve}
                       onKeyDown={(event) => {
                         if (
                           event.key === "Enter" &&
@@ -758,7 +775,7 @@ export default function Home() {
                       placeholder={
                         belepve
                           ? "Írd le néhány mondatban, hol tartasz és miben segítsek…"
-                          : "A személyes Flow-beszélgetéshez jelentkezz be."
+                          : "Írd le, miben segítsek — küldés előtt belépünk, a szöveged megmarad."
                       }
                       rows={7}
                       maxLength={4000}
@@ -769,29 +786,16 @@ export default function Home() {
                     </div>
                     <button
                       type="submit"
-                      disabled={
-                        !belepve || kuldesFolyamatban || !szoveg.trim()
-                      }
+                      disabled={kuldesFolyamatban || !szoveg.trim()}
                       className="absolute bottom-3 right-3 rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      {kuldesFolyamatban ? "Küldés…" : "Küldés"}
+                      {kuldesFolyamatban
+                        ? "Küldés…"
+                        : belepve
+                          ? "Küldés"
+                          : "Belépés és küldés"}
                     </button>
                   </form>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-xs leading-5 text-slate-500">
-                    <span>
-                      A nyitóoldal fiók nélkül böngészhető. Flow személyes
-                      segítsége és az adatok mentése bejelentkezést igényel.
-                    </span>
-                    {!belepve && (
-                      <Link
-                        href={belepesUrl("/")}
-                        className="shrink-0 font-semibold text-amber-200 hover:text-amber-100"
-                      >
-                        Belépés vagy regisztráció →
-                      </Link>
-                    )}
-                  </div>
 
                   <div className="pt-1">
                     <p className="mb-3 text-xs font-medium text-slate-500">
