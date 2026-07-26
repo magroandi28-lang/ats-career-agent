@@ -315,6 +315,106 @@ def test_jova_nem_hagyott_cv_nem_kerul_a_kereresbe(monkeypatch):
     assert hivasok == [""]
 
 
+# ── CV-átvizsgálás (konkrét álláshirdetés nélkül) ─────────────────────
+
+def _rendes_cv(extra: str = "") -> str:
+    return (
+        "Kiss Péter szobafestő\n"
+        "kiss.peter@example.hu\n"
+        "+36 30 123 4567\n"
+        + "\n".join(
+            ["Tapasztalat: falfestés, glettelés, tapétázás, felújítás."] * 20
+        )
+        + extra
+    )
+
+
+def test_formai_vizsgalat_tiszta_cv_nel_nem_kifogasol():
+    from backend.workflow_actions import _formai_kifogasok
+
+    assert _formai_kifogasok(_rendes_cv()) == []
+
+
+def test_formai_vizsgalat_eszreveszi_a_hianyzo_elerhetoseget():
+    from backend.workflow_actions import _formai_kifogasok
+
+    kodok = {k["kod"] for k in _formai_kifogasok("Szobafestő vagyok. " * 60)}
+    assert "nincs_email" in kodok
+    assert "nincs_telefon" in kodok
+
+
+def test_formai_vizsgalat_jelzi_a_kepkent_beolvasott_cv_t():
+    """Szkennelt CV-nél alig van kinyerhető szöveg."""
+    from backend.workflow_actions import _formai_kifogasok
+
+    kodok = {k["kod"] for k in _formai_kifogasok("Kiss Péter\nszobafestő")}
+    assert "keves_szoveg" in kodok
+
+
+def test_formai_vizsgalat_jelzi_az_osszefolyo_sorokat():
+    from backend.workflow_actions import _formai_kifogasok
+
+    # Két hasábos PDF-ből kinyerve a sorok jelentős része összefolyik.
+    hosszu = ["Tapasztalat és képzettség egy sorba olvadva. " * 10] * 8
+    szoveg = "\n".join([_rendes_cv()] + hosszu)
+    kodok = {k["kod"] for k in _formai_kifogasok(szoveg)}
+    assert "osszefolyo_sorok" in kodok
+
+
+def test_cv_ellenorzes_jovahagyott_cv_nelkul_elutasit(monkeypatch):
+    from backend import workflow_actions
+
+    monkeypatch.setattr(workflow_actions, "cv_import_get", lambda *_: None)
+    with pytest.raises(ActionError, match="töltsd fel"):
+        execute_action(
+            CareerAction.CV_ELLENORZES_INDITASA,
+            ActionContext(
+                user_id=FELHASZNALO_ID,
+                workflow={"context": {}},
+                profile=_profil(target_role="szobafestő"),
+            ),
+        )
+
+
+def test_cv_ellenorzes_hirdetes_nelkul_is_ad_hianylistat(monkeypatch):
+    """A szakma piaci elvárásaihoz mér, nem konkrét álláshirdetéshez."""
+    from backend import workflow_actions
+
+    monkeypatch.setattr(
+        workflow_actions,
+        "cv_import_get",
+        lambda *_: {"review_status": "approved", "extracted_text": _rendes_cv()},
+    )
+    monkeypatch.setattr(
+        workflow_actions,
+        "ats_diagnozis_determinisztikus",
+        lambda cv, info: {
+            "illeszkedes_szazalek": 62,
+            "hianyzo_kulcsszavak": [{"szo": "HACCP"}, {"szo": "állványozás"}],
+            "meglevo_kulcsszavak": ["glettelés"],
+            "fo_problema": "Hiányzik két gyakori elvárás.",
+        },
+    )
+
+    outcome = execute_action(
+        CareerAction.CV_ELLENORZES_INDITASA,
+        ActionContext(
+            user_id=FELHASZNALO_ID,
+            workflow={"context": {}},
+            profile=_profil(
+                target_role="szobafestő",
+                cv_document_id="00000000-0000-0000-0000-000000000002",
+            ),
+        ),
+    )
+
+    assert outcome.result["illeszkedes_szazalek"] == 62
+    assert len(outcome.result["hianyzo_elvarasok"]) == 2
+    assert outcome.result["formai_kifogasok"] == []
+    assert outcome.gps_terulet == "felkeszultseg"
+    assert outcome.gps_allapot == "hianyok"
+
+
 # ── A végpont kapuja ──────────────────────────────────────────────────
 
 def _alap_mockok(monkeypatch, allapot, intent="piaci_korkep", context=None):
@@ -372,12 +472,12 @@ def test_meg_be_nem_kotott_lepes_501(monkeypatch):
 
     Ez szándékosan más, mint a 409: ott a lépés tiltott, itt még hiányzik.
     """
-    _alap_mockok(monkeypatch, "PROFIL_ELLENORZOTT", intent="cv_ellenorzes")
+    _alap_mockok(monkeypatch, "PROFIL_ELLENORZOTT", intent="tanacsadas")
     app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
     try:
         valasz = kliens.post(
             "/api/v1/workflow/action",
-            json={"action": "cv_ellenorzes_inditasa"},
+            json={"action": "tanacsadas_inditasa"},
         )
     finally:
         app.dependency_overrides.clear()

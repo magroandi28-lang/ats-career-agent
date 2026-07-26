@@ -21,7 +21,8 @@ const AKCIO_FELIRATOK = {
   },
   cv_ellenorzes_inditasa: {
     cim: "CV átvizsgálása",
-    leiras: "Szerkezet és ATS-olvashatóság, átírás nélkül.",
+    leiras:
+      "Miért dobhatja ki a szűrő, és mely piaci elvárások hiányoznak belőle.",
   },
   cv_frissites_inditasa: {
     cim: "CV frissítése",
@@ -185,8 +186,82 @@ function KeresesiFeltetelek({ adat }) {
   );
 }
 
+function CvAtvizsgalas({ adat }) {
+  const hianyzo = adat.hianyzo_elvarasok || [];
+  const formai = adat.formai_kifogasok || [];
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline gap-x-3">
+        <h4 className="text-base font-semibold text-white">
+          {adat.illeszkedes_szazalek}% illeszkedés
+        </h4>
+        <span className="text-xs text-slate-400">
+          a(z) {adat.szakma} szakma mért elvárásaihoz
+        </span>
+      </div>
+
+      <div className="mt-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Átmegy-e a szűrőn
+        </p>
+        {formai.length === 0 ? (
+          <p className="mt-2 text-sm text-emerald-100">
+            A dokumentum géppel olvasható, formai akadályt nem találtunk.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {formai.map((kifogas) => (
+              <li
+                key={kifogas.kod}
+                className="rounded-xl border border-red-300/20 bg-red-300/[0.06] px-3.5 py-2.5 text-xs leading-5 text-red-50"
+              >
+                {kifogas.leiras}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Amit a cégek kérnek, de nincs benne
+        </p>
+        {hianyzo.length === 0 ? (
+          <p className="mt-2 text-sm text-emerald-100">
+            A leggyakoribb elvárások szerepelnek a CV-dben.
+          </p>
+        ) : (
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {hianyzo.map((elem, index) => (
+              <li
+                key={`${elem.szo || elem}-${index}`}
+                className="rounded-full border border-amber-300/25 bg-amber-300/[0.07] px-3 py-1 text-xs text-amber-100"
+              >
+                {elem.szo || elem}
+                {elem.hirdetesek_szama != null && (
+                  <span className="ml-1.5 text-amber-200/60">
+                    {elem.hirdetesek_szama} hirdetésben
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {adat.fo_problema && (
+        <p className="mt-5 text-sm leading-6 text-slate-300">
+          {adat.fo_problema}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Eredmeny({ action, adat }) {
   if (!adat) return null;
+  if (action === "cv_ellenorzes_inditasa") return <CvAtvizsgalas adat={adat} />;
   if (action === "piaci_korkep_inditasa") return <PiaciKorkep adat={adat} />;
   if (action === "allasok_bemutatasa") return <Allaslista adat={adat} />;
   if (action === "allaskereses_inditasa") {

@@ -16,7 +16,12 @@ import datetime
 from typing import Final
 from uuid import uuid4
 
-from agents.karrier_ugynok import allasok_minosegi_kereses
+import re
+
+from agents.karrier_ugynok import (
+    allasok_minosegi_kereses,
+    ats_diagnozis_determinisztikus,
+)
 from backend.career_state_machine import CareerAction
 from backend.cv_import_service import cv_import_get
 from backend.gps_vocabulary import ellenorzott_esemeny, ellenorzott_snapshot
@@ -32,6 +37,11 @@ from utils.adatbazis import (
 # docs/felhasznaloi-allapotgep.md 7.: „Legfeljebb öt találat látható; ha
 # csak kettő megfelelő, kettőt mutat." A korlát felső határ, nem kvóta.
 MAX_TALALAT: Final = 5
+
+# Formai ellenőrzéshez. Szándékosan megengedő minták: azt nézzük, van-e
+# egyáltalán elérhetőség a dokumentumban, nem azt, hogy szabályos-e.
+EMAIL_MINTA: Final = re.compile(r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}")
+TELEFON_MINTA: Final = re.compile(r"(?:\+?\d[\d\s\-/()]{7,})")
 
 
 class ActionError(RuntimeError):
@@ -268,6 +278,92 @@ def _allasok_bemutatasa(ctx: ActionContext) -> ActionOutcome:
     )
 
 
+def _formai_kifogasok(cv_szoveg: str) -> list[dict]:
+    """Miért dobhatja ki a szűrő a dokumentumot, mielőtt bárki elolvasná.
+
+    Tisztán determinisztikus: a kinyert szövegen mért jelek, nulla
+    modellhívás. Nem a tartalmat nézi, hanem hogy a gép egyáltalán
+    értelmesen ki tudja-e olvasni.
+    """
+    kifogasok: list[dict] = []
+    sorok = [sor for sor in cv_szoveg.splitlines() if sor.strip()]
+
+    if len(cv_szoveg) < 600:
+        kifogasok.append({
+            "kod": "keves_szoveg",
+            "leiras": (
+                "Nagyon kevés kiolvasható szöveg van a fájlban. Ez akkor "
+                "fordul elő, ha a CV képként vagy szkennelve készült — a "
+                "szűrőprogram ilyenkor gyakorlatilag üres lapot lát."
+            ),
+        })
+
+    if not EMAIL_MINTA.search(cv_szoveg):
+        kifogasok.append({
+            "kod": "nincs_email",
+            "leiras": (
+                "Nem találtunk e-mail címet. A szűrőprogramok többsége "
+                "elérhetőség nélkül nem tudja feldolgozni a jelentkezést."
+            ),
+        })
+
+    if not TELEFON_MINTA.search(cv_szoveg):
+        kifogasok.append({
+            "kod": "nincs_telefon",
+            "leiras": "Nem találtunk telefonszámot a dokumentumban.",
+        })
+
+    hosszu_sorok = sum(1 for sor in sorok if len(sor) > 200)
+    if sorok and hosszu_sorok / len(sorok) > 0.15:
+        kifogasok.append({
+            "kod": "osszefolyo_sorok",
+            "leiras": (
+                "A szöveg sok helyen egyetlen hosszú sorba folyik össze. Ez "
+                "jellemzően több hasábos vagy táblázatos elrendezésből "
+                "adódik, amit a szűrőprogramok összekevernek."
+            ),
+        })
+
+    return kifogasok
+
+
+def _cv_ellenorzes_inditasa(ctx: ActionContext) -> ActionOutcome:
+    """CV-átvizsgálás két rétegben, konkrét álláshirdetés nélkül.
+
+    1. Formai: miért dobhatja ki a szűrő a dokumentumot -- determinisztikus.
+    2. Tartalmi: mely, a saját hirdetés-adatbázisunkban mért elvárások
+       hiányoznak a CV-ből. A százalékot kód számolja a v_szakma_keszsegek
+       nézetből, nem modell.
+
+    Egyik réteghez sem kell hirdetés: az egész szakma piaci képe megvan az
+    adatbázisban.
+    """
+    szakma = _celmunkakor(ctx)
+    cv_szoveg = _jovahagyott_cv_szoveg(ctx)
+    if not cv_szoveg:
+        raise ActionError(
+            "Az átvizsgáláshoz előbb töltsd fel és hagyd jóvá a CV-det."
+        )
+
+    formai = _formai_kifogasok(cv_szoveg)
+    diagnozis = ats_diagnozis_determinisztikus(cv_szoveg, {"szakma": szakma})
+    hianyzo = diagnozis.get("hianyzo_kulcsszavak") or []
+
+    return ActionOutcome(
+        result={
+            "szakma": szakma,
+            "formai_kifogasok": formai,
+            "illeszkedes_szazalek": diagnozis.get("illeszkedes_szazalek", 0),
+            "hianyzo_elvarasok": hianyzo[:10],
+            "meglevo_elvarasok": (diagnozis.get("meglevo_kulcsszavak") or [])[:10],
+            "fo_problema": diagnozis.get("fo_problema", ""),
+        },
+        gps_terulet="felkeszultseg",
+        gps_allapot="megfelelo" if not formai and not hianyzo else "hianyok",
+        context_patch={"cv_ellenorzes_szakma": szakma},
+    )
+
+
 Handler = Callable[[ActionContext], ActionOutcome]
 
 # A regiszterben szereplő műveletek hajthatók végre. Ami nincs benne, arra a
@@ -278,6 +374,7 @@ ACTION_HANDLERS: Final[dict[CareerAction, Handler]] = {
     CareerAction.PIACI_KORKEP_INDITASA: _piaci_korkep_inditasa,
     CareerAction.ALLASKERESES_INDITASA: _allaskereses_inditasa,
     CareerAction.ALLASOK_BEMUTATASA: _allasok_bemutatasa,
+    CareerAction.CV_ELLENORZES_INDITASA: _cv_ellenorzes_inditasa,
 }
 
 
