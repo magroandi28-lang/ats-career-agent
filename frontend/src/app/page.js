@@ -199,7 +199,7 @@ function MegszolitasMezo({ onKesz }) {
         htmlFor="megszolitas"
         className="w-full text-xs font-medium text-amber-100/80"
       >
-        Hogy szólítsalak?
+        Keresztneved
       </label>
       <input
         id="megszolitas"
@@ -536,6 +536,36 @@ export default function Home() {
     gpsFrissites();
   }
 
+  /** A karriercél rögzítése kifejezett rábólintásra. Ugyanaz a végpont,
+   *  amit a fix műveletgombok használnak -- nem a modell dönt helyetted. */
+  async function celMegerositese(intent) {
+    if (kuldesFolyamatban) return;
+    setKuldesFolyamatban(true);
+    setHiba(null);
+    try {
+      const valasz = await apiFetch("/api/v1/workflow/intent", {
+        method: "POST",
+        body: JSON.stringify({ intent }),
+      });
+      if (!valasz.ok) throw new Error(`workflow-intent: ${valasz.status}`);
+      const dontes = await valasz.json();
+      setWorkflowState(dontes.current_state);
+      setValaszthatoLepesek(dontes.available_actions || []);
+      setUzenetek((elozo) =>
+        elozo.map((sor, i) =>
+          i === elozo.length - 1
+            ? { ...sor, megerositendoIntent: null, celRogzitve: true }
+            : sor,
+        ),
+      );
+      gpsFrissites();
+    } catch {
+      setHiba("A cél rögzítése nem sikerült. Próbáld újra.");
+    } finally {
+      setKuldesFolyamatban(false);
+    }
+  }
+
   async function uzenetKuldese(uzenetSzoveg) {
     const tiszta = uzenetSzoveg.trim();
     if (!tiszta || kuldesFolyamatban) return;
@@ -619,6 +649,9 @@ export default function Home() {
           akcio: dontes.accepted_action || null,
           eredmeny: dontes.eredmeny || null,
           muveletHiba: dontes.muvelet_hiba || null,
+          // A karriercél rögzítése a te döntésed, nem Flow-é: ő csak
+          // visszakérdez, a pipa a rábólintásod után kerül ki.
+          megerositendoIntent: dontes.megerositendo_intent || null,
         },
       ]);
       setValaszthatoLepesek(dontes.available_actions || []);
@@ -942,6 +975,29 @@ export default function Home() {
                       ) : (
                         uzenet.szoveg
                       )}
+                      {uzenet.celRogzitve && (
+                        <p className="mt-2 text-xs text-emerald-200/80">
+                          Cél rögzítve.
+                        </p>
+                      )}
+                      {uzenet.nevMentve && (
+                        <p className="mt-2 text-xs text-emerald-200/80">
+                          Elmentve: {uzenet.nevMentve}
+                        </p>
+                      )}
+                      {uzenet.megerositendoIntent &&
+                        index === uzenetek.length - 1 && (
+                          <button
+                            type="button"
+                            disabled={kuldesFolyamatban}
+                            onClick={() =>
+                              celMegerositese(uzenet.megerositendoIntent)
+                            }
+                            className="mt-3 rounded-full bg-amber-300 px-4 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-200 disabled:opacity-40"
+                          >
+                            Igen, ez a célom
+                          </button>
+                        )}
                       {uzenet.eredmeny && (
                         <div className="mt-3 rounded-xl border border-white/8 bg-black/25 p-4">
                           <FlowEredmeny
@@ -960,14 +1016,14 @@ export default function Home() {
                         index === uzenetek.length - 1 && (
                           <MegszolitasMezo
                             onKesz={(nev) =>
+                              // Flow üzenetét NEM írjuk át: ha hozzáfűznénk
+                              // a visszaigazolást, úgy tűnne, mintha
+                              // megismételné magát. Csak a mező helyére
+                              // kerül egy rövid nyugta.
                               setUzenetek((elozo) =>
                                 elozo.map((sor, i) =>
                                   i === elozo.length - 1
-                                    ? {
-                                        ...sor,
-                                        nevetKer: false,
-                                        szoveg: `${sor.szoveg}\n\nRendben, mostantól így szólítalak: ${nev}.`,
-                                      }
+                                    ? { ...sor, nevetKer: false, nevMentve: nev }
                                     : sor,
                                 ),
                               )

@@ -741,47 +741,20 @@ def flow_uzenet_vegpont(
     current_state = previous_state
     accepted_action = None
     gps_esemeny = None
+
+    # A karriercél rögzítése FELHASZNÁLÓI aktus, nem a modell döntése.
+    # Korábban Flow javaslatát magát tekintettük megerősítésnek, ezért egy
+    # odavetett mondatból ("pályamódosító vagyok") máris kipipált célt
+    # kapott a Career GPS -- olyat, amiről a felhasználó nem is tudott.
+    # Mostantól csak visszakérdezünk; a rögzítés a /workflow/intent
+    # végponton történik, kifejezett rábólintás után.
+    megerositendo_intent = None
     if (
         dontes.intent is not CareerIntent.BIZONYTALAN
         and dontes.proposed_action is CareerAction.CEL_MEGEROSITESE
+        and confirm_intent_transition(previous_state, dontes.intent) is not None
     ):
-        next_workflow_state = confirm_intent_transition(
-            previous_state, dontes.intent
-        )
-        if next_workflow_state is not None:
-            context = dict(workflow.get("context") or {})
-            if dontes.szakma:
-                context["target_role"] = dontes.szakma
-            if not workflow_frissites(
-                user_id,
-                workflow["id"],
-                next_workflow_state,
-                dontes.intent,
-                context,
-            ):
-                raise HTTPException(503, "Az állapotváltás mentése nem sikerült.")
-            current_state = next_workflow_state
-            accepted_action = CareerAction.CEL_MEGEROSITESE
-
-            esemeny_id = gps_esemeny_rogzitese(
-                user_id,
-                session_id,
-                "career_intent_confirmed",
-                {
-                    "intent": dontes.intent.value,
-                    "previous_state": previous_state.value,
-                    "current_state": current_state.value,
-                    "target_role": dontes.szakma or None,
-                },
-                actor="system",
-            )
-            gps_snapshot_frissites(
-                user_id, "karriercel", "kivalasztott", esemeny_id
-            )
-            gps_esemeny = {
-                "tipus": "career_intent_confirmed",
-                "intent": dontes.intent.value,
-            }
+        megerositendo_intent = dontes.intent.value
     elif dontes.intent is CareerIntent.BIZONYTALAN:
         accepted_action = CareerAction.TISZTAZO_KERDES
 
@@ -856,6 +829,7 @@ def flow_uzenet_vegpont(
         "state_changed": current_state != previous_state,
         "eredmeny": eredmeny,
         "muvelet_hiba": muvelet_hiba,
+        "megerositendo_intent": megerositendo_intent,
         **_akcio_lista(current_state),
         "gps_esemeny": gps_esemeny,
     }

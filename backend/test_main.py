@@ -161,8 +161,8 @@ def test_uj_kulcsnevek_elonyben_reszesulnek(monkeypatch):
     get_settings.cache_clear()
 
 
-def test_flow_cv_frissites_nem_indit_allaskeresest(monkeypatch):
-    """A modell javaslatából csak a cél megerősítése hajtható végre."""
+def test_flow_javaslata_nem_rogziti_a_celt(monkeypatch):
+    """Flow visszakérdez, de a célt a felhasználó rögzíti."""
     from backend import main
 
     class Felhasznalo:
@@ -218,12 +218,17 @@ def test_flow_cv_frissites_nem_indit_allaskeresest(monkeypatch):
     finally:
         app.dependency_overrides.clear()
 
+    test = valasz.json()
     assert valasz.status_code == 200
-    assert valasz.json()["intent"] == "cv_frissites"
-    assert valasz.json()["current_state"] == "CEL_TISZTAZOTT"
-    assert valasz.json()["accepted_action"] == "cel_megerositese"
-    assert "allaskereses_inditasa" not in valasz.json()["allowed_actions"]
-    assert len(frissitesek) == 1
+    assert test["intent"] == "cv_frissites"
+    # A karriercél rögzítése felhasználói aktus: Flow csak visszakérdez.
+    # Korábban a javaslatát magát tekintettük megerősítésnek, ezért egyetlen
+    # odavetett mondatból kipipált cél keletkezett a Career GPS-en.
+    assert test["megerositendo_intent"] == "cv_frissites"
+    assert test["current_state"] == "CEL_TISZTAZATLAN"
+    assert test["accepted_action"] is None
+    assert "allaskereses_inditasa" not in test["allowed_actions"]
+    assert frissitesek == []
 
 
 def test_fix_cv_gomb_modell_nelkul_rogziti_az_intentet(monkeypatch):
