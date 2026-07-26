@@ -22,6 +22,7 @@ _AI_PATHS = {
     "/motivacios-level",
     "/flow-kiertekeles",
     "/api/v1/flow/messages",
+    "/api/v1/flow/guest-messages",
     "/ceginfo",
     "/skill-gap-elemzes",
     "/tanacsado-velemeny",
@@ -137,6 +138,16 @@ def limit_auth_request(request: Request) -> None:
     )
 
 
+def limit_guest_ai_request(request: Request) -> None:
+    """Bejelentkezés nélküli AI-hívások (pl. vendégmódos Flow-kérdés)
+    IP-cím szerinti korlátozása -- nincs user_id, amivel korlátoznánk."""
+    settings = get_settings()
+    rate_limiter.check(
+        f"guest_ai:{_client_ip(request)}",
+        settings.ai_requests_per_minute,
+    )
+
+
 def limit_user_request(request: Request, user_id: str) -> None:
     settings = get_settings()
     limit = (
@@ -169,7 +180,6 @@ async def read_validated_pdf(upload: UploadFile) -> bytes:
         if total > settings.max_upload_bytes:
             raise HTTPException(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail="A fájl túl nagy (maximum 5 MB).",
             )
         chunks.append(chunk)
 
