@@ -810,14 +810,12 @@ def _megszolitas(felhasznalo, megerositett_profil: dict) -> str:
     if sajat:
         return sajat
 
+    # Csak biztos forrásból veszünk nevet. A `full_name`-ből NEM tippelünk
+    # keresztnevet: magyarul a „Vezetéknév Keresztnév" és a „Keresztnév
+    # Vezetéknév" sorrend is előfordul, így a tippelés kb. felében rossz
+    # néven szólítaná a felhasználót -- ami rosszabb, mint a név hiánya.
     metaadat = getattr(felhasznalo, "user_metadata", None) or {}
-    # A `given_name` a megbízható keresztnév. A magyar `full_name` gyakran
-    # „Vezetéknév Keresztnév" sorrendű, ott az utolsó szó a keresztnév.
-    keresztnev = str(metaadat.get("given_name") or "").strip()
-    if keresztnev:
-        return keresztnev
-    teljes = str(metaadat.get("full_name") or metaadat.get("name") or "").strip()
-    return teljes.split()[-1] if teljes else ""
+    return str(metaadat.get("given_name") or "").strip()
 
 
 def _akcio_lista(state: CareerState | None) -> dict:
