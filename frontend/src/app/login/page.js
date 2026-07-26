@@ -1,13 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
   const [mod, setMod] = useState("belepes");
+
+  // A `?mod=regisztracio` paraméterrel érkezőt rögtön a regisztrációs
+  // űrlapon fogadjuk (Flow „Regisztráció" gombja így hivatkozik ide).
+  // Szándékosan effektben és nem useSearchParams-szal: az utóbbi
+  // Suspense-határt igényelne, ami nélkül a production build elhasal.
+  useEffect(() => {
+    const kert = new URLSearchParams(window.location.search).get("mod");
+    if (kert === "regisztracio") setMod("regisztracio");
+  }, []);
   const [email, setEmail] = useState("");
   const [jelszo, setJelszo] = useState("");
   const [jelszoLathato, setJelszoLathato] = useState(false);

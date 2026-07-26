@@ -800,6 +800,28 @@ export default function Home() {
                       ) : (
                         uzenet.szoveg
                       )}
+                      {!belepve &&
+                        uzenet.szerep === "flow" &&
+                        index === uzenetek.length - 1 && (
+                          <span className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => router.push("/login?next=%2F")}
+                              className="rounded-full border border-amber-300/50 px-4 py-1.5 text-xs font-semibold text-amber-100 hover:border-amber-200 hover:bg-amber-300/10"
+                            >
+                              Belépés
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                router.push("/login?next=%2F&mod=regisztracio")
+                              }
+                              className="rounded-full bg-amber-300 px-4 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-200"
+                            >
+                              Regisztráció
+                            </button>
+                          </span>
+                        )}
                     </div>
                   ))}
                   {kuldesFolyamatban && (
