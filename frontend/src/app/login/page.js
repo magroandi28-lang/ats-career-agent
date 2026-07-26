@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [mod, setMod] = useState("belepes");
   const [keresztnev, setKeresztnev] = useState("");
   const [elfogadva, setElfogadva] = useState(false);
+  const [megerositesreVar, setMegerositesreVar] = useState(false);
 
   // A `?mod=regisztracio` paraméterrel érkezőt rögtön a regisztrációs
   // űrlapon fogadjuk (Flow „Regisztráció" gombja így hivatkozik ide).
@@ -117,9 +118,18 @@ export default function LoginPage() {
         router.replace(kovetkezoOldal());
         router.refresh();
       } else {
+        // A megerősítő link a rendszer alapértelmezett böngészőjében nyílik
+        // meg, ami gyakran NEM ez az ablak (pl. inkognitóból regisztrálva).
+        // Ilyenkor ez az ablak sosem lép be magától -- ezt ki kell mondani,
+        // különben a felhasználó vár valamire, ami nem fog megtörténni.
         setUzenet(
-          "Elküldtük a megerősítő levelet. Nyisd meg az emailedet, majd kattints a benne lévő linkre.",
+          "Elküldtük a megerősítő levelet — nyisd meg, és kattints a benne " +
+            "lévő linkre. A link a gépeden beállított alapértelmezett " +
+            "böngészőben nyílik meg, és ott rögtön be is lépsz. Ha ez egy " +
+            "másik ablak, ott folytasd — vagy jelentkezz be itt az imént " +
+            "megadott jelszavaddal.",
         );
+        setMegerositesreVar(true);
       }
     } catch {
       setHiba("A szolgáltatás most nem érhető el. Próbáld újra néhány perc múlva.");
@@ -326,10 +336,24 @@ export default function LoginPage() {
                 {uzenet && (
                   <p
                     role="status"
-                    className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-4 py-3 text-sm text-emerald-100"
+                    className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] px-4 py-3 text-sm leading-6 text-emerald-100"
                   >
                     {uzenet}
                   </p>
+                )}
+                {megerositesreVar && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMegerositesreVar(false);
+                      setUzenet("");
+                      setHiba("");
+                      setMod("belepes");
+                    }}
+                    className="mt-3 w-full rounded-xl border border-amber-300/40 px-4 py-3 text-sm font-semibold text-amber-100 hover:border-amber-200 hover:bg-amber-300/10"
+                  >
+                    Belépés ebben az ablakban
+                  </button>
                 )}
 
                 <button
