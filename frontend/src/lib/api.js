@@ -28,14 +28,3 @@ export async function apiFetch(path, options = {}) {
   }
   return response;
 }
-
-// Vendégmódú (be nem jelentkezett) végpontokhoz: nincs munkamenet-ellenőrzés,
-// nincs belépésre-terelés. Csak azoknak a végpontoknak való, amelyek
-// kifejezetten bejelentkezés nélkül is elérhetők (pl. Flow vendégcsevegés).
-export async function publicApiFetch(path, options = {}) {
-  const headers = new Headers(options.headers);
-  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  return fetch(`${API_URL}${path}`, { ...options, headers });
-}

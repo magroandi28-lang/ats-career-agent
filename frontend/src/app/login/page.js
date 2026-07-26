@@ -2,23 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  // A `mod` query-paramétert olvassuk (pl. Flow "Regisztráció" CTA-ja
-  // ?mod=regisztracio-val hivatkozik ide) -- de csak addig, amíg a
-  // felhasználó kézzel nem vált módot. Szándékosan NEM useState-ben
-  // tároljuk kezdőértékként: az App Router ugyanazt a komponenspéldányt
-  // újrahasznosíthatja query-only navigációnál, ilyenkor a useState
-  // lusta inicializálója nem futna újra, és a CTA "Regisztráció" gombja
-  // a belépés módban ragadna.
-  const [modFelulirat, setModFelulirat] = useState(null);
-  const mod =
-    modFelulirat ??
-    (searchParams.get("mod") === "regisztracio" ? "regisztracio" : "belepes");
+  const [mod, setMod] = useState("belepes");
   const [email, setEmail] = useState("");
   const [jelszo, setJelszo] = useState("");
   const [jelszoLathato, setJelszoLathato] = useState(false);
@@ -27,14 +16,14 @@ export default function LoginPage() {
   const [dolgozik, setDolgozik] = useState(false);
 
   function kovetkezoOldal() {
-    const kovetkezo = searchParams.get("next");
+    const kovetkezo = new URLSearchParams(window.location.search).get("next");
     return kovetkezo?.startsWith("/") && !kovetkezo.startsWith("//")
       ? kovetkezo
       : "/";
   }
 
   function modValtas(ujMod) {
-    setModFelulirat(ujMod);
+    setMod(ujMod);
     setHiba("");
     setUzenet("");
   }

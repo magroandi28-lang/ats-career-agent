@@ -137,18 +137,6 @@ def limit_auth_request(request: Request) -> None:
     )
 
 
-def limit_guest_ai_request(request: Request) -> None:
-    """Vendégmódú (be nem jelentkezett) Flow-csevegés IP-alapú korlátja.
-
-    Ugyanazt a keretet használja, mint a belépés/regisztráció, mert ez is
-    egy be nem jelentkezett látogatótól jövő, modellhívást indító kérés."""
-    settings = get_settings()
-    rate_limiter.check(
-        f"guest_flow:{_client_ip(request)}",
-        settings.auth_requests_per_minute,
-    )
-
-
 def limit_user_request(request: Request, user_id: str) -> None:
     settings = get_settings()
     limit = (

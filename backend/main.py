@@ -16,7 +16,7 @@ Utana a bongeszoben:
     http://localhost:8000/docs      -> automatikus, kattintgathato API-dokumentacio
 """
 
-from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,7 +33,7 @@ from agents.karrier_ugynok import (
 )
 from utils.adatbazis import kereslet_korkep, szakma_statisztika, kliens
 from utils.teszt import ENERGIA_SKALA, STRESSZ_SKALA, holland_tipus, jollet_jelzes
-from utils.flow_agy import flow_kiertekeles, flow_dontes, flow_vendeg_valasz
+from utils.flow_agy import flow_kiertekeles, flow_dontes
 from utils.flow_allapot import (
     session_lekeres_vagy_letrehozas,
     elozmenyek_lekerese,
@@ -76,11 +76,7 @@ from backend.auth import (
     friss_auth_kliens,
     jelenlegi_felhasznalo,
 )
-from backend.security import (
-    RequestSecurityMiddleware,
-    limit_guest_ai_request,
-    read_validated_pdf,
-)
+from backend.security import RequestSecurityMiddleware, read_validated_pdf
 from backend.settings import get_settings
 
 settings = get_settings()
@@ -719,35 +715,6 @@ def flow_uzenet_vegpont(
         ],
         "gps_esemeny": gps_esemeny,
     }
-
-
-class FlowVendegUzenetBemenet(ApiModel):
-    """Vendégmódú (be nem jelentkezett) Flow-csevegés bemenete."""
-
-    kerdes: str = Field(min_length=1, max_length=600)
-
-
-VENDEG_ALAPERTELMEZETT_VALASZ = (
-    "Szia! Ehhez már érdemes belépned vagy regisztrálnod -- utána "
-    "szívesen segítek részletesen, a saját profilodhoz igazítva."
-)
-
-
-@app.post("/api/v1/flow/guest-messages")
-def flow_vendeg_uzenet_vegpont(
-    bemenet: FlowVendegUzenetBemenet,
-    request: Request,
-):
-    """
-    Vendégmódban Flow csak az oldal általános, nyilvános működéséről
-    beszélhet, és mindig regisztrációra/belépésre irányít. Nincs profil,
-    nincs előzmény-mentés, nincs állapotgép-hatás -- ez NEM a fizetős,
-    személyre szabott Flow (/api/v1/flow/messages), csak egy szűk,
-    ingyenes bemutató csevegés be nem jelentkezett látogatóknak.
-    """
-    limit_guest_ai_request(request)
-    valasz = flow_vendeg_valasz(bemenet.kerdes)
-    return {"valasz": valasz or VENDEG_ALAPERTELMEZETT_VALASZ}
 
 
 class ProfileDraftPatchBemenet(ApiModel):
