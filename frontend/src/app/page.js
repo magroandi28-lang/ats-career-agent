@@ -176,6 +176,7 @@ export default function Home() {
   const flowPanelRef = useRef(null);
   const uzenetVegeRef = useRef(null);
   const elsoRenderRef = useRef(true);
+  const vendegElozmenyRef = useRef([]);
   const belepve = Boolean(session);
 
   useEffect(() => {
@@ -238,11 +239,42 @@ export default function Home() {
     setHiba(null);
   }, [session]);
 
-  // Belépés után a vendégköszöntő helyére a bejelentkezett köszöntő kerül,
-  // de csak akkor, ha a látogató még nem kezdett beszélgetni -- különben
-  // elveszne, amit már írt.
+  // A belépés elnavigál a /login oldalra, ezért a React-állapot elveszne.
+  // A vendégbeszélgetést a böngészőben őrizzük meg, hogy belépés után
+  // ne kelljen elölről kezdeni. Szerverre nem kerül, amíg a felhasználó
+  // nem ír egy új üzenetet.
+  useEffect(() => {
+    if (belepve || uzenetek.length <= 1) return;
+    window.localStorage.setItem(
+      "career_guest_chat",
+      JSON.stringify(
+        uzenetek
+          .slice(-6)
+          .map((uzenet) => ({ szerep: uzenet.szerep, szoveg: uzenet.szoveg })),
+      ),
+    );
+  }, [uzenetek, belepve]);
+
+  // Belépés után: ha volt vendégbeszélgetés, azt folytatjuk, és az első
+  // üzenetnél kontextusként átadjuk Flow-nak. Ha nem volt, a vendégköszöntő
+  // helyére a bejelentkezett köszöntő kerül.
   useEffect(() => {
     if (!session) return;
+    const nyers = window.localStorage.getItem("career_guest_chat");
+    window.localStorage.removeItem("career_guest_chat");
+    let vendegSorok = [];
+    try {
+      const ertelmezett = nyers ? JSON.parse(nyers) : null;
+      if (Array.isArray(ertelmezett)) vendegSorok = ertelmezett;
+    } catch {
+      // Sérült tartalom: egyszerűen nincs folytatás.
+    }
+
+    if (vendegSorok.length) {
+      vendegElozmenyRef.current = vendegSorok;
+      setUzenetek(vendegSorok);
+      return;
+    }
     setUzenetek((elozo) =>
       elozo.length === 1 && elozo[0] === VENDEG_UZENET
         ? [KEZDO_UZENET]
@@ -474,12 +506,16 @@ export default function Home() {
         body: JSON.stringify({
           kerdes: tiszta,
           profil: {},
+          // Csak a belépés utáni ELSŐ üzenetnél megy át, és a szerver sem
+          // menti el -- kizárólag ehhez az egy válaszhoz ad kontextust.
+          vendeg_elozmeny: vendegElozmenyRef.current,
           app_ismeret:
             "A Karrier-Ügynökség ellenőrzött karrierprofilt, Career GPS-t, " +
             "piaci körképet, állásillesztést és pályázati anyagokat készít.",
         }),
       });
       if (!valasz.ok) throw new Error(`flow-messages: ${valasz.status}`);
+      vendegElozmenyRef.current = [];
       const dontes = await valasz.json();
 
       setUzenetek((elozo) => [

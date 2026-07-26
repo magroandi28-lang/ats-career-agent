@@ -391,6 +391,13 @@ def flow_kiertekeles_vegpont(
     return {"kiertekeles": flow_kiertekeles(bemenet.profil)}
 
 
+class FlowVendegElozmeny(ApiModel):
+    """Egy korábbi üzenet a vendég-beszélgetésből."""
+
+    szerep: Literal["user", "flow"]
+    szoveg: str = Field(min_length=1, max_length=600)
+
+
 class FlowUzenetBemenet(ApiModel):
     """A /flow-chat utódja: nincs 'elozmenyek' mező, mert a backend saját
     maga tárolja és olvassa vissza a beszélgetést (private.flow_messages) --
@@ -400,6 +407,12 @@ class FlowUzenetBemenet(ApiModel):
     # hagyja. Személyre szabáshoz csak a szerveroldali, megerősített profil jó.
     profil: dict = Field(default_factory=dict)
     app_ismeret: str = Field(default="", max_length=20_000)
+    # A belépés előtti vendégbeszélgetés, hogy ne kelljen elölről kezdeni.
+    # Csak ehhez az egy válaszhoz ad kontextust: NEM mentjük el, mert a
+    # felhasználó ezt még bejelentkezés nélkül írta.
+    vendeg_elozmeny: list[FlowVendegElozmeny] = Field(
+        default_factory=list, max_length=6
+    )
 
 
 class WorkflowIntentBemenet(ApiModel):
@@ -613,13 +626,6 @@ def workflow_action_vegpont(
     }
 
 
-class FlowVendegElozmeny(ApiModel):
-    """Egy korábbi üzenet a vendég-beszélgetésből."""
-
-    szerep: Literal["user", "flow"]
-    szoveg: str = Field(min_length=1, max_length=600)
-
-
 class FlowVendegUzenetBemenet(ApiModel):
     """Vendégmódú (be nem jelentkezett) Flow-csevegés bemenete.
 
@@ -698,6 +704,10 @@ def flow_uzenet_vegpont(
         current_state=previous_state,
         felhasznalo_neve=_megszolitas(felhasznalo, server_profile),
         gps_osszefoglalo=gps_projekcio(user_id),
+        vendeg_elozmeny=[
+            {"szerep": sor.szerep, "szoveg": sor.szoveg}
+            for sor in bemenet.vendeg_elozmeny
+        ],
     )
 
     uzenet_mentese(

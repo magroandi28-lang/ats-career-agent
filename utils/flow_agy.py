@@ -345,7 +345,8 @@ def flow_dontes(kerdes: str, profil: dict, app_ismeret: str = "",
                  current_state: CareerState = CareerState.CEL_TISZTAZATLAN,
                  gateway: ModelGateway | None = None,
                  felhasznalo_neve: str = "",
-                 gps_osszefoglalo: list | None = None) -> FlowDecision:
+                 gps_osszefoglalo: list | None = None,
+                 vendeg_elozmeny: list | None = None) -> FlowDecision:
     """Szándékot osztályoz és műveletet javasol, de nem hajt végre semmit.
 
     A felhasználói szöveg külön adatmezőként jut a modellhez, nem kerül a
@@ -390,6 +391,12 @@ Kötelező szabályok:
 - Ha ismered a felhasználó nevét, természetesen szólítsd a keresztnevén --
   de ne minden mondatban, csak ott, ahol egy ember is tenné.
 - Ne kérdezd meg újra, amit a profilból vagy a Career GPS-ből már tudsz.
+- SOHA ne köszönj és ne mutatkozz be: a felhasználót már köszöntötted a
+  nyitóüzenetben. Tilos „Szia", „Üdv", „Helló" kezdés -- akkor is, ha ő
+  köszönt. Folytatásként indíts.
+- Ha van „belepes_elotti_beszelgetes", arra építs: a felhasználó ott már
+  elmondta, mit szeretne. Ne kérdezd meg újra ugyanazt, hanem vedd fel a
+  fonalat ott, ahol abbahagytátok.
 Kizárólag a megadott strukturált sémát töltsd ki.
 
 """ + FLOW_SZEMELYISEG
@@ -403,6 +410,9 @@ Kizárólag a megadott strukturált sémát töltsd ki.
         "profil": profil or {},
         "igazolt_profilmezok": sorted((profil or {}).keys()),
         "career_gps": gps_osszefoglalo or [],
+        # Amit a felhasználó még belépés előtt mondott. Nincs elmentve,
+        # csak ehhez az egy válaszhoz ad kontextust.
+        "belepes_elotti_beszelgetes": (vendeg_elozmeny or [])[-6:],
         "app_ismeret": app_ismeret[:4000],
         "elozmenyek": (elozmenyek or [])[-8:],
         "aktualis_allapot": current_state.value,
