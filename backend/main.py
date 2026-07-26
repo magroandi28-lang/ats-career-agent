@@ -72,7 +72,7 @@ from backend.cv_import_service import (
     cv_import_get,
     cv_import_mark_approved,
 )
-from backend.app_ismeret import alkalmazas_ismeret
+from backend.app_ismeret import alkalmazas_ismeret, elerheto_lepesek
 from backend.workflow_actions import (
     ActionContext,
     ActionError,
@@ -731,6 +731,7 @@ def flow_uzenet_vegpont(
             {"szerep": sor.szerep, "szoveg": sor.szoveg}
             for sor in bemenet.vendeg_elozmeny
         ],
+        most_elindithato=elerheto_lepesek(previous_state),
     )
 
     uzenet_mentese(

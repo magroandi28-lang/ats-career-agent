@@ -396,7 +396,8 @@ def flow_dontes(kerdes: str, profil: dict, app_ismeret: str = "",
                  gateway: ModelGateway | None = None,
                  felhasznalo_neve: str = "",
                  gps_osszefoglalo: list | None = None,
-                 vendeg_elozmeny: list | None = None) -> FlowDecision:
+                 vendeg_elozmeny: list | None = None,
+                 most_elindithato: list | None = None) -> FlowDecision:
     """Szándékot osztályoz és műveletet javasol, de nem hajt végre semmit.
 
     A felhasználói szöveg külön adatmezőként jut a modellhez, nem kerül a
@@ -436,6 +437,13 @@ Kötelező szabályok:
 - CEL_TISZTAZATLAN állapotban egyértelmű szándéknál csak
   proposed_action=cel_megerositese javasolható.
 - Más állapotban csak az engedélyezett_akciok listájából választhatsz.
+- proposed_action CSAK a „most_elindithato" listából jöhet. Ami az
+  engedélyezett_akciok listában szerepel, de ebben nem, arra még nincs
+  kész modul: azt NE javasold és NE ígérd meg.
+- Ha a felhasználó olyat kér, ami még nincs kész, mondd meg őszintén, hogy
+  ez a rész még készül, és ajánld fel, amit most tudsz helyette.
+- Ha a „most_elindithato" nem üres és a felhasználó nem kért mást, ajánld
+  fel konkrétan, mit tudsz most elindítani — ne általánosságban kérdezz.
 - A válasz legyen rövid, magyar, tegező, együttérző, de konkrét.
 - evidence_refs csak tényleges, a bemenetben azonosítható forrás lehet.
 - Ha ismered a felhasználó nevét, természetesen szólítsd a keresztnevén --
@@ -473,6 +481,10 @@ Kizárólag a megadott strukturált sémát töltsd ki.
         "engedelyezett_akciok": [
             action.value for action in allowed_actions(current_state)
         ],
+        # Amit a rendszer ma tényleg le tud futtatni. Ami az engedélyezett
+        # listában van, de ebben nincs, arra még nincs modul -- azt Flow
+        # nem ígérheti meg.
+        "most_elindithato": list(most_elindithato or []),
     }
     gateway = gateway or ModelGateway()
     for kiserlet in range(2):
