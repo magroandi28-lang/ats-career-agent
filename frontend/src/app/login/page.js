@@ -8,6 +8,7 @@ import { createClient } from "../../lib/supabase/client";
 export default function LoginPage() {
   const router = useRouter();
   const [mod, setMod] = useState("belepes");
+  const [keresztnev, setKeresztnev] = useState("");
 
   // A `?mod=regisztracio` paraméterrel érkezőt rögtön a regisztrációs
   // űrlapon fogadjuk (Flow „Regisztráció" gombja így hivatkozik ide).
@@ -85,6 +86,9 @@ export default function LoginPage() {
               email: email.trim(),
               password: jelszo,
               options: {
+                // Ugyanabba a mezőbe kerül, amit a Google-belépés is tölt,
+                // így Flow-nak egyetlen névforrása van, nem kettő.
+                data: { given_name: keresztnev.trim() },
                 emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(
                   kovetkezoOldal(),
                 )}`,
@@ -191,6 +195,28 @@ export default function LoginPage() {
                   hitelesites();
                 }}
               >
+                {mod === "regisztracio" && (
+                  <div className="mb-3">
+                    <label
+                      className="block text-xs font-semibold text-slate-300"
+                      htmlFor="keresztnev"
+                    >
+                      Keresztneved
+                    </label>
+                    <input
+                      id="keresztnev"
+                      type="text"
+                      autoComplete="given-name"
+                      required
+                      maxLength={80}
+                      value={keresztnev}
+                      onChange={(event) => setKeresztnev(event.target.value)}
+                      placeholder="Andrea"
+                      className="mt-2 w-full rounded-xl border border-white/12 bg-slate-950/55 px-3.5 py-3 text-sm text-white placeholder:text-slate-600 focus:border-amber-300/50"
+                    />
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label

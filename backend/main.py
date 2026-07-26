@@ -696,6 +696,8 @@ def flow_uzenet_vegpont(
         bemenet.app_ismeret,
         elozmenyek,
         current_state=previous_state,
+        felhasznalo_neve=_megszolitas(felhasznalo, server_profile),
+        gps_osszefoglalo=gps_projekcio(user_id),
     )
 
     uzenet_mentese(
@@ -785,6 +787,27 @@ class ProfileConfirmBemenet(ApiModel):
 class CvImportReviewBemenet(ApiModel):
     import_id: str = Field(min_length=36, max_length=36)
     approved_text: str = Field(min_length=1, max_length=120_000)
+
+
+def _megszolitas(felhasznalo, megerositett_profil: dict) -> str:
+    """A felhasználó keresztneve, ha ismert.
+
+    Sorrend: a saját maga által megerősített profilnév, utána a
+    bejelentkezéskor kapott név (Google-fióknál a `full_name`). E-mail
+    címet szándékosan nem használunk megszólításnak.
+    """
+    sajat = str(megerositett_profil.get("display_name") or "").strip()
+    if sajat:
+        return sajat
+
+    metaadat = getattr(felhasznalo, "user_metadata", None) or {}
+    # A `given_name` a megbízható keresztnév. A magyar `full_name` gyakran
+    # „Vezetéknév Keresztnév" sorrendű, ott az utolsó szó a keresztnév.
+    keresztnev = str(metaadat.get("given_name") or "").strip()
+    if keresztnev:
+        return keresztnev
+    teljes = str(metaadat.get("full_name") or metaadat.get("name") or "").strip()
+    return teljes.split()[-1] if teljes else ""
 
 
 def _akcio_lista(state: CareerState | None) -> dict:

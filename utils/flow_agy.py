@@ -343,7 +343,9 @@ Válaszolj a fenti szabályok szerint, a beszélgetés folytatásaként."""
 def flow_dontes(kerdes: str, profil: dict, app_ismeret: str = "",
                  elozmenyek: list = None,
                  current_state: CareerState = CareerState.CEL_TISZTAZATLAN,
-                 gateway: ModelGateway | None = None) -> FlowDecision:
+                 gateway: ModelGateway | None = None,
+                 felhasznalo_neve: str = "",
+                 gps_osszefoglalo: list | None = None) -> FlowDecision:
     """Szándékot osztályoz és műveletet javasol, de nem hajt végre semmit.
 
     A felhasználói szöveg külön adatmezőként jut a modellhez, nem kerül a
@@ -385,11 +387,22 @@ Kötelező szabályok:
 - Más állapotban csak az engedélyezett_akciok listájából választhatsz.
 - A válasz legyen rövid, magyar, tegező, együttérző, de konkrét.
 - evidence_refs csak tényleges, a bemenetben azonosítható forrás lehet.
-Kizárólag a megadott strukturált sémát töltsd ki."""
+- Ha ismered a felhasználó nevét, természetesen szólítsd a keresztnevén --
+  de ne minden mondatban, csak ott, ahol egy ember is tenné.
+- Ne kérdezd meg újra, amit a profilból vagy a Career GPS-ből már tudsz.
+Kizárólag a megadott strukturált sémát töltsd ki.
 
+""" + FLOW_SZEMELYISEG
+
+    # A terv 7. pontja szerint Flow bemenete: az üzenet, az aktív állapot,
+    # a szűkített Career GPS összefoglaló, az igazolt profilmezők és az
+    # engedélyezett akciók. Teljes adatbázist vagy nyers CV-t nem kap.
     input_data = {
         "uj_uzenet": kerdes,
+        "felhasznalo_neve": felhasznalo_neve,
         "profil": profil or {},
+        "igazolt_profilmezok": sorted((profil or {}).keys()),
+        "career_gps": gps_osszefoglalo or [],
         "app_ismeret": app_ismeret[:4000],
         "elozmenyek": (elozmenyek or [])[-8:],
         "aktualis_allapot": current_state.value,
