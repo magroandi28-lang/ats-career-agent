@@ -119,12 +119,15 @@ const VENDEG_UZENET = {
   szoveg:
     "Szia! Flow vagyok. Örülök, hogy benéztél. Mondd el nyugodtan, mi jár a fejedben a munkáddal kapcsolatban — szívesen meghallgatlak. Ha regisztrálsz, sokkal többet tudok segíteni: átnézem a CV-det és végigkísérlek az egész úton. Ha már jártál itt, lépj be, és onnan folytatjuk, ahol abbahagytuk.",
   gepel: true,
+  // Az érkezéskori köszöntő lassabban íródik, hogy a látogató észrevegye.
+  // A későbbi válaszok az alapértelmezett, gyorsabb ütemet kapják.
+  gepelSebesseg: 45,
 };
 
 /** Betűnként jeleníti meg a szöveget, mintha Flow épp írná. Kattintásra
  *  azonnal kiírja a többit; csökkentett animációt kérő beállításnál
  *  eleve nem animál. */
-function GepeloSzoveg({ szoveg, sebessegMs = 32 }) {
+function GepeloSzoveg({ szoveg, sebessegMs = 18 }) {
   const [hossz, setHossz] = useState(0);
 
   useEffect(() => {
@@ -796,7 +799,10 @@ export default function Home() {
                       }`}
                     >
                       {uzenet.gepel ? (
-                        <GepeloSzoveg szoveg={uzenet.szoveg} />
+                        <GepeloSzoveg
+                          szoveg={uzenet.szoveg}
+                          sebessegMs={uzenet.gepelSebesseg}
+                        />
                       ) : (
                         uzenet.szoveg
                       )}
