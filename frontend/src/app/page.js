@@ -795,7 +795,7 @@ export default function Home() {
                       className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
                         uzenet.szerep === "flow"
                           ? "border border-amber-300/12 bg-amber-300/[0.05] text-slate-200"
-                          : "ml-auto bg-slate-100 text-slate-950"
+                          : "ml-auto border border-amber-300/30 bg-slate-900/70 text-white"
                       }`}
                     >
                       {uzenet.gepel ? (
