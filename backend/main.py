@@ -16,6 +16,8 @@ Utana a bongeszoben:
     http://localhost:8000/docs      -> automatikus, kattintgathato API-dokumentacio
 """
 
+from typing import Literal
+
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
@@ -611,10 +613,26 @@ def workflow_action_vegpont(
     }
 
 
+class FlowVendegElozmeny(ApiModel):
+    """Egy korábbi üzenet a vendég-beszélgetésből."""
+
+    szerep: Literal["user", "flow"]
+    szoveg: str = Field(min_length=1, max_length=600)
+
+
 class FlowVendegUzenetBemenet(ApiModel):
-    """Vendégmódú (be nem jelentkezett) Flow-csevegés bemenete."""
+    """Vendégmódú (be nem jelentkezett) Flow-csevegés bemenete.
+
+    Az előzményt itt a kliens küldi, mert vendégmódban szándékosan nincs
+    szerveroldali tárolás. Ezért szűk a keret: legfeljebb 6 üzenet,
+    darabonként 600 karakter -- és a prompt a beszélgetést adatként
+    kezeli, nem utasításként.
+    """
 
     kerdes: str = Field(min_length=1, max_length=600)
+    elozmenyek: list[FlowVendegElozmeny] = Field(
+        default_factory=list, max_length=6
+    )
 
 
 VENDEG_ALAPERTELMEZETT_VALASZ = (
@@ -635,7 +653,14 @@ def flow_vendeg_uzenet_vegpont(
     Bejelentkezés nélkül hívható, ezért IP-alapú korlát védi.
     """
     limit_guest_ai_request(request)
-    return {"valasz": flow_vendeg_valasz(bemenet.kerdes) or VENDEG_ALAPERTELMEZETT_VALASZ}
+    valasz = flow_vendeg_valasz(
+        bemenet.kerdes,
+        [
+            {"szerep": sor.szerep, "szoveg": sor.szoveg}
+            for sor in bemenet.elozmenyek
+        ],
+    )
+    return {"valasz": valasz or VENDEG_ALAPERTELMEZETT_VALASZ}
 
 
 @app.post("/api/v1/flow/messages")

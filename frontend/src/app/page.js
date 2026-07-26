@@ -427,9 +427,18 @@ export default function Home() {
       setSzoveg("");
       setKuldesFolyamatban(true);
       try {
+        // Vendégmódban nincs szerveroldali előzmény, ezért a kliens küldi
+        // az utolsó néhány üzenetet. A szerver korlátozza a hosszát, és
+        // adatként kezeli, nem utasításként.
         const valasz = await publicApiFetch("/api/v1/flow/guest-messages", {
           method: "POST",
-          body: JSON.stringify({ kerdes: tiszta }),
+          body: JSON.stringify({
+            kerdes: tiszta,
+            elozmenyek: uzenetek.slice(-6).map((uzenet) => ({
+              szerep: uzenet.szerep,
+              szoveg: uzenet.szoveg.slice(0, 600),
+            })),
+          }),
         });
         if (!valasz.ok) throw new Error(`flow-guest: ${valasz.status}`);
         const adat = await valasz.json();
@@ -825,16 +834,12 @@ export default function Home() {
                           uzenetKuldese(szoveg);
                         }
                       }}
-                      placeholder={
-                        belepve
-                          ? "Írd le néhány mondatban, hol tartasz és miben segítsek…"
-                          : "A személyes Flow-beszélgetéshez jelentkezz be."
-                      }
-                      rows={7}
+                      placeholder="Írd le néhány mondatban, hol tartasz és miben segítsek…"
+                      rows={2}
                       maxLength={4000}
-                      className="min-h-44 w-full resize-y rounded-2xl border border-white/12 bg-slate-950/55 px-5 py-4 pb-16 text-sm leading-6 text-white placeholder:text-slate-500 focus:border-amber-300/50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="w-full resize-y rounded-2xl border border-amber-300/40 bg-slate-950/70 px-5 pb-12 pt-4 text-sm leading-6 text-white placeholder:text-slate-500 focus:border-amber-300/70 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                     />
-                    <div className="absolute bottom-4 left-5 text-[11px] text-slate-600">
+                    <div className="pointer-events-none absolute bottom-4 left-5 text-[11px] text-slate-600">
                       Enter: küldés · Shift + Enter: új sor
                     </div>
                     <button

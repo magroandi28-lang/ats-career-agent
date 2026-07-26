@@ -46,7 +46,7 @@ def test_vendeg_flow_bejelentkezes_nelkul_valaszol(monkeypatch):
     from backend import main
 
     monkeypatch.setattr(
-        main, "flow_vendeg_valasz", lambda _: "Szia, szívesen segítek."
+        main, "flow_vendeg_valasz", lambda *_: "Szia, szívesen segítek."
     )
     valasz = kliens.post(
         "/api/v1/flow/guest-messages", json={"kerdes": "Mit tud ez az oldal?"}
@@ -60,7 +60,7 @@ def test_vendeg_flow_modell_nelkul_is_ad_valaszt(monkeypatch):
     """Üres modellválasz esetén sem marad néma a felület."""
     from backend import main
 
-    monkeypatch.setattr(main, "flow_vendeg_valasz", lambda _: "")
+    monkeypatch.setattr(main, "flow_vendeg_valasz", lambda *_: "")
     valasz = kliens.post("/api/v1/flow/guest-messages", json={"kerdes": "Szia"})
 
     assert valasz.status_code == 200
@@ -72,7 +72,7 @@ def test_vendeg_flow_ip_alapon_korlatozott(monkeypatch):
     from backend import main
     from backend.settings import get_settings
 
-    monkeypatch.setattr(main, "flow_vendeg_valasz", lambda _: "ok")
+    monkeypatch.setattr(main, "flow_vendeg_valasz", lambda *_: "ok")
     for _ in range(get_settings().auth_requests_per_minute):
         assert (
             kliens.post(
