@@ -270,11 +270,10 @@ export default function Home() {
       // Sérült tartalom: egyszerűen nincs folytatás.
     }
 
-    if (vendegSorok.length) {
-      vendegElozmenyRef.current = vendegSorok;
-      setUzenetek(vendegSorok);
-      return;
-    }
+    // A vendégbeszélgetés csak Flow emlékezetébe kerül, a képernyőre nem:
+    // a chatablakban a helyet az aktuális munkafolyamatnak kell hagyni.
+    if (vendegSorok.length) vendegElozmenyRef.current = vendegSorok;
+
     setUzenetek((elozo) =>
       elozo.length === 1 && elozo[0] === VENDEG_UZENET
         ? [KEZDO_UZENET]
