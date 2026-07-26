@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import AuthMenu from "./AuthMenu";
 import FolyamatPanel from "./FolyamatPanel";
 import ProfileGate from "./ProfileGate";
-import { apiFetch } from "../lib/api";
+import { apiFetch, publicApiFetch } from "../lib/api";
 import { createClient } from "../lib/supabase/client";
 
 const KEZDO_LEPESEK = [
@@ -112,10 +112,26 @@ const KEZDO_UZENET = {
     "Szia, Flow vagyok, a személyes karrierasszisztensed. Segítek átnézni vagy elkészíteni a CV-det, megtalálni a hozzád illő állásokat, és végigvezetlek a jelentkezés lépésein.",
 };
 
+// Vendégként (be nem jelentkezve) Flow csak az oldal általános
+// működéséről tud beszélgetni, a valódi, személyre szabott segítséghez
+// belépés vagy regisztráció kell -- ezt a köszöntő is jelzi.
+const VENDEG_UZENET = {
+  szerep: "flow",
+  szoveg:
+    "Szia, örülök, hogy itt vagy! Flow vagyok. Vendégként szívesen mesélek arról, hogyan működik az oldal -- a személyre szabott segítséghez (CV, állások, karrierút) viszont kérlek jelentkezz be, vagy regisztrálj egy percben.",
+};
+
+function vendegMeghivoUzenet(cim) {
+  return (
+    `„${cim}” — ehhez már a saját, biztonságos profilod kell, hogy pontosan ` +
+    "neked szóljon a segítség. Jelentkezz be, vagy regisztrálj egy percben, és onnan folytatjuk, ahol most abbahagytuk."
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const [session, setSession] = useState(undefined);
-  const [uzenetek, setUzenetek] = useState([KEZDO_UZENET]);
+  const [uzenetek, setUzenetek] = useState([VENDEG_UZENET]);
   const [szoveg, setSzoveg] = useState("");
   const [kuldesFolyamatban, setKuldesFolyamatban] = useState(false);
   const [hiba, setHiba] = useState(null);
@@ -131,6 +147,8 @@ export default function Home() {
   const flowPanelRef = useRef(null);
   const uzenetVegeRef = useRef(null);
   const elsoRenderRef = useRef(true);
+  const bejelentkezesUdvozoltRef = useRef(false);
+  const belepesMegorzendoRef = useRef(null);
   const belepve = Boolean(session);
 
   useEffect(() => {
@@ -182,15 +200,28 @@ export default function Home() {
   useEffect(() => {
     if (session !== null) return;
     folytatasRef.current = false;
+    bejelentkezesUdvozoltRef.current = false;
     kezdoValasztasRef.current = null;
     setKezdoValasztas(null);
     setCvMuvelet(null);
     setWorkflowState(null);
     setGpsTeruletek({});
     setValaszthatoLepesek([]);
-    setUzenetek([KEZDO_UZENET]);
+    setUzenetek([VENDEG_UZENET]);
     setSzoveg("");
     setHiba(null);
+  }, [session]);
+
+  // Bejelentkezéskor a vendég-köszöntőt lecseréljük a személyes Flow
+  // köszöntőre -- de csak egyszer, és csak ha a beszélgetés még a
+  // kiinduló üdvözlésnél tart (egy folyamatban lévő beszélgetést nem
+  // törlünk el, ha a munkamenet csak frissül a háttérben).
+  useEffect(() => {
+    if (!session || bejelentkezesUdvozoltRef.current) return;
+    bejelentkezesUdvozoltRef.current = true;
+    setUzenetek((elozo) =>
+      elozo.length === 1 && elozo[0] === VENDEG_UZENET ? [KEZDO_UZENET] : elozo,
+    );
   }, [session]);
 
   useEffect(() => {
@@ -270,22 +301,41 @@ export default function Home() {
   }, [belepve, keszSzazalek]);
 
   // Vendégként a saját belépőoldalra visszük. A választás a böngészőben
-  // marad, és belépés után onnan folytatjuk.
-  function belepesreKuldes(megorzendo) {
-    for (const [kulcs, ertek] of Object.entries(megorzendo)) {
-      window.localStorage.setItem(kulcs, ertek);
+  // marad, és belépés után onnan folytatjuk. Csak kifejezett CTA-gombra
+  // hívjuk -- vendégként a kattintás önmagában NEM navigál el, Flow előbb
+  // szól, és a döntés a felhasználóé marad.
+  function belepesreKuldes(mod = "belepes") {
+    const megorzendo = belepesMegorzendoRef.current;
+    if (megorzendo) {
+      for (const [kulcs, ertek] of Object.entries(megorzendo)) {
+        window.localStorage.setItem(kulcs, ertek);
+      }
     }
-    router.push("/login?next=%2F");
+    belepesMegorzendoRef.current = null;
+    router.push(`/login?next=%2F&mod=${mod}`);
+  }
+
+  // Vendégként a "gyors választás" gombok nem navigálnak el azonnal: Flow
+  // előbb egy meleg, magyarázó üzenettel invitál a belépésre/regisztrációra,
+  // a döntés a felhasználóé. A választás a böngészőben megmarad, hogy
+  // belépés után pontosan onnan folytathassuk.
+  function ctaMeghivas(megorzendo, flowSzoveg) {
+    belepesMegorzendoRef.current = megorzendo;
+    setUzenetek((elozo) => [
+      ...elozo,
+      { szerep: "flow", szoveg: flowSzoveg, cta: true },
+    ]);
   }
 
   function kezdoLepesValasztasa(lepes) {
     if (kezdoValasztasRef.current || kuldesFolyamatban) return;
 
     if (!belepve) {
-      belepesreKuldes(
+      ctaMeghivas(
         lepes.id === "cv"
           ? { career_pending_start: "cv" }
           : { career_pending_message: lepes.cim },
+        vendegMeghivoUzenet(lepes.cim),
       );
       return;
     }
@@ -359,17 +409,37 @@ export default function Home() {
     const tiszta = uzenetSzoveg.trim();
     if (!tiszta || kuldesFolyamatban) return;
 
-    if (!belepve) {
-      // Nem indul modellhívás: a vendég szövegét eltesszük, és a belépés
-      // után visszaadjuk. Fizetős hívás csak bejelentkezve történik.
-      belepesreKuldes({ career_pending_message: tiszta });
-      return;
-    }
-
     setHiba(null);
     setUzenetek((elozo) => [...elozo, { szerep: "user", szoveg: tiszta }]);
     setSzoveg("");
     setKuldesFolyamatban(true);
+
+    if (!belepve) {
+      // Vendégmódban Flow csak az oldal általános működéséről beszélhet, a
+      // szerver szűk, ingyenes prompttal válaszol -- nincs profil, nincs
+      // előzmény, nincs fizetős modellhívás. A valódi segítséghez a válasz
+      // mindig belépésre/regisztrációra invitál.
+      try {
+        const valasz = await publicApiFetch("/api/v1/flow/guest-messages", {
+          method: "POST",
+          body: JSON.stringify({ kerdes: tiszta }),
+        });
+        if (!valasz.ok) throw new Error(`flow-guest-messages: ${valasz.status}`);
+        const dontes = await valasz.json();
+        belepesMegorzendoRef.current = null;
+        setUzenetek((elozo) => [
+          ...elozo,
+          { szerep: "flow", szoveg: dontes.valasz || "", cta: true },
+        ]);
+      } catch {
+        setHiba(
+          "Flow most nem érte el a háttérrendszert. Próbáld újra kicsit később.",
+        );
+      } finally {
+        setKuldesFolyamatban(false);
+      }
+      return;
+    }
 
     try {
       // A backend saját maga tárolja és olvassa vissza az előzményt
@@ -697,15 +767,34 @@ export default function Home() {
               ) : (
                 <div className="space-y-4 p-5 sm:p-6">
                   {uzenetek.map((uzenet, index) => (
-                    <div
-                      key={`${uzenet.szerep}-${index}`}
-                      className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
-                        uzenet.szerep === "flow"
-                          ? "border border-amber-300/12 bg-amber-300/[0.05] text-slate-200"
-                          : "ml-auto bg-slate-100 text-slate-950"
-                      }`}
-                    >
-                      {uzenet.szoveg}
+                    <div key={`${uzenet.szerep}-${index}`}>
+                      <div
+                        className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
+                          uzenet.szerep === "flow"
+                            ? "border border-amber-300/12 bg-amber-300/[0.05] text-slate-200"
+                            : "ml-auto bg-slate-100 text-slate-950"
+                        }`}
+                      >
+                        {uzenet.szoveg}
+                      </div>
+                      {uzenet.cta && index === uzenetek.length - 1 && (
+                        <div className="mt-3 flex flex-wrap gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => belepesreKuldes("belepes")}
+                            className="rounded-full bg-amber-300 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-200"
+                          >
+                            Bejelentkezés
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => belepesreKuldes("regisztracio")}
+                            className="rounded-full border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-xs font-semibold text-amber-100 hover:border-amber-200 hover:bg-amber-300/15"
+                          >
+                            Regisztráció
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {kuldesFolyamatban && (
@@ -743,10 +832,10 @@ export default function Home() {
                       placeholder={
                         belepve
                           ? "Írd le néhány mondatban, hol tartasz és miben segítsek…"
-                          : "A személyes Flow-beszélgetéshez jelentkezz be."
+                          : "Kérdezz Flow-tól arról, hogyan működik az oldal…"
                       }
                       rows={7}
-                      maxLength={4000}
+                      maxLength={belepve ? 4000 : 600}
                       className="min-h-44 w-full resize-y rounded-2xl border border-white/12 bg-slate-950/55 px-5 py-4 pb-16 text-sm leading-6 text-white placeholder:text-slate-500 focus:border-amber-300/50 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <div className="absolute bottom-4 left-5 text-[11px] text-slate-600">

@@ -118,6 +118,35 @@ def test_uj_kulcsnevek_elonyben_reszesulnek(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_vendeg_uzenet_belepes_nelkul_is_elerheto(monkeypatch):
+    """A vendégmódú végpont nem kér bejelentkezést -- ez pont a lényege."""
+    from backend import main
+
+    monkeypatch.setattr(main, "flow_vendeg_valasz", lambda _: "Szia! Regisztrálj a részletekért.")
+
+    valasz = kliens.post(
+        "/api/v1/flow/guest-messages",
+        json={"kerdes": "Mit tud ez az oldal?"},
+    )
+
+    assert valasz.status_code == 200
+    assert valasz.json() == {"valasz": "Szia! Regisztrálj a részletekért."}
+
+
+def test_vendeg_uzenet_modell_nelkul_is_alapertelmezett_valaszt_ad(monkeypatch):
+    from backend import main
+
+    monkeypatch.setattr(main, "flow_vendeg_valasz", lambda _: "")
+
+    valasz = kliens.post(
+        "/api/v1/flow/guest-messages",
+        json={"kerdes": "Mit tud ez az oldal?"},
+    )
+
+    assert valasz.status_code == 200
+    assert valasz.json()["valasz"] == main.VENDEG_ALAPERTELMEZETT_VALASZ
+
+
 def test_flow_cv_frissites_nem_indit_allaskeresest(monkeypatch):
     """A modell javaslatából csak a cél megerősítése hajtható végre."""
     from backend import main
