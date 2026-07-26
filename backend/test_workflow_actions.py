@@ -164,6 +164,157 @@ def test_piaci_korkep_mert_adatot_ad_vissza(monkeypatch):
     assert outcome.context_patch == {"piaci_kep_szakma": "automata tesztelő"}
 
 
+# ── Álláskeresés ──────────────────────────────────────────────────────
+
+def _profil(**megerositett) -> dict:
+    return {"confirmed_data": megerositett}
+
+
+TELJES_KERESO_PROFIL = {
+    "target_role": "automata tesztelő",
+    "skills": ["Python", "Playwright"],
+    "location": "Budapest",
+}
+
+
+def test_allaskereses_helyszin_nelkul_elutasit():
+    with pytest.raises(ActionError, match="hol keresel munkát"):
+        execute_action(
+            CareerAction.ALLASKERESES_INDITASA,
+            ActionContext(
+                user_id=FELHASZNALO_ID,
+                workflow={"context": {}},
+                profile=_profil(target_role="automata tesztelő", skills=["Python"]),
+            ),
+        )
+
+
+def test_allaskereses_keszseg_nelkul_elutasit():
+    with pytest.raises(ActionError, match="készségedet"):
+        execute_action(
+            CareerAction.ALLASKERESES_INDITASA,
+            ActionContext(
+                user_id=FELHASZNALO_ID,
+                workflow={"context": {}},
+                profile=_profil(target_role="automata tesztelő", location="Budapest"),
+            ),
+        )
+
+
+def test_allaskereses_inditasa_meg_nem_ad_talalatot():
+    """A keresés indítása és az eredmény két külön lépés."""
+    outcome = execute_action(
+        CareerAction.ALLASKERESES_INDITASA,
+        ActionContext(
+            user_id=FELHASZNALO_ID,
+            workflow={"context": {}},
+            profile=_profil(**TELJES_KERESO_PROFIL),
+        ),
+    )
+
+    assert outcome.result["talalat_meg_nincs"] is True
+    assert "allasok" not in outcome.result
+    assert outcome.gps_terulet == "palyazas"
+    assert outcome.gps_allapot == "nincs_shortlist"
+    assert outcome.gps_esemeny is None
+
+
+def test_allasok_bemutatasa_legfeljebb_otot_ad(monkeypatch):
+    from backend import workflow_actions
+
+    hivasok = []
+    monkeypatch.setattr(
+        workflow_actions,
+        "allasok_minosegi_kereses",
+        lambda cv, info, hely: hivasok.append((cv, info, hely))
+        or {
+            "allasok": [{"cim": f"Allas {i}"} for i in range(9)],
+            "forras": "adatbazis",
+        },
+    )
+    monkeypatch.setattr(
+        workflow_actions, "_shortlist_mentese", lambda *_: "shortlist-1"
+    )
+    monkeypatch.setattr(workflow_actions, "cv_import_get", lambda *_: None)
+
+    outcome = execute_action(
+        CareerAction.ALLASOK_BEMUTATASA,
+        ActionContext(
+            user_id=FELHASZNALO_ID,
+            workflow={"context": {}},
+            profile=_profil(**TELJES_KERESO_PROFIL),
+        ),
+    )
+
+    assert outcome.result["talalatok_szama"] == 5
+    assert outcome.gps_esemeny == "job_shortlist_created"
+    assert outcome.gps_allapot == "shortlist"
+    assert outcome.context_patch == {"shortlist_id": "shortlist-1"}
+
+    # A szakma_info a megerősített profilból épül, nem modellhívásból.
+    _, szakma_info, helyszin = hivasok[0]
+    assert szakma_info["szakma"] == "automata tesztelő"
+    assert szakma_info["utos_kulcsszavak"] == ["Python", "Playwright"]
+    assert helyszin == "Budapest"
+
+
+def test_nulla_talalat_eseten_nincs_shortlist_allapot(monkeypatch):
+    from backend import workflow_actions
+
+    monkeypatch.setattr(
+        workflow_actions,
+        "allasok_minosegi_kereses",
+        lambda *_: {"allasok": [], "piaci_jelzes": "csökkenő kereslet"},
+    )
+    monkeypatch.setattr(workflow_actions, "_shortlist_mentese", lambda *_: None)
+    monkeypatch.setattr(workflow_actions, "cv_import_get", lambda *_: None)
+
+    outcome = execute_action(
+        CareerAction.ALLASOK_BEMUTATASA,
+        ActionContext(
+            user_id=FELHASZNALO_ID,
+            workflow={"context": {}},
+            profile=_profil(**TELJES_KERESO_PROFIL),
+        ),
+    )
+
+    assert outcome.result["talalatok_szama"] == 0
+    assert outcome.gps_allapot == "nincs_shortlist"
+    assert outcome.result["piaci_jelzes"] == "csökkenő kereslet"
+
+
+def test_jova_nem_hagyott_cv_nem_kerul_a_kereresbe(monkeypatch):
+    """Feltöltés önmagában nem tény: csak átnézett szöveget használunk."""
+    from backend import workflow_actions
+
+    hivasok = []
+    monkeypatch.setattr(
+        workflow_actions,
+        "allasok_minosegi_kereses",
+        lambda cv, info, hely: hivasok.append(cv) or {"allasok": []},
+    )
+    monkeypatch.setattr(workflow_actions, "_shortlist_mentese", lambda *_: None)
+    monkeypatch.setattr(
+        workflow_actions,
+        "cv_import_get",
+        lambda *_: {"review_status": "pending", "extracted_text": "NYERS CV"},
+    )
+
+    execute_action(
+        CareerAction.ALLASOK_BEMUTATASA,
+        ActionContext(
+            user_id=FELHASZNALO_ID,
+            workflow={"context": {}},
+            profile=_profil(
+                **TELJES_KERESO_PROFIL,
+                cv_document_id="00000000-0000-0000-0000-000000000002",
+            ),
+        ),
+    )
+
+    assert hivasok == [""]
+
+
 # ── A végpont kapuja ──────────────────────────────────────────────────
 
 def _alap_mockok(monkeypatch, allapot, intent="piaci_korkep", context=None):
@@ -221,12 +372,12 @@ def test_meg_be_nem_kotott_lepes_501(monkeypatch):
 
     Ez szándékosan más, mint a 409: ott a lépés tiltott, itt még hiányzik.
     """
-    _alap_mockok(monkeypatch, "PROFIL_ELLENORZOTT", intent="allas_kereses")
+    _alap_mockok(monkeypatch, "PROFIL_ELLENORZOTT", intent="cv_ellenorzes")
     app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
     try:
         valasz = kliens.post(
             "/api/v1/workflow/action",
-            json={"action": "allaskereses_inditasa"},
+            json={"action": "cv_ellenorzes_inditasa"},
         )
     finally:
         app.dependency_overrides.clear()

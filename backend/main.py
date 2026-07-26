@@ -573,6 +573,7 @@ def workflow_action_vegpont(
     ):
         raise HTTPException(503, "Az állapotváltás mentése nem sikerült.")
 
+    event_id = None
     if outcome.gps_esemeny:
         event_id = gps_esemeny_rogzitese(
             user_id,
@@ -582,9 +583,14 @@ def workflow_action_vegpont(
                 "action": bemenet.action.value,
                 "previous_state": previous_state.value,
                 "current_state": target_state.value,
+                **outcome.gps_payload,
             },
             actor="user",
         )
+    # A területjelzés eseménynapló nélkül is érvényes: van olyan lépés, ami
+    # a folyamat állását változtatja, de nem keletkezik hozzá önálló,
+    # auditálandó domain-esemény (utolso_esemeny_id nullable).
+    if outcome.gps_terulet:
         gps_snapshot_frissites(
             user_id, outcome.gps_terulet, outcome.gps_allapot, event_id
         )
