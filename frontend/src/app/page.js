@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import AuthMenu from "./AuthMenu";
 import FolyamatPanel from "./FolyamatPanel";
 import ProfileGate from "./ProfileGate";
@@ -113,6 +113,7 @@ const KEZDO_UZENET = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const [session, setSession] = useState(undefined);
   const [uzenetek, setUzenetek] = useState([KEZDO_UZENET]);
   const [szoveg, setSzoveg] = useState("");
@@ -125,7 +126,6 @@ export default function Home() {
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const [cvMuvelet, setCvMuvelet] = useState(null);
   const [futoMuvelet, setFutoMuvelet] = useState(null);
-  const [belepesreVar, setBelepesreVar] = useState(false);
   const kezdoValasztasRef = useRef(null);
   const folytatasRef = useRef(false);
   const flowPanelRef = useRef(null);
@@ -188,7 +188,6 @@ export default function Home() {
     setWorkflowState(null);
     setGpsTeruletek({});
     setValaszthatoLepesek([]);
-    setBelepesreVar(false);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
@@ -270,31 +269,20 @@ export default function Home() {
     return keszSzazalek > 0 ? `${keszSzazalek}% kész` : "Profilindításra kész";
   }, [belepve, keszSzazalek]);
 
-  // Vendég módban nem néma átirányítás történik: Flow válaszol a
-  // beszélgetésben, és onnan hívja belépésre a felhasználót. Modellhívás
-  // itt nincs -- a szöveg fix, a válasz azonnali és ingyenes.
-  function vendegetBelepesreHiv(felhasznaloSzoveg, flowValasz, megorzendo) {
+  // Vendégként a saját belépőoldalra visszük. A választás a böngészőben
+  // marad, és belépés után onnan folytatjuk.
+  function belepesreKuldes(megorzendo) {
     for (const [kulcs, ertek] of Object.entries(megorzendo)) {
       window.localStorage.setItem(kulcs, ertek);
     }
-    setUzenetek((elozo) => [
-      ...elozo,
-      { szerep: "user", szoveg: felhasznaloSzoveg },
-      { szerep: "flow", szoveg: flowValasz },
-    ]);
-    setSzoveg("");
-    setBelepesreVar(true);
+    router.push("/login?next=%2F");
   }
 
   function kezdoLepesValasztasa(lepes) {
     if (kezdoValasztasRef.current || kuldesFolyamatban) return;
 
     if (!belepve) {
-      vendegetBelepesreHiv(
-        lepes.cim,
-        lepes.id === "cv"
-          ? "Szívesen nekilátok a CV-dnek! Előbb viszont lépj be vagy regisztrálj — a CV személyes adat, és csak fiókkal tudom biztonságosan kezelni és elmenteni neked. A választásod megmarad."
-          : "Szívesen segítek ebben! Ahhoz, hogy a válaszaimat és a karrierutadat el is tudjam menteni, előbb lépj be vagy regisztrálj. A választásod megmarad.",
+      belepesreKuldes(
         lepes.id === "cv"
           ? { career_pending_start: "cv" }
           : { career_pending_message: lepes.cim },
@@ -360,7 +348,6 @@ export default function Home() {
     setCvMuvelet(null);
     setWorkflowState(null);
     setValaszthatoLepesek([]);
-    setBelepesreVar(false);
     setUzenetek([KEZDO_UZENET]);
     setSzoveg("");
     setHiba(null);
@@ -375,11 +362,7 @@ export default function Home() {
     if (!belepve) {
       // Nem indul modellhívás: a vendég szövegét eltesszük, és a belépés
       // után visszaadjuk. Fizetős hívás csak bejelentkezve történik.
-      vendegetBelepesreHiv(
-        tiszta,
-        "Köszönöm, elolvastam! Mielőtt nekilátunk, lépj be vagy regisztrálj — így tudom megjegyezni, amit mondasz, és elmenteni a karrierutadat. Amit beírtál, megmarad.",
-        { career_pending_message: tiszta },
-      );
+      belepesreKuldes({ career_pending_message: tiszta });
       return;
     }
 
@@ -506,7 +489,7 @@ export default function Home() {
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-200">
           {!belepve
-            ? "Fiók nélkül körülnézhetsz és beírhatod, miben segítsünk. A CV-d, a karrierutad és Flow válaszai fiókhoz kötöttek."
+            ? "A személyes karrierút indításához jelentkezz be."
             : kovetkezoLepes
               ? `${kovetkezoLepes.nev} — ${kovetkezoLepes.zartLeiras}`
               : "Minden szakasz ellenőrizve. Készen állsz a pályázásra."}
@@ -731,21 +714,6 @@ export default function Home() {
                       Flow feldolgozza a következő lépést…
                     </div>
                   )}
-                  {belepesreVar && !belepve && (
-                    <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
-                      <p className="text-xs leading-5 text-amber-100/80">
-                        Egy perc az egész, és utána pontosan onnan folytatjuk,
-                        ahol abbahagytuk.
-                      </p>
-                      <Link
-                        href="/login?next=%2F"
-                        className="mt-3 inline-block rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200"
-                      >
-                        Belépés vagy regisztráció →
-                      </Link>
-                    </div>
-                  )}
-
                   <div ref={uzenetVegeRef} />
 
                   <form
@@ -775,7 +743,7 @@ export default function Home() {
                       placeholder={
                         belepve
                           ? "Írd le néhány mondatban, hol tartasz és miben segítsek…"
-                          : "Írd le, miben segítsek — küldés előtt belépünk, a szöveged megmarad."
+                          : "A személyes Flow-beszélgetéshez jelentkezz be."
                       }
                       rows={7}
                       maxLength={4000}
@@ -789,11 +757,7 @@ export default function Home() {
                       disabled={kuldesFolyamatban || !szoveg.trim()}
                       className="absolute bottom-3 right-3 rounded-xl bg-amber-300 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      {kuldesFolyamatban
-                        ? "Küldés…"
-                        : belepve
-                          ? "Küldés"
-                          : "Belépés és küldés"}
+                      {kuldesFolyamatban ? "Küldés…" : "Küldés"}
                     </button>
                   </form>
 
