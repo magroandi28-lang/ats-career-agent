@@ -29,6 +29,24 @@ MERT_SZEKCIOK: Final = ("feladat", "elvaras")
 MAX_SZO: Final = 3
 MIN_SZO_HOSSZ: Final = 4
 
+# Egyetlen szó csak akkor lehet önálló elvárás, ha elég hosszú. A magyar
+# összetett szavak („árufeltöltés", „anyagmozgatás", „komissiózás") maguk
+# is teljes fogalmak; a rövid szavak („rend", „áruk", „kézi") viszont
+# önmagukban semmit nem mondanak.
+MIN_ONALLO_SZO: Final = 8
+
+# Ha a hosszabb kifejezés a rövidebb előfordulásainak legalább ekkora
+# hányadát lefedi, akkor a hosszabb az igazi egység: a „pénztárgép" szinte
+# mindig „pénztárgép kezelése" formában szerepel.
+LEFEDES: Final = 0.6
+
+# Ennyi KÜLÖNBÖZŐ mondatban kell szerepelnie. Ez választja el a valódi
+# elvárást a sablonszövegtől: a „pénztárgép kezelése" sokféle
+# megfogalmazásban tér vissza, a „Köszöntöd és körbevezeted vásárlóinkat"
+# viszont egyetlen mondat, amit sok hirdetésbe bemásoltak. Gyakoriságban
+# a kettő egyforma; a megfogalmazások számában nem.
+MIN_FORRAS: Final = 3
+
 # A szakma hirdetéseinek legalább ennyi százalékában szerepeljen.
 MIN_SZAZALEK: Final = 3.0
 
@@ -98,10 +116,12 @@ def szakma_elvarasai(szakma_id: int | None) -> list[dict]:
 
     hirdetesenkent: dict[int, set[str]] = defaultdict(set)
     pelda: dict[str, str] = {}
+    megfogalmazasok: dict[str, set[str]] = defaultdict(set)
     for sor in sajat:
         kifejezesek = _ngramok(sor["szoveg"])
         hirdetesenkent[sor["hirdetes_id"]].update(kifejezesek)
         for kifejezes in kifejezesek:
+            megfogalmazasok[kifejezes].add(normalizal(sor["szoveg"]))
             # A legrövidebb forrásmondatot őrizzük meg: az idézhető a
             # legjobban, mert nem tartalmaz felesleges környezetet.
             regi = pelda.get(kifejezes)
@@ -117,6 +137,12 @@ def szakma_elvarasai(szakma_id: int | None) -> list[dict]:
 
     eredmeny = []
     for kifejezes, elofordulas in sajat_szamlalo.items():
+        szavak = kifejezes.split()
+        if len(szavak) == 1 and len(kifejezes) < MIN_ONALLO_SZO:
+            continue
+        # Sablonszöveg kiszűrése: egyetlen bemásolt mondat nem elvárás.
+        if len(megfogalmazasok[kifejezes]) < MIN_FORRAS:
+            continue
         szazalek = 100 * elofordulas / darab
         if szazalek < MIN_SZAZALEK:
             continue
@@ -149,6 +175,21 @@ def _atfedesek_nelkul(elvarasok: list[dict]) -> list[dict]:
     legalább ugyanannyi hirdetésben szerepel, akkor a hosszabb nem tesz
     hozzá semmit -- a bővebb megfogalmazást a példamondat úgyis megőrzi.
     """
+    # Ha a hosszabb kifejezés a rövidebb használatának nagy részét lefedi,
+    # akkor a hosszabb az igazi egység -- a „pénztárgép" szinte mindig
+    # „pénztárgép kezelése" formában szerepel, önmagában nem elvárás.
+    elnyomott: set[str] = set()
+    for rovid in elvarasok:
+        rovid_szavak = set(rovid["nev"].split())
+        for hosszu in elvarasok:
+            if hosszu is rovid or len(hosszu["nev"]) <= len(rovid["nev"]):
+                continue
+            if not rovid_szavak < set(hosszu["nev"].split()):
+                continue
+            if hosszu["elofordulas"] >= LEFEDES * rovid["elofordulas"]:
+                elnyomott.add(rovid["nev"])
+                break
+
     megtartott: list[dict] = []
     # Egy sokszor ismételt mondat MINDEN szava azonos gyakoriságú lesz, és
     # külön tételként jelenne meg („Köszöntöd", „körbevezeted",
@@ -156,6 +197,8 @@ def _atfedesek_nelkul(elvarasok: list[dict]) -> list[dict]:
     forrasok: set[tuple[str, int]] = set()
 
     for jelolt in sorted(elvarasok, key=lambda sor: len(sor["nev"].split())):
+        if jelolt["nev"] in elnyomott:
+            continue
         szavak = jelolt["nev"].split()
         lefedi = any(
             set(mar["nev"].split()) <= set(szavak)
