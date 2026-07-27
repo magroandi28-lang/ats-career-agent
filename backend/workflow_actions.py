@@ -18,10 +18,8 @@ from uuid import uuid4
 
 import re
 
-from agents.karrier_ugynok import (
-    allasok_minosegi_kereses,
-    ats_diagnozis_determinisztikus,
-)
+from agents.karrier_ugynok import allasok_minosegi_kereses
+from backend.cv_ats import ats_diagnozis
 from backend.career_state_machine import CareerAction
 from backend.cv_import_service import cv_import_get
 from backend.gps_vocabulary import ellenorzott_esemeny, ellenorzott_snapshot
@@ -333,7 +331,9 @@ def _cv_ellenorzes_inditasa(ctx: ActionContext) -> ActionOutcome:
     1. Formai: miért dobhatja ki a szűrő a dokumentumot -- determinisztikus.
     2. Tartalmi: mely, a saját hirdetés-adatbázisunkban mért elvárások
        hiányoznak a CV-ből. A százalékot kód számolja a v_szakma_keszsegek
-       nézetből, nem modell.
+       nézetből, a készségfelismerést pedig szinonimaszótár végzi --
+       egyik lépésben sincs modellhívás, tehát a vizsgálat ingyenes, és
+       ugyanarra a CV-re mindig ugyanazt adja.
 
     Egyik réteghez sem kell hirdetés: az egész szakma piaci képe megvan az
     adatbázisban.
@@ -346,7 +346,7 @@ def _cv_ellenorzes_inditasa(ctx: ActionContext) -> ActionOutcome:
         )
 
     formai = _formai_kifogasok(cv_szoveg)
-    diagnozis = ats_diagnozis_determinisztikus(cv_szoveg, {"szakma": szakma})
+    diagnozis = ats_diagnozis(cv_szoveg, szakma)
     hianyzo = diagnozis.get("hianyzo_kulcsszavak") or []
 
     return ActionOutcome(

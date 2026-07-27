@@ -387,8 +387,8 @@ def test_cv_ellenorzes_hirdetes_nelkul_is_ad_hianylistat(monkeypatch):
     )
     monkeypatch.setattr(
         workflow_actions,
-        "ats_diagnozis_determinisztikus",
-        lambda cv, info: {
+        "ats_diagnozis",
+        lambda cv, szakma: {
             "illeszkedes_szazalek": 62,
             "hianyzo_kulcsszavak": [{"szo": "HACCP"}, {"szo": "állványozás"}],
             "meglevo_kulcsszavak": ["glettelés"],
