@@ -129,7 +129,11 @@ def eures_kereses(kulcsszo: str, orszag_kodok: list, darab: int = 15) -> dict:
         leiras_nyers = re.sub(r"\s+", " ", leiras_nyers).strip()
         allasok.append({
             "cim": jv.get("title") or "",
+            # A rövidítés MEGJELENÍTÉSI célra van: listában nem fér ki több.
+            # Tárolni és elemezni a teljes szöveget kell -- abból derül ki,
+            # milyen készségeket vár a munkáltató.
             "leiras": (leiras_nyers[:280] + "…") if len(leiras_nyers) > 280 else leiras_nyers,
+            "leiras_teljes": leiras_nyers,
             "munkaado": munkaado,
             "orszag": ", ".join(_MEGJELENIT.get(o.lower(), o.upper()) for o in orszag_lista) or "—",
             "nyelvek": ", ".join(jv.get("availableLanguages") or []).upper() or "—",

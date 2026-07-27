@@ -61,7 +61,9 @@ def szakma_gyujtes(szakma: str, kategoria: str) -> int:
         {
             "cim": a["cim"],
             "ceg": a["munkaado"],
-            "snippet": a["leiras"],
+            # A teljes leírás megy be, nem a listához rövidített: az EURES
+            # az egyetlen forrásunk, ami a teljes hirdetésszöveget adja.
+            "snippet": a.get("leiras_teljes") or a["leiras"],
             "link": a["link"],
             "helyszin": "",
             "datum": a["datum"],

@@ -11,6 +11,10 @@ outputs/
 PORTFOLIÓ KÉSZÍTÉSHEZ/
 Képernyőkép*
 
+# Teszteléshez használt valódi önéletrajzok: névvel, telefonszámmal,
+# e-mail-címmel. A gépen maradnak, a repóba nem kerülnek.
+tesztadat/
+
 # Kísérleti fájlok
 proba.py
 
