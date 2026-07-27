@@ -687,6 +687,7 @@ def flow_belepes_utan_vegpont(
     return {
         "uzenet": uzenet,
         "megszolitas_hianyzik": not _megszolitas(felhasznalo, server_profile),
+        "nev_javaslatok": _nev_javaslatok(felhasznalo),
     }
 
 
@@ -866,6 +867,19 @@ def _megszolitas(felhasznalo, megerositett_profil: dict) -> str:
     # néven szólítaná a felhasználót -- ami rosszabb, mint a név hiánya.
     metaadat = getattr(felhasznalo, "user_metadata", None) or {}
     return str(metaadat.get("given_name") or "").strip()
+
+
+def _nev_javaslatok(felhasznalo) -> list[str]:
+    """A teljes névből felkínálható szavak, hogy ne kelljen gépelni.
+
+    Nem döntjük el, melyik a keresztnév -- a Google `full_name` magyarul
+    mindkét sorrendben előfordul. Felkínáljuk mindkettőt, és a felhasználó
+    egy kattintással választ. Így a javaslat látható, nem rejtett tipp.
+    """
+    metaadat = getattr(felhasznalo, "user_metadata", None) or {}
+    teljes = str(metaadat.get("full_name") or metaadat.get("name") or "").strip()
+    szavak = [szo for szo in teljes.split() if len(szo) > 1]
+    return szavak[:3]
 
 
 def _muvelet_futtatasa(

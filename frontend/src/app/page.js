@@ -161,7 +161,7 @@ function GepeloSzoveg({ szoveg, sebessegMs = 18 }) {
  *  A meglévő vázlat + megerősítés végpontokat használja, tehát ugyanaz
  *  az út, mint bármely más profiladatnál. A nevet szándékosan nem a
  *  modell nyeri ki a mondatból -- azt beírod, és úgy kerül be. */
-function MegszolitasMezo({ onKesz }) {
+function MegszolitasMezo({ onKesz, javaslatok = [] }) {
   const [nev, setNev] = useState("");
   const [dolgozik, setDolgozik] = useState(false);
   const [hiba, setHiba] = useState(null);
@@ -201,6 +201,24 @@ function MegszolitasMezo({ onKesz }) {
       >
         Keresztneved
       </label>
+      {javaslatok.length > 0 && (
+        <div className="mb-1 flex w-full flex-wrap gap-2">
+          {javaslatok.map((javaslat) => (
+            <button
+              key={javaslat}
+              type="button"
+              onClick={() => setNev(javaslat)}
+              className={`rounded-full border px-3 py-1 text-xs ${
+                nev === javaslat
+                  ? "border-amber-300/70 bg-amber-300/15 text-amber-100"
+                  : "border-white/15 text-slate-300 hover:border-amber-300/40"
+              }`}
+            >
+              {javaslat}
+            </button>
+          ))}
+        </div>
+      )}
       <input
         id="megszolitas"
         value={nev}
@@ -349,6 +367,7 @@ export default function Home() {
     // javasol egy kezdést. Egyetlen hívás, csak közvetlenül belépés után.
     if (belepesUdvozletRef.current) return;
     belepesUdvozletRef.current = true;
+    setKuldesFolyamatban(true);
     apiFetch("/api/v1/flow/belepes-utan", {
       method: "POST",
       body: JSON.stringify({ vendeg_elozmeny: vendegSorok.slice(-6) }),
@@ -356,17 +375,20 @@ export default function Home() {
       .then((valasz) => (valasz.ok ? valasz.json() : null))
       .then((adat) => {
         if (!adat?.uzenet) return;
-        setUzenetek((elozo) => [
-          ...elozo,
+        // Flow saját üzenete LECSERÉLI a beégetett bemutatkozást, nem
+        // kerül alá: két hasonló köszöntés egymás után csak ismétlés.
+        setUzenetek([
           {
             szerep: "flow",
             szoveg: adat.uzenet,
             gepel: true,
             nevetKer: Boolean(adat.megszolitas_hianyzik),
+            nevJavaslatok: adat.nev_javaslatok || [],
           },
         ]);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setKuldesFolyamatban(false));
   }, [session]);
 
   useEffect(() => {
@@ -874,6 +896,7 @@ export default function Home() {
                         uzenet.nevetKer &&
                         index === uzenetek.length - 1 && (
                           <MegszolitasMezo
+                            javaslatok={uzenet.nevJavaslatok || []}
                             onKesz={(nev) =>
                               // Flow üzenetét NEM írjuk át: ha hozzáfűznénk
                               // a visszaigazolást, úgy tűnne, mintha
