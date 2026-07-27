@@ -66,6 +66,21 @@ _PENZ: Final = re.compile(
     re.IGNORECASE,
 )
 
+# Cégjellemző szöveg: nem feladat és nem elvárás, hanem az, ahogy a
+# munkáltató beszél magáról és a jelöltről. Nem zaj -- ebből derül ki,
+# milyen munkahelyre készül az ember, és ez az ajánlásnál számít.
+#
+# Két jel árulja el: az érzelmi-értékelő szóhasználat („nagyszerű",
+# „élmény", „büszke"), és a jelöltet megszólító, kérdő fordulat
+# („Szeretsz…?", „Szeretnél…?").
+_KULTURA: Final = re.compile(
+    r"\b(?:nagyszerű|kiemelkedő|szenvedély|büszke|élmény|inspirál"
+    r"|fiatalos|dinamikus|barátságos|támogató|családias|összetart"
+    r"|értékeink|küldetés|siker(?:es|ünk)?|közösség|jó hangulat"
+    r"|szeretsz|szeretnél|csatlakozz|várunk téged|legyél a|nálunk)\b",
+    re.IGNORECASE,
+)
+
 # Ennél rövidebb töredék nem hordoz jelentést, ennél hosszabb pedig már
 # nem egyetlen tétel, hanem bekezdés.
 MIN_HOSSZ: Final = 12
@@ -148,10 +163,25 @@ def bontas(szoveg: str) -> list[tuple[str, str]]:
                     continue
                 if _ZAJ.match(tiszta):
                     continue
-                # A pénz mindig ajánlat, akárhol áll: nem lehet CV-hiány.
-                vegleges = "ajanlat" if _PENZ.search(tiszta) else szekcio
-                elemek.append((vegleges, tiszta))
+                elemek.append((_atsorolas(szekcio, tiszta), tiszta))
     return elemek
+
+
+def _atsorolas(szekcio: str, tetel: str) -> str:
+    """A tartalom felülírhatja azt, hogy a munkáltató hova írta.
+
+    Két eset van, és mindkettő azért kell, mert különben olyasmit
+    hiányolnánk egy CV-ből, ami nem a jelöltről szól:
+
+    A pénz mindig ajánlat -- a bér nem a jelölt tulajdonsága.
+    A cégjellemző szöveg mindig kultúra -- a „nagyszerű vásárlói élményt
+    nyújtani" nem elvégzendő feladat, hanem a munkahely önjellemzése.
+    """
+    if _PENZ.search(tetel):
+        return "ajanlat"
+    if _KULTURA.search(tetel) or tetel.rstrip().endswith("?"):
+        return "kultura"
+    return szekcio
 
 
 def van_szerkezet(szoveg: str) -> bool:

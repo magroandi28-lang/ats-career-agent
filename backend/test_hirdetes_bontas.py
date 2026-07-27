@@ -97,6 +97,27 @@ def test_a_ber_akkor_is_ajanlat_ha_az_elvarasok_kozt_all():
     assert not any("342 500" in e for e in _szekcio(elemek, "elvaras"))
 
 
+def test_a_cegjellemzo_szoveg_kulturaba_kerul():
+    """Nem zaj: ebből derül ki, milyen munkahelyre készül az ember.
+
+    De nem is feladat -- a „nagyszerű élményt nyújtani" nem elvégzendő
+    munka, tehát nem hiányozhat egy CV-ből.
+    """
+    szoveg = (
+        "Feladatok ~Áruk összekészítése ~Szeretnél felelős lenni egy "
+        "nagyszerű csapatért? ~Raktári rend fenntartása"
+    )
+    elemek = bontas(szoveg)
+
+    feladatok = _szekcio(elemek, "feladat")
+    kultura = _szekcio(elemek, "kultura")
+
+    assert "Áruk összekészítése" in feladatok
+    assert "Raktári rend fenntartása" in feladatok
+    assert any("nagyszerű" in e for e in kultura)
+    assert not any("nagyszerű" in e for e in feladatok)
+
+
 def test_portal_metaadat_kiesik():
     szoveg = "Feladatok ~Apply by 15-Aug-2026 ~Working hours 40 ~Árufeltöltés"
     feladatok = _szekcio(bontas(szoveg), "feladat")
