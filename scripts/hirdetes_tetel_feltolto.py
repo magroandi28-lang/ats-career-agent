@@ -1,17 +1,16 @@
 """A hirdetésekből kinyert tételek feltöltése.
 
-A `hirdetes_tetel` tábla származtatott: kizárólag a `hirdetesek` szövegéből
-készül. Ezért a script bármikor újrafuttatható — ha a darabolón javítunk, a
-javítás visszamenőleg is érvényesül.
+A `hirdetes_tetel` tábla származtatott: kizárólag validált, teljes
+`hirdetes_snapshot.raw_szoveg` alapján készül. A listázási snippet ebbe a
+rétegbe nem kerülhet.
 
 Alapból csak azokat a hirdetéseket dolgozza fel, amikhez még nincs tétel.
-A `--ujra` kapcsolóval mindent újraszámol.
+A régi adatok védelmében a korábbi, törlő `--ujra` mód le van tiltva.
 
 Nulla modellhívás.
 
 Futtatás a projekt gyökeréből:
     python scripts/hirdetes_tetel_feltolto.py
-    python scripts/hirdetes_tetel_feltolto.py --ujra
 """
 
 from collections import Counter
@@ -20,6 +19,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from backend.hirdetes_snapshot import elemzesi_szoveg  # noqa: E402
 from backend.hirdetes_bontas import bontas  # noqa: E402
 from backend.keszseg_felismero import normalizal  # noqa: E402
 from utils.adatbazis import kliens, osszes_sor  # noqa: E402
@@ -46,6 +46,12 @@ def _mar_feldolgozott(db) -> set[int]:
 
 def main() -> int:
     ujra = "--ujra" in sys.argv
+    if ujra:
+        print(
+            "A --ujra mód le van tiltva: régi hirdetéstételt nem törlünk "
+            "és nem írunk felül."
+        )
+        return 2
 
     db = kliens()
     if not db:
@@ -53,17 +59,30 @@ def main() -> int:
         return 1
 
     print("Hirdetések betöltése…")
-    hirdetesek = osszes_sor("hirdetesek", "id, szakma_id, cim, snippet")
-    print(f"  {len(hirdetesek)} hirdetés")
+    hirdetesek = osszes_sor("hirdetesek", "id, szakma_id, cim")
+    snapshot_sorok = osszes_sor(
+        "hirdetes_snapshot",
+        "id,hirdetes_id,raw_szoveg,elemzesre_alkalmas",
+    )
+    # Az id növekvő, ezért az utolsó érték a legfrissebb alkalmas snapshot.
+    snapshotok = {
+        sor["hirdetes_id"]: sor
+        for sor in snapshot_sorok
+        if sor.get("hirdetes_id") and sor.get("elemzesre_alkalmas") is True
+    }
+    hirdetesek = [
+        {
+            **hirdetes,
+            "raw_szoveg": snapshotok[hirdetes["id"]]["raw_szoveg"],
+        }
+        for hirdetes in hirdetesek
+        if hirdetes["id"] in snapshotok
+    ]
+    print(f"  {len(hirdetesek)} validált, teljes szövegű hirdetés")
 
-    if ujra:
-        print("Teljes újraszámolás: a meglévő tételek törlése…")
-        db.table("hirdetes_tetel").delete().neq("id", 0).execute()
-        kihagyando: set[int] = set()
-    else:
-        kihagyando = _mar_feldolgozott(db)
-        if kihagyando:
-            print(f"  {len(kihagyando)} hirdetés már fel van dolgozva")
+    kihagyando = _mar_feldolgozott(db)
+    if kihagyando:
+        print(f"  {len(kihagyando)} hirdetés már fel van dolgozva")
 
     sorok: list[dict] = []
     szekcio_szamlalo: Counter = Counter()
@@ -72,7 +91,10 @@ def main() -> int:
     for hirdetes in hirdetesek:
         if hirdetes["id"] in kihagyando:
             continue
-        szoveg = f"{hirdetes.get('cim') or ''} {hirdetes.get('snippet') or ''}"
+        szoveg = (
+            f"{hirdetes.get('cim') or ''} "
+            f"{elemzesi_szoveg(hirdetes.get('raw_szoveg') or '')}"
+        )
         elemek = bontas(szoveg)
         if any(szekcio != "egyeb" for szekcio, _ in elemek):
             szerkezettel += 1

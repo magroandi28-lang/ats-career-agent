@@ -77,7 +77,13 @@ def _datum(ms) -> str:
         return ""
 
 
-def eures_kereses(kulcsszo: str, orszag_kodok: list, darab: int = 15) -> dict:
+def eures_kereses(
+    kulcsszo: str,
+    orszag_kodok: list,
+    darab: int = 15,
+    *,
+    nyers_forras: bool = False,
+) -> dict:
     """Élő EURES-keresés kulcsszóra és ország(ok)ra.
 
     Visszaad: {"ok": bool, "talalatok": int, "allasok": [...], "hiba": str|None}
@@ -123,12 +129,22 @@ def eures_kereses(kulcsszo: str, orszag_kodok: list, darab: int = 15) -> dict:
 
     allasok = []
     for jv in d.get("jvs", []):
-        munkaado = (jv.get("employer") or {}).get("name") or "Ismeretlen munkáltató"
-        orszag_lista = list((jv.get("locationMap") or {}).keys())
-        leiras_nyers = re.sub(r"<[^>]+>", " ", jv.get("description") or "")
+        forras_adat = jv if isinstance(jv, dict) else {}
+        munkaado = (
+            (forras_adat.get("employer") or {}).get("name")
+            or "Ismeretlen munkáltató"
+        )
+        orszag_lista = list((forras_adat.get("locationMap") or {}).keys())
+        raw_szoveg_ertek = forras_adat.get("description")
+        raw_szoveg = (
+            raw_szoveg_ertek
+            if isinstance(raw_szoveg_ertek, str)
+            else ""
+        )
+        leiras_nyers = re.sub(r"<[^>]+>", " ", raw_szoveg)
         leiras_nyers = re.sub(r"\s+", " ", leiras_nyers).strip()
-        allasok.append({
-            "cim": jv.get("title") or "",
+        allas = {
+            "cim": forras_adat.get("title") or "",
             # A rövidítés MEGJELENÍTÉSI célra van: listában nem fér ki több.
             # Tárolni és elemezni a teljes szöveget kell -- abból derül ki,
             # milyen készségeket vár a munkáltató.
@@ -136,11 +152,29 @@ def eures_kereses(kulcsszo: str, orszag_kodok: list, darab: int = 15) -> dict:
             "leiras_teljes": leiras_nyers,
             "munkaado": munkaado,
             "orszag": ", ".join(_MEGJELENIT.get(o.lower(), o.upper()) for o in orszag_lista) or "—",
-            "nyelvek": ", ".join(jv.get("availableLanguages") or []).upper() or "—",
-            "foglalkoztatas": ", ".join(jv.get("positionScheduleCodes") or []) or "—",
-            "datum": _datum(jv.get("creationDate")),
-            "link": _link(jv.get("id", "")),
-        })
+            "nyelvek": ", ".join(
+                forras_adat.get("availableLanguages") or []
+            ).upper() or "—",
+            "foglalkoztatas": ", ".join(
+                forras_adat.get("positionScheduleCodes") or []
+            ) or "—",
+            "datum": _datum(forras_adat.get("creationDate")),
+            "link": _link(forras_adat.get("id", "")),
+        }
+        if nyers_forras:
+            # Kizárólag a háttér-gyűjtő kéri. A felület alapértelmezett
+            # válaszát nem növeljük meg a teljes forráselemmel.
+            allas["_nyers_forras"] = {
+                "payload": jv,
+                "szoveg": raw_szoveg,
+                "szoveg_mezo": "description",
+                "azonosito": str(forras_adat.get("id") or ""),
+                "nyelv": next(
+                    iter(forras_adat.get("availableLanguages") or []),
+                    None,
+                ),
+            }
+        allasok.append(allas)
 
     return {"ok": True, "talalatok": d.get("numberRecords", len(allasok)),
              "allasok": allasok, "hiba": None}

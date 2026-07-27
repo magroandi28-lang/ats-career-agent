@@ -322,7 +322,13 @@ def allasok_keresese(szakma: str, helyszin: str = "Budapest", ajanlott_cegek: li
     # ── DB-FIRST: előbb a SAJÁT adatbázisunkból ajánlunk ─────
     # Ha az adott szakmából van elég friss (30 napnál újabb) hirdetésünk,
     # onnan adjuk — nincs SerpAPI-költség, és azonnali a válasz.
-    sajat = friss_hirdetesek(szakma, helyszin=helyszin, max_nap=30, limit=15)
+    sajat = friss_hirdetesek(
+        szakma,
+        helyszin=helyszin,
+        max_nap=30,
+        limit=15,
+        elemzeshez=True,
+    )
     if len(sajat) >= 5:
         print(f"DB-FIRST: {len(sajat)} allas a sajat adatbazisbol — nincs netes kereses.")
         return sajat
@@ -462,6 +468,21 @@ def ceginfo_kereses(ceg_nev: str) -> dict:
 # ── 4. ATS DIAGNÓZIS ─────────────────────────────────────────
 
 def ats_diagnozis(cv_szoveg: str, allasok: list, szakma_info: dict) -> dict:
+    allasok = [
+        allas
+        for allas in allasok
+        if allas.get("elemzesre_alkalmas") is True
+    ]
+    if not allasok:
+        return {
+            "illeszkedes_szazalek": 0,
+            "van_eselye": True,
+            "hianyzo_kulcsszavak": [],
+            "meglevo_kulcsszavak": [],
+            "meglevo_erossegek": [],
+            "fo_problema": "Nincs validált, teljes hirdetésszöveg az ATS-elemzéshez.",
+            "kepzes_kell": False,
+        }
     allasok_szoveg = "\n\n".join([
         f"Hirdetés {i+1} - {a['ceg']}:\n{a['snippet']}"
         for i, a in enumerate(allasok)
@@ -811,6 +832,11 @@ def allasok_rangsorolasa(cv_szoveg: str, allasok: list, szakma_info: dict,
     """A talált hirdetéseket EGYETLEN modellhívással összeveti a CV-vel,
     illeszkedés szerint pontozza, és a legjobb (max top_n) állást adja vissza.
     CV nélkül egyszerűen az első top_n állást adja (nincs mit pontozni)."""
+    allasok = [
+        allas
+        for allas in allasok
+        if allas.get("elemzesre_alkalmas") is True
+    ]
     if not allasok:
         return []
     # CV nélkül nem tudunk illeszkedést mérni -> első néhány, semleges pontszámmal
@@ -888,6 +914,11 @@ def allasok_rangsorolasa_determinisztikus(cv_kulcsszavak: list, allasok: list,
 
     Pontszám: a hirdetés kért készségeinek hány százaléka van meg a CV-ben.
     """
+    allasok = [
+        allas
+        for allas in allasok
+        if allas.get("elemzesre_alkalmas") is True
+    ]
     if not allasok:
         return []
 
@@ -948,7 +979,13 @@ def allasok_minosegi_kereses(cv_szoveg: str, szakma_info: dict,
     # 1-2. DB-elso, azonnal rangsorolva -- nem a mennyiseg dont, a minoseg.
     # A rangsorolas DETERMINISZTIKUS (halmaz-egyezes), nem AI-hivas -- lasd
     # allasok_rangsorolasa_determinisztikus().
-    db_talalatok = friss_hirdetesek(szakma, helyszin=helyszin, max_nap=30, limit=15)
+    db_talalatok = friss_hirdetesek(
+        szakma,
+        helyszin=helyszin,
+        max_nap=30,
+        limit=15,
+        elemzeshez=True,
+    )
     rangsorolt = allasok_rangsorolasa_determinisztikus(
         cv_kulcsszavak, db_talalatok, top_n=max(len(db_talalatok), 1)
     )

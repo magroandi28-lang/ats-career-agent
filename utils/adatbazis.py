@@ -12,6 +12,8 @@ az alkalmazás ugyanúgy működik tovább — csak épp nem gyűjt.
 """
 
 import datetime
+
+from backend.hirdetes_snapshot import elemzesi_szoveg, snapshot_keszitese
 from backend.settings import get_settings
 
 _kliens = None
@@ -57,11 +59,25 @@ def szakma_ment(szakma_info: dict):
     r = db.table("szakmak").select("id").ilike("nev", nev).limit(1).execute()
     if r.data:
         return r.data[0]["id"]
-    r = db.table("szakmak").upsert(
-        {"nev": nev, "kategoria": szakma_info.get("szakma_kategoria", "")},
-        on_conflict="nev",
-    ).execute()
-    return r.data[0]["id"] if r.data else None
+    try:
+        r = db.table("szakmak").insert(
+            {
+                "nev": nev,
+                "kategoria": szakma_info.get("szakma_kategoria", ""),
+            }
+        ).execute()
+        return r.data[0]["id"] if r.data else None
+    except Exception:
+        r = (
+            db.table("szakmak")
+            .select("id")
+            .ilike("nev", nev)
+            .limit(1)
+            .execute()
+        )
+        if r.data:
+            return r.data[0]["id"]
+        raise
 
 
 # ── CÉG + CÉGINFÓ-CACHE ──────────────────────────────────────
@@ -71,8 +87,19 @@ def ceg_ment(nev: str):
     nev = (nev or "").strip()
     if not db or not nev:
         return None
-    r = db.table("cegek").upsert({"nev": nev}, on_conflict="nev").execute()
-    return r.data[0]["id"] if r.data else None
+    regi = db.table("cegek").select("id").eq("nev", nev).limit(1).execute()
+    if regi.data:
+        return regi.data[0]["id"]
+    try:
+        uj = db.table("cegek").insert({"nev": nev}).execute()
+        return uj.data[0]["id"] if uj.data else None
+    except Exception:
+        # Párhuzamos beszúrásnál az egyedi kulcs dönt; nem upsertelünk és
+        # nem írjuk felül a már létező cégsort.
+        regi = db.table("cegek").select("id").eq("nev", nev).limit(1).execute()
+        if regi.data:
+            return regi.data[0]["id"]
+        raise
 
 
 def ceginfo_cache_lekerdez(ceg_nev: str, max_nap: int = 30):
@@ -155,8 +182,14 @@ def _valos_hirdetes_datum(datum_szoveg: str, letrehozva: str) -> datetime.date:
         return datetime.date.min
 
 
-def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
-                     max_nap: int = 30, limit: int = 15) -> list:
+def friss_hirdetesek(
+    szakma_nev: str,
+    helyszin: str = "",
+    max_nap: int = 30,
+    limit: int = 15,
+    *,
+    elemzeshez: bool = False,
+) -> list:
     """DB-FIRST: friss hirdetések a SAJÁT adatbázisunkból az adott szakmához.
     Ha van elég, nem kell internetes keresés — gyorsabb és ingyenes.
 
@@ -190,6 +223,12 @@ def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
               .limit(max(limit * 5, 50))
               .execute())
         sorok = r.data or []
+        snapshotok = snapshot_kapuk_hirdetesekhez(
+            db,
+            [s.get("id") for s in sorok],
+            elemzeshez=elemzeshez,
+        )
+        sorok = [s for s in sorok if s.get("id") in snapshotok]
         sorok.sort(
             key=lambda s: _valos_hirdetes_datum(s.get("datum_szoveg"), s.get("letrehozva")),
             reverse=True,
@@ -205,16 +244,29 @@ def friss_hirdetesek(szakma_nev: str, helyszin: str = "",
 
         allasok = []
         for s in sorok:
+            snapshot = snapshotok[s["id"]]
             allasok.append({
                 "id": s.get("id"),
                 "cim": s.get("cim", ""),
                 "ceg": cegnev.get(s.get("ceg_id"), ""),
-                "snippet": s.get("snippet", ""),
+                # Elemzéskor kizárólag a validált, teljes nyers szöveg
+                # használható. Listázáskor maradhat a rövid megjelenítési
+                # kivonat, de a kapuállapotot továbbadjuk a hívónak.
+                "snippet": (
+                    elemzesi_szoveg(snapshot.get("raw_szoveg", ""))
+                    if elemzeshez
+                    else s.get("snippet", "")
+                ),
                 "link": s.get("link", ""),
                 "helyszin": s.get("helyszin", ""),
                 "datum": s.get("datum_szoveg", ""),
                 "bersav": s.get("bersav", ""),
                 "forras_tipus": s.get("forras_tipus", "egyeb"),
+                "szoveg_minoseg": snapshot.get("szoveg_minoseg"),
+                "elemzesre_alkalmas": snapshot.get(
+                    "elemzesre_alkalmas",
+                    False,
+                ),
                 "adatbazisbol": True,   # jelzés: ezt NEM kell újra menteni
             })
         return allasok
@@ -235,6 +287,9 @@ def keszsegek_hirdetesekhez(hirdetes_idk: list) -> dict:
     if not db or not idk:
         return {}
     try:
+        idk = sorted(elemzesre_alkalmas_hirdetes_idk(db, idk))
+        if not idk:
+            return {}
         r = (db.table("hirdetes_keszseg")
                .select("hirdetes_id, keszsegek(nev)")
                .in_("hirdetes_id", idk)
@@ -369,7 +424,7 @@ def kereslet_korkep() -> list:
         sorok, start = [], 0
         while True:
             r = (db.table("hirdetesek")
-                   .select("szakma_id, ceg_id, letrehozva")
+                   .select("id, szakma_id, ceg_id, letrehozva")
                    .gte("letrehozva", h60.isoformat())
                    .range(start, start + 999).execute())
             adag = r.data or []
@@ -377,6 +432,13 @@ def kereslet_korkep() -> list:
             if len(adag) < 1000:
                 break
             start += 1000
+        engedelyezett = elemzesre_alkalmas_hirdetes_idk(
+            db,
+            [sor.get("id") for sor in sorok],
+        )
+        sorok = [
+            sor for sor in sorok if sor.get("id") in engedelyezett
+        ]
 
         _szsorok = db.table("szakmak").select("id, nev, kategoria").execute().data or []
         nevek = {s["id"]: s["nev"] for s in _szsorok}
@@ -447,18 +509,74 @@ def szakma_statisztika(szakma_nev: str) -> dict:
             return {}
         szid = r.data[0]["id"]
 
-        rh = db.table("hirdetesek").select("id", count="exact").eq("szakma_id", szid).execute()
-        rk = (db.table("v_szakma_keszsegek")
-                .select("keszseg, tipus, elofordulas, hirdetesek_szazaleka")
+        hirdetesek, kezdet = [], 0
+        while True:
+            valasz = (
+                db.table("hirdetesek")
+                .select("id,bersav")
                 .eq("szakma_id", szid)
-                .order("elofordulas", desc=True).limit(25).execute())
-        rb = (db.table("hirdetesek").select("bersav")
-                .eq("szakma_id", szid).neq("bersav", "").limit(30).execute())
+                .order("id")
+                .range(kezdet, kezdet + 999)
+                .execute()
+            )
+            adag = valasz.data or []
+            hirdetesek.extend(adag)
+            if len(adag) < 1000:
+                break
+            kezdet += 1000
+
+        engedelyezett = elemzesre_alkalmas_hirdetes_idk(
+            db,
+            [sor.get("id") for sor in hirdetesek],
+        )
+        hirdetesek = [
+            sor for sor in hirdetesek if sor.get("id") in engedelyezett
+        ]
+
+        from collections import Counter
+
+        gyakorisag: Counter = Counter()
+        engedelyezett_lista = sorted(engedelyezett)
+        for kezdet in range(0, len(engedelyezett_lista), 100):
+            kapcsolatok = (
+                db.table("hirdetes_keszseg")
+                .select("hirdetes_id,keszsegek(nev,tipus)")
+                .in_(
+                    "hirdetes_id",
+                    engedelyezett_lista[kezdet : kezdet + 100],
+                )
+                .execute()
+                .data
+                or []
+            )
+            for kapcsolat in kapcsolatok:
+                keszseg = kapcsolat.get("keszsegek") or {}
+                nev = keszseg.get("nev")
+                if nev:
+                    gyakorisag[(nev, keszseg.get("tipus") or "elvaras")] += 1
+
+        darab = len(hirdetesek)
+        keszsegek = [
+            {
+                "keszseg": nev,
+                "tipus": tipus,
+                "elofordulas": elofordulas,
+                "hirdetesek_szazaleka": round(
+                    100 * elofordulas / max(darab, 1),
+                    1,
+                ),
+            }
+            for (nev, tipus), elofordulas in gyakorisag.most_common(25)
+        ]
 
         return {
-            "hirdetesek_szama": rh.count or 0,
-            "keszsegek": rk.data or [],
-            "bersavok": [s["bersav"] for s in (rb.data or []) if s.get("bersav")],
+            "hirdetesek_szama": darab,
+            "keszsegek": keszsegek,
+            "bersavok": [
+                sor["bersav"]
+                for sor in hirdetesek
+                if sor.get("bersav")
+            ][:30],
         }
     except Exception as e:
         print(f"[adatbazis] Szakma-statisztika hiba: {e}")
@@ -475,41 +593,107 @@ def szakma_atjaras(szakma_nev: str, top_n: int = 5) -> list:
     try:
         from collections import defaultdict
 
-        # A FOGALOM-nézet összes sora, lapozva (gyűjtőfogalmak szintjén hasonlítunk!)
-        sorok, start = [], 0
+        szakmak = db.table("szakmak").select("id,nev").execute().data or []
+        szakma_nevek = {sor["id"]: sor["nev"] for sor in szakmak}
+        alap_id = next(
+            (
+                azonosito
+                for azonosito, nev in szakma_nevek.items()
+                if nev.lower() == szakma_nev.lower()
+            ),
+            None,
+        )
+        if not alap_id:
+            return []
+
+        snapshotok, kezdet = [], 0
         while True:
-            r = (db.table("v_szakma_fogalmak")
-                   .select("szakma, fogalom, hirdetesek_szazaleka")
-                   .order("szakma_id").order("fogalom")
-                   .range(start, start + 999).execute())
-            adag = r.data or []
-            sorok.extend(adag)
+            valasz = (
+                db.table("hirdetes_snapshot")
+                .select("id,hirdetes_id")
+                .eq("elemzesre_alkalmas", True)
+                .order("id")
+                .range(kezdet, kezdet + 999)
+                .execute()
+            )
+            adag = valasz.data or []
+            snapshotok.extend(adag)
             if len(adag) < 1000:
                 break
-            start += 1000
+            kezdet += 1000
+        hirdetes_idk = sorted(
+            {
+                sor.get("hirdetes_id")
+                for sor in snapshotok
+                if sor.get("hirdetes_id")
+            }
+        )
 
-        # Szakmánként a jellemző fogalmak (ami a hirdetések min. 3%-ában kell)
-        keszsegek = defaultdict(dict)
-        for s in sorok:
-            if (s.get("hirdetesek_szazaleka") or 0) >= 3:
-                keszsegek[s["szakma"]][s["fogalom"]] = s["hirdetesek_szazaleka"]
+        hirdetes_szakma = {}
+        for kezdet in range(0, len(hirdetes_idk), 200):
+            sorok = (
+                db.table("hirdetesek")
+                .select("id,szakma_id")
+                .in_(
+                    "id",
+                    hirdetes_idk[kezdet : kezdet + 200],
+                )
+                .execute()
+                .data
+                or []
+            )
+            hirdetes_szakma.update(
+                {
+                    sor["id"]: sor.get("szakma_id")
+                    for sor in sorok
+                    if sor.get("szakma_id")
+                }
+            )
 
-        alap = next((n for n in keszsegek if n.lower() == szakma_nev.lower()), None)
-        if not alap:
+        keszsegek: dict[int, set[str]] = defaultdict(set)
+        for kezdet in range(0, len(hirdetes_idk), 50):
+            kapcsolatok = (
+                db.table("hirdetes_keszseg")
+                .select(
+                    "hirdetes_id,"
+                    "keszsegek(nev,kanonikus,fogalom)"
+                )
+                .in_(
+                    "hirdetes_id",
+                    hirdetes_idk[kezdet : kezdet + 50],
+                )
+                .execute()
+                .data
+                or []
+            )
+            for kapcsolat in kapcsolatok:
+                szakma_id = hirdetes_szakma.get(
+                    kapcsolat.get("hirdetes_id")
+                )
+                keszseg = kapcsolat.get("keszsegek") or {}
+                fogalom = (
+                    keszseg.get("fogalom")
+                    or keszseg.get("kanonikus")
+                    or keszseg.get("nev")
+                )
+                if szakma_id and fogalom:
+                    keszsegek[szakma_id].add(fogalom.strip().lower())
+
+        sajat = keszsegek.get(alap_id, set())
+        if not sajat:
             return []
-        sajat = set(keszsegek[alap])
 
         eredmeny = []
-        for masik, mk in keszsegek.items():
-            if masik == alap or len(mk) < 5:
+        for masik_id, masik_keszsegek in keszsegek.items():
+            if masik_id == alap_id or len(masik_keszsegek) < 5:
                 continue
-            kozos = sajat & set(mk)
+            kozos = sajat & masik_keszsegek
             if len(kozos) < 3:
                 continue  # kevés közös adat = megbízhatatlan, inkább nem mutatjuk
-            atfedes = round(100 * len(kozos) / len(mk))
-            hianyzo = sorted(set(mk) - sajat, key=lambda k: -mk[k])[:3]
+            atfedes = round(100 * len(kozos) / len(masik_keszsegek))
+            hianyzo = sorted(masik_keszsegek - sajat)[:3]
             eredmeny.append({
-                "szakma": masik,
+                "szakma": szakma_nevek.get(masik_id, ""),
                 "atfedes": atfedes,
                 "kozos": len(kozos),
                 "hianyzo": hianyzo,
@@ -584,6 +768,57 @@ def letezo_linkek(linkek: list) -> set:
         return set()
 
 
+def snapshot_kapuk_hirdetesekhez(
+    db,
+    hirdetes_idk: list,
+    *,
+    elemzeshez: bool,
+) -> dict:
+    """A legfrissebb engedélyezett snapshot hirdetésenként.
+
+    Elemzési módban kizárólag ``elemzesre_alkalmas=true`` sor kerülhet
+    vissza. Listázási módban a snippet is megjelenhet, ha átment a
+    validáción. Snapshot nélküli régi adat fail-closed módon kimarad.
+    """
+
+    idk = list(dict.fromkeys(i for i in (hirdetes_idk or []) if i))
+    if not db or not idk:
+        return {}
+
+    kapu = "elemzesre_alkalmas" if elemzeshez else "listazasra_alkalmas"
+    eredmeny: dict = {}
+    for kezdet in range(0, len(idk), 200):
+        valasz = (
+            db.table("hirdetes_snapshot")
+            .select(
+                "id,hirdetes_id,raw_szoveg,szoveg_minoseg,"
+                "validacios_allapot,listazasra_alkalmas,"
+                "elemzesre_alkalmas,begyujtve"
+            )
+            .in_("hirdetes_id", idk[kezdet : kezdet + 200])
+            .eq(kapu, True)
+            .order("begyujtve", desc=True)
+            .execute()
+        )
+        for sor in valasz.data or []:
+            hirdetes_id = sor.get("hirdetes_id")
+            if hirdetes_id and hirdetes_id not in eredmeny:
+                eredmeny[hirdetes_id] = sor
+    return eredmeny
+
+
+def elemzesre_alkalmas_hirdetes_idk(db, hirdetes_idk: list) -> set:
+    """Központi, fail-closed elemzési kapu ATS-hez és karrierúthoz."""
+
+    return set(
+        snapshot_kapuk_hirdetesekhez(
+            db,
+            hirdetes_idk,
+            elemzeshez=True,
+        )
+    )
+
+
 # ── HIRDETÉSEK + KÉSZSÉGEK MENTÉSE ───────────────────────────
 
 def gyujtes_mentese(szakma_info: dict, allasok: list, keszsegek_per_allas: list = None) -> int:
@@ -609,11 +844,36 @@ def gyujtes_mentese(szakma_info: dict, allasok: list, keszsegek_per_allas: list 
     mentve = 0
     for allas, keszsegek in zip(allasok, keszsegek_per_allas):
         try:
-            hirdetes_id = _hirdetes_ment(db, allas, szakma_id)
+            snapshot = _snapshot_keszitese_allasbol(allas)
+            if snapshot is None:
+                print(
+                    "[adatbazis] Snapshot-metaadat nelkuli hirdetes "
+                    "karanten miatt nem kerul a szarmaztatott retegbe."
+                )
+                continue
+            tarolt_snapshot = _snapshot_mentese(db, snapshot)
+            if not tarolt_snapshot.get("listazasra_alkalmas"):
+                print(
+                    "[adatbazis] Karanten snapshot: "
+                    f"{tarolt_snapshot.get('validacios_hibak') or []}"
+                )
+                continue
+
+            hirdetes_id, uj_hirdetes = _hirdetes_ment(db, allas, szakma_id)
             if hirdetes_id is None:
-                continue  # duplikátum vagy hiányos adat
-            mentve += 1
-            if keszsegek:
+                continue
+            _snapshot_hirdeteshez_kapcsolasa(
+                db,
+                tarolt_snapshot,
+                hirdetes_id,
+            )
+            if uj_hirdetes:
+                mentve += 1
+            if (
+                uj_hirdetes
+                and tarolt_snapshot.get("elemzesre_alkalmas") is True
+                and keszsegek
+            ):
                 _keszsegek_ment(db, hirdetes_id, keszsegek)
         except Exception as e:
             print(f"[adatbazis] Hirdetes mentes hiba: {e}")
@@ -622,12 +882,91 @@ def gyujtes_mentese(szakma_info: dict, allasok: list, keszsegek_per_allas: list 
     return mentve
 
 
+def _snapshot_keszitese_allasbol(allas: dict) -> dict | None:
+    """A gyűjtő privát, nyers metaadataiból audit-snapshot készül."""
+
+    meta = allas.get("_snapshot")
+    if not isinstance(meta, dict):
+        return None
+    return snapshot_keszitese(
+        forras_tipus=allas.get("forras_tipus", "egyeb"),
+        forras_azonosito=meta.get("forras_azonosito", ""),
+        forras_url=meta.get("forras_url"),
+        keresesi_kulcsszo=meta.get("keresesi_kulcsszo"),
+        forras_szoveg_mezo=meta.get("forras_szoveg_mezo", ""),
+        raw_payload=meta.get("raw_payload"),
+        raw_szoveg=meta.get("raw_szoveg", ""),
+        szoveg_minoseg=meta.get("szoveg_minoseg", "ismeretlen"),
+        cim=allas.get("cim", ""),
+        nyelv=meta.get("nyelv"),
+        gyujto=meta.get("gyujto_verzio", "ismeretlen"),
+        gyujtesi_futas=meta.get("gyujtesi_futas", "ismeretlen"),
+    )
+
+
+def _snapshot_mentese(db, snapshot: dict) -> dict:
+    """Insert-only mentés; azonos tartalmat nem írunk felül."""
+
+    def _letezo():
+        valasz = (
+            db.table("hirdetes_snapshot")
+            .select("*")
+            .eq("forras_tipus", snapshot["forras_tipus"])
+            .eq("forras_azonosito", snapshot["forras_azonosito"])
+            .eq("raw_payload_sha256", snapshot["raw_payload_sha256"])
+            .limit(1)
+            .execute()
+        )
+        return (valasz.data or [None])[0]
+
+    regi = _letezo()
+    if regi:
+        return regi
+    try:
+        valasz = db.table("hirdetes_snapshot").insert(snapshot).execute()
+        if valasz.data:
+            return valasz.data[0]
+    except Exception:
+        # Párhuzamos gyűjtők ugyanazt a hash-t egyszerre láthatják újnak.
+        # Az egyedi index dönt; ütközés után csak visszaolvassuk a nyertest.
+        regi = _letezo()
+        if regi:
+            return regi
+        raise
+    raise RuntimeError("A hirdetes_snapshot beszurasa nem adott vissza sort.")
+
+
+def _snapshot_hirdeteshez_kapcsolasa(
+    db,
+    snapshot: dict,
+    hirdetes_id: int,
+) -> None:
+    """Csak az üres kapcsolat tölthető ki; meglévőt nem írunk felül."""
+
+    jelenlegi = snapshot.get("hirdetes_id")
+    if jelenlegi == hirdetes_id:
+        return
+    if jelenlegi is not None:
+        print(
+            "[adatbazis] Snapshot mar masik hirdeteshez kapcsolodik; "
+            "a regi kapcsolat valtozatlan marad."
+        )
+        return
+    (
+        db.table("hirdetes_snapshot")
+        .update({"hirdetes_id": hirdetes_id})
+        .eq("id", snapshot["id"])
+        .is_("hirdetes_id", "null")
+        .execute()
+    )
+
+
 def _hirdetes_ment(db, allas: dict, szakma_id):
     """Egy hirdetés mentése duplikátum-ellenőrzéssel.
-    None-t ad vissza, ha már megvolt (vagy nincs címe)."""
+    ``(id, új-e)`` párt ad; meglévő sort soha nem ír felül."""
     cim = (allas.get("cim") or "").strip()
     if not cim:
-        return None
+        return None, False
     link = (allas.get("link") or "").strip()
     ceg_id = ceg_ment(allas.get("ceg", ""))
 
@@ -640,7 +979,7 @@ def _hirdetes_ment(db, allas: dict, szakma_id):
             q = q.eq("ceg_id", ceg_id)
         r = q.limit(1).execute()
     if r.data:
-        return None
+        return r.data[0]["id"], False
 
     forras = allas.get("forras_tipus", "egyeb")
     if forras not in ERVENYES_FORRAS_TIPUSOK:
@@ -658,7 +997,7 @@ def _hirdetes_ment(db, allas: dict, szakma_id):
         "bersav": allas.get("bersav", ""),
     }
     r = db.table("hirdetesek").insert(sor).execute()
-    return r.data[0]["id"] if r.data else None
+    return (r.data[0]["id"], True) if r.data else (None, False)
 
 
 def _keszsegek_ment(db, hirdetes_id, keszsegek: list):
@@ -675,12 +1014,33 @@ def _keszsegek_ment(db, hirdetes_id, keszsegek: list):
     if not sorok:
         return
 
-    r = db.table("keszsegek").upsert(list(sorok.values()), on_conflict="nev").execute()
+    nevek = list(sorok)
+    regi = (
+        db.table("keszsegek")
+        .select("id,nev")
+        .in_("nev", nevek)
+        .execute()
+        .data
+        or []
+    )
+    regi_nevek = {sor["nev"] for sor in regi}
+    ujak = [sorok[nev] for nev in nevek if nev not in regi_nevek]
+    if ujak:
+        try:
+            db.table("keszsegek").insert(ujak).execute()
+        except Exception:
+            # Párhuzamos beszúrás esetén visszaolvassuk az egyedi kulcs
+            # nyerteseit; meglévő készségsort nem írunk felül.
+            pass
+    r = (
+        db.table("keszsegek")
+        .select("id,nev")
+        .in_("nev", nevek)
+        .execute()
+    )
     kapcsolatok = [
         {"hirdetes_id": hirdetes_id, "keszseg_id": s["id"]}
         for s in (r.data or [])
     ]
     if kapcsolatok:
-        db.table("hirdetes_keszseg").upsert(
-            kapcsolatok, on_conflict="hirdetes_id,keszseg_id"
-        ).execute()
+        db.table("hirdetes_keszseg").insert(kapcsolatok).execute()

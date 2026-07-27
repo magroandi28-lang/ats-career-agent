@@ -20,11 +20,16 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from backend.hirdetes_snapshot import (  # noqa: E402
+    gyujtesi_futas_azonosito,
+    gyujto_verzio,
+    kanonikus_json,
+    sha256_szoveg,
+)
 from utils.adatbazis import (  # noqa: E402
     gyujtes_mentese,
     keszsegnev_normalizalas,
     kliens,
-    letezo_linkek,
 )
 
 load_dotenv()
@@ -152,6 +157,8 @@ SZAKMAK = [
 HELYSZIN = ""
 MAX_OLDAL = 4
 CSOMAG_MERET = 10
+GYUJTESI_FUTAS = gyujtesi_futas_azonosito("jooble")
+GYUJTO_VERZIO = gyujto_verzio("jooble")
 
 SZINONIMAK = {
     "szoftvertesztelő": [
@@ -237,18 +244,30 @@ def keszsegek_kinyerese(
     if not allasok:
         return []
 
+    # A Jooble csak snippetet ad. Rövid kivonat sem kézi kényszerítéssel,
+    # sem modellhívással nem válhat ATS- vagy karrierút-alapadattá.
+    eredeti_indexek = [
+        index
+        for index, allas in enumerate(allasok)
+        if (allas.get("_snapshot") or {}).get("szoveg_minoseg") == "teljes"
+    ]
+    teljes_eredmeny = [[] for _ in allasok]
+    if not eredeti_indexek:
+        return teljes_eredmeny
+    elemezheto_allasok = [allasok[index] for index in eredeti_indexek]
+
     if not kenyszerit and not GEMINI_KINYERES_GYUJTESKOR:
-        return [[] for _ in allasok]
+        return teljes_eredmeny
 
     if _GEMINI_KVOTA_ELFOGYOTT:
-        return [[] for _ in allasok]
+        return teljes_eredmeny
 
     if not GEMINI_API_KEY:
         print(
             "FIGYELEM: GEMINI_API_KEY hiányzik — "
             "készségek nélkül mentünk."
         )
-        return [[] for _ in allasok]
+        return teljes_eredmeny
 
     lista = "\n\n".join(
         [
@@ -256,7 +275,7 @@ def keszsegek_kinyerese(
                 f"[{i}] {a.get('cim', '')} — {a.get('ceg', '')}\n"
                 f"{a.get('snippet', '')}"
             )
-            for i, a in enumerate(allasok)
+            for i, a in enumerate(elemezheto_allasok)
         ]
     )
 
@@ -319,7 +338,7 @@ Formátum:
                 "Gemini-kvóta elfogyott (429) — "
                 "a feldolgozás leáll."
             )
-            return [[] for _ in allasok]
+            return teljes_eredmeny
 
         r.raise_for_status()
         valasz = r.json()
@@ -350,18 +369,20 @@ Formátum:
             t = t.split("```")[1].split("```")[0].strip()
 
         adat = json.loads(t)
-        eredmeny = [[] for _ in allasok]
+        eredmeny = [[] for _ in elemezheto_allasok]
 
         for elem in adat:
             idx = elem.get("index")
-            if isinstance(idx, int) and 0 <= idx < len(allasok):
+            if isinstance(idx, int) and 0 <= idx < len(elemezheto_allasok):
                 eredmeny[idx] = elem.get("keszsegek", [])
 
-        return eredmeny
+        for helyi_index, eredeti_index in enumerate(eredeti_indexek):
+            teljes_eredmeny[eredeti_index] = eredmeny[helyi_index]
+        return teljes_eredmeny
 
     except Exception as e:
         print(f"Gemini-hiba a készségkinyerésnél: {e}")
-        return [[] for _ in allasok]
+        return teljes_eredmeny
 
 
 def _tisztit(szoveg: str) -> str:
@@ -403,27 +424,50 @@ def jooble_kereses(kulcsszo: str) -> list:
             break
 
         for j in jobs:
-            cim = _tisztit(j.get("title", ""))
-
-            if not cim:
-                continue
-
+            forras_adat = j if isinstance(j, dict) else {}
+            cim = _tisztit(forras_adat.get("title", ""))
+            raw_szoveg_ertek = forras_adat.get("snippet")
+            raw_szoveg = (
+                raw_szoveg_ertek
+                if isinstance(raw_szoveg_ertek, str)
+                else ""
+            )
+            link = (forras_adat.get("link") or "").strip()
+            forras_azonosito = str(
+                forras_adat.get("id")
+                or link
+                or sha256_szoveg(kanonikus_json(j))
+            )
             allasok.append(
                 {
                     "cim": cim,
-                    "ceg": _tisztit(j.get("company", "")),
+                    "ceg": _tisztit(forras_adat.get("company", "")),
                     "snippet": _tisztit(
-                        j.get("snippet", "")
+                        raw_szoveg
                     )[:500],
-                    "link": (j.get("link") or "").strip(),
+                    "link": link,
                     "helyszin": _tisztit(
-                        j.get("location", "")
+                        forras_adat.get("location", "")
                     ),
-                    "datum": (j.get("updated") or "")[:10],
+                    "datum": (forras_adat.get("updated") or "")[:10],
                     "bersav": _tisztit(
-                        j.get("salary", "")
+                        forras_adat.get("salary", "")
                     ),
                     "forras_tipus": "jooble",
+                    "_snapshot": {
+                        "forras_azonosito": forras_azonosito,
+                        "forras_url": link or None,
+                        "keresesi_kulcsszo": kulcsszo,
+                        "forras_szoveg_mezo": "snippet",
+                        # Az API egyedi hirdetéseleme és eredeti snippetje
+                        # változatlanul kerül az audit-rétegbe.
+                        "raw_payload": j,
+                        "raw_szoveg": raw_szoveg,
+                        "nyelv": forras_adat.get("language"),
+                        "szoveg_minoseg": "snippet",
+                        "gyujto_verzio": GYUJTO_VERZIO,
+                        "gyujtesi_futas": GYUJTESI_FUTAS,
+                    },
                 }
             )
 
@@ -449,6 +493,9 @@ def szakma_gyujtes(
         for allas in jooble_kereses(kulcsszo):
             azonosito = (
                 allas["link"]
+                or (allas.get("_snapshot") or {}).get(
+                    "forras_azonosito"
+                )
                 or allas["cim"] + allas["ceg"]
             )
             egyedi.setdefault(azonosito, allas)
@@ -463,22 +510,9 @@ def szakma_gyujtes(
     if not allasok:
         return 0
 
-    megvan = letezo_linkek(
-        [allas["link"] for allas in allasok]
-    )
-
-    ujak = [
-        allas
-        for allas in allasok
-        if allas["link"] not in megvan
-    ]
-
     print(
-        f"Ebből új, még nincs az adatbázisban: {len(ujak)}"
+        f"Snapshotolandó forráselem: {len(allasok)}"
     )
-
-    if not ujak:
-        return 0
 
     szakma_info = {
         "szakma": szakma,
@@ -487,8 +521,8 @@ def szakma_gyujtes(
 
     mentve = 0
 
-    for i in range(0, len(ujak), CSOMAG_MERET):
-        csomag = ujak[i : i + CSOMAG_MERET]
+    for i in range(0, len(allasok), CSOMAG_MERET):
+        csomag = allasok[i : i + CSOMAG_MERET]
         keszsegek = keszsegek_kinyerese(csomag)
 
         mentve += gyujtes_mentese(

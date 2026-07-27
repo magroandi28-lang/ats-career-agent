@@ -18,7 +18,8 @@ from backend.keszseg_felismero import (
     valtozatok_szakmahoz,
 )
 from backend.pozicionevek import cvben_szereplo, pozicionevek
-from utils.adatbazis import kliens, szakma_statisztika
+from backend.szakma_elvarasok import szakma_elvarasai
+from utils.adatbazis import kliens
 
 
 # Ennyi leggyakoribb elvárást nézünk meg a szakmánál.
@@ -73,42 +74,18 @@ def _felismert_fogalmak(keszseg_idk: set[int]) -> set[str]:
 
 
 def _szakma_elvarasai(szakma_id: int | None, szakma: str) -> list[dict]:
-    """A szakma mért elvárásai gyűjtőfogalom szinten.
+    """Csak validált, teljes snapshotból származó elvárások.
 
-    Ha a fogalom-nézet üres (pl. még nincs feldolgozva a szakma), a
-    készségszintű statisztikára esünk vissza -- kevésbé pontos, de nem
-    hagyjuk üzenet nélkül a felhasználót.
+    Nincs legacy nézetre vagy snippetből képzett készségre visszaesés:
+    elégtelen hiteles adat esetén az ATS inkább nem számol százalékot.
     """
-    db = kliens()
-    if db and szakma_id:
-        valasz = (
-            db.table("v_szakma_fogalmak")
-            .select("fogalom, elofordulas, hirdetesek_szazaleka")
-            .eq("szakma_id", szakma_id)
-            .order("elofordulas", desc=True)
-            .limit(FIGYELT_KESZSEGEK)
-            .execute()
-        )
-        sorok = valasz.data or []
-        if sorok:
-            return _piaci_szures([
-                {
-                    "nev": sor["fogalom"],
-                    "elofordulas": sor.get("elofordulas", 0),
-                    "szazalek": sor.get("hirdetesek_szazaleka") or 0,
-                }
-                for sor in sorok
-            ])
 
-    statisztika = szakma_statisztika(szakma)
-    return _piaci_szures([
-        {
-            "nev": sor["keszseg"],
-            "elofordulas": sor.get("elofordulas", 0),
-            "szazalek": sor.get("hirdetesek_szazaleka") or 0,
-        }
-        for sor in (statisztika.get("keszsegek") or [])[:FIGYELT_KESZSEGEK]
-    ])
+    del szakma  # a kompatibilis függvényaláírás része
+    if not szakma_id:
+        return []
+    return _piaci_szures(
+        szakma_elvarasai(szakma_id)[:FIGYELT_KESZSEGEK]
+    )
 
 
 def _piaci_szures(elvarasok: list[dict]) -> list[dict]:

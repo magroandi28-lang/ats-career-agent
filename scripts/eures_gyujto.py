@@ -31,11 +31,14 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from backend.hirdetes_snapshot import (  # noqa: E402
+    gyujtesi_futas_azonosito,
+    gyujto_verzio,
+)
 from utils.adatbazis import (  # noqa: E402
     gyujtes_mentese,
     keszsegnev_normalizalas,
     kliens,
-    letezo_linkek,
 )
 from utils.eures import eures_kereses  # noqa: E402
 from jooble_gyujto import (  # noqa: E402
@@ -46,12 +49,19 @@ from jooble_gyujto import (  # noqa: E402
 
 DARAB = 50
 CSOMAG_MERET = 10
+GYUJTESI_FUTAS = gyujtesi_futas_azonosito("eures")
+GYUJTO_VERZIO = gyujto_verzio("eures")
 
 
 def szakma_gyujtes(szakma: str, kategoria: str) -> int:
     """Egy szakma teljes feldolgozása."""
     print(f"\n=== {szakma} ===")
-    talalat = eures_kereses(szakma, ["hu"], darab=DARAB)
+    talalat = eures_kereses(
+        szakma,
+        ["hu"],
+        darab=DARAB,
+        nyers_forras=True,
+    )
 
     if not talalat["ok"]:
         print(f"  EURES hiba: {talalat['hiba']}")
@@ -69,9 +79,30 @@ def szakma_gyujtes(szakma: str, kategoria: str) -> int:
             "datum": a["datum"],
             "bersav": "",
             "forras_tipus": "eures",
+            "_snapshot": {
+                "forras_azonosito": (
+                    a.get("_nyers_forras") or {}
+                ).get("azonosito", ""),
+                "forras_url": a["link"] or None,
+                "keresesi_kulcsszo": szakma,
+                "forras_szoveg_mezo": (
+                    a.get("_nyers_forras") or {}
+                ).get("szoveg_mezo", "description"),
+                "raw_payload": (
+                    a.get("_nyers_forras") or {}
+                ).get("payload"),
+                "raw_szoveg": (
+                    a.get("_nyers_forras") or {}
+                ).get("szoveg", ""),
+                "nyelv": (
+                    a.get("_nyers_forras") or {}
+                ).get("nyelv"),
+                "szoveg_minoseg": "teljes",
+                "gyujto_verzio": GYUJTO_VERZIO,
+                "gyujtesi_futas": GYUJTESI_FUTAS,
+            },
         }
         for a in talalat["allasok"]
-        if a["cim"]
     ]
 
     print(
@@ -82,13 +113,7 @@ def szakma_gyujtes(szakma: str, kategoria: str) -> int:
     if not allasok:
         return 0
 
-    megvan = letezo_linkek([a["link"] for a in allasok])
-    ujak = [a for a in allasok if a["link"] not in megvan]
-
-    print(f"  Ebbol uj (meg nincs az adatbazisban): {len(ujak)}")
-
-    if not ujak:
-        return 0
+    print(f"  Snapshotolando forraselem: {len(allasok)}")
 
     szakma_info = {
         "szakma": szakma,
@@ -97,8 +122,8 @@ def szakma_gyujtes(szakma: str, kategoria: str) -> int:
 
     mentve = 0
 
-    for i in range(0, len(ujak), CSOMAG_MERET):
-        csomag = ujak[i:i + CSOMAG_MERET]
+    for i in range(0, len(allasok), CSOMAG_MERET):
+        csomag = allasok[i:i + CSOMAG_MERET]
         keszsegek = keszsegek_kinyerese(csomag)
         mentve += gyujtes_mentese(
             szakma_info,

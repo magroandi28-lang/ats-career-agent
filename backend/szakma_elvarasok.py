@@ -19,7 +19,7 @@ from collections import Counter, defaultdict
 from typing import Final
 
 from backend.keszseg_felismero import normalizal
-from utils.adatbazis import kliens
+from utils.adatbazis import elemzesre_alkalmas_hirdetes_idk, kliens
 
 
 # A CV-hez ezt a két szekciót mérjük. Az `ajanlat` a munkáltató ígérete, a
@@ -84,8 +84,15 @@ def _tetelek(db, szakma_id: int | None) -> list[dict]:
         adag = kerdes.execute().data or []
         sorok.extend(adag)
         if len(adag) < 1000:
-            return sorok
+            break
         kezdet += 1000
+    engedelyezett = elemzesre_alkalmas_hirdetes_idk(
+        db,
+        [sor.get("hirdetes_id") for sor in sorok],
+    )
+    return [
+        sor for sor in sorok if sor.get("hirdetes_id") in engedelyezett
+    ]
 
 
 def _ossz_elofordulas(db) -> tuple[Counter, int]:
