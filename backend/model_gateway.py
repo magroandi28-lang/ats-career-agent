@@ -8,6 +8,12 @@ from pydantic import BaseModel
 import requests
 
 from backend.settings import get_settings
+from backend.usage_log import (
+    Hasznalat,
+    gemini_hasznalat,
+    openai_hasznalat,
+    rogzit,
+)
 
 
 OutputModel = TypeVar("OutputModel", bound=BaseModel)
@@ -28,6 +34,13 @@ class ModelCall:
 
 class ModelAdapter(Protocol):
     def structured_response(self, call: ModelCall) -> OutputModel: ...
+
+
+# Az adapter a hívás után ide teszi a token-adatot, és a kapu innen olvassa
+# ki a naplózáshoz. Azért mellékcsatornán és nem visszatérési értékben, hogy
+# a hívók és a tesztek adapterei változtatás nélkül működjenek tovább.
+# Adapterpéldány hívásonként készül, tehát nem keveredhet két hívás adata.
+_HASZNALAT_MEZO = "utolso_hasznalat"
 
 
 def _response_output_text(payload: dict) -> str:
@@ -71,6 +84,7 @@ class OpenAIAdapter:
     def __init__(self, api_key: str, model: str):
         self.api_key = api_key
         self.model = model
+        self.utolso_hasznalat: Hasznalat | None = None
 
     def structured_response(self, call: ModelCall) -> OutputModel:
         schema = _openai_strict_schema(call.output_schema.model_json_schema())
@@ -96,8 +110,12 @@ class OpenAIAdapter:
             timeout=call.timeout_seconds,
         )
         response.raise_for_status()
+        payload = response.json()
+        # A token-adatot a sémavalidáció ELŐTT vesszük ki: a hívás akkor is
+        # pénzbe került, ha a válasz utána érvénytelennek bizonyul.
+        self.utolso_hasznalat = openai_hasznalat(payload)
         return call.output_schema.model_validate_json(
-            _response_output_text(response.json())
+            _response_output_text(payload)
         )
 
 
@@ -105,6 +123,7 @@ class GeminiAdapter:
     def __init__(self, api_key: str, model: str):
         self.api_key = api_key
         self.model = model
+        self.utolso_hasznalat: Hasznalat | None = None
 
     def structured_response(self, call: ModelCall) -> OutputModel:
         url = (
@@ -129,8 +148,10 @@ class GeminiAdapter:
             timeout=call.timeout_seconds,
         )
         response.raise_for_status()
+        payload = response.json()
+        self.utolso_hasznalat = gemini_hasznalat(payload)
         try:
-            text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+            text = payload["candidates"][0]["content"]["parts"][0]["text"]
         except (KeyError, IndexError, TypeError) as exc:
             raise ModelGatewayError(
                 "A modell nem adott feldolgozható választ."
@@ -163,6 +184,7 @@ class ModelGateway:
         input_data: dict,
         output_schema: type[OutputModel],
         timeout_seconds: int | None = None,
+        user_id: str | None = None,
     ) -> OutputModel:
         settings = get_settings()
         call = ModelCall(
@@ -177,3 +199,27 @@ class ModelGateway:
             return adapter.structured_response(call)
         except (requests.RequestException, ValueError, ModelGatewayError) as exc:
             raise ModelGatewayError("A modellhívás nem sikerült.") from exc
+        finally:
+            # A naplózás a `finally`-ben van: a sikertelen hívás is pénzbe
+            # kerülhetett, és épp a hibás futásokat fontos látni a keretnél.
+            self._naplozas(adapter, task_type, settings.ai_provider, user_id)
+
+    @staticmethod
+    def _naplozas(
+        adapter: ModelAdapter,
+        task_type: str,
+        szolgaltato: str,
+        user_id: str | None,
+    ) -> None:
+        hasznalat = getattr(adapter, _HASZNALAT_MEZO, None)
+        # Nincs token-adat: a hívás el sem jutott a szolgáltatóig, vagy a
+        # tesztek behelyettesített adaptere fut. Nincs mit naplózni.
+        if hasznalat is None:
+            return
+        rogzit(
+            feladat=task_type,
+            szolgaltato=szolgaltato,
+            modell=getattr(adapter, "model", "ismeretlen"),
+            hasznalat=hasznalat,
+            user_id=user_id,
+        )

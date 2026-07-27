@@ -26,11 +26,15 @@ MINOSEGI = "gpt-5.6-terra"
 
 
 def gpt(messages: list, model: str = GYORS, max_tokens: int = 1200,
-        reasoning_effort: str = None) -> str:
+        reasoning_effort: str = None, feladat: str = "ismeretlen",
+        user_id: str = None) -> str:
     """Egy hívás az OpenAI chat/completions végpontjára.
 
     Visszaadja a válasz szövegét (strip-elve). Hiba esetén feldobja a
-    kivételt — a hívó fél ugyanúgy try/except-eli, mint eddig a Claude-nál."""
+    kivételt — a hívó fél ugyanúgy try/except-eli, mint eddig a Claude-nál.
+
+    A `feladat` csak a költségnaplóba kerül: enélkül látnád, hogy fogy a
+    kereted, de nem azt, hogy mire. Érdemes megadni minden hívónál."""
     kulcs = os.getenv("OPENAI_API_KEY", "")
     adat = {"model": model, "messages": messages, "max_completion_tokens": max_tokens}
     if reasoning_effort:
@@ -38,4 +42,17 @@ def gpt(messages: list, model: str = GYORS, max_tokens: int = 1200,
     r = requests.post(_URL, headers={"Authorization": f"Bearer {kulcs}"},
                        json=adat, timeout=60)
     r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"].strip()
+    valasz = r.json()
+
+    # Ez a legdrágább hívási út a rendszerben (CV- és levélírás), ezért
+    # naplózunk. A napló nem akaszthatja meg a választ: saját magán belül
+    # nyeli le a hibát.
+    #
+    # A behúzás szándékosan itt, a függvényben van: így a `utils` csomag
+    # importáláskor nem függ a `backend`-től, csak akkor, ha tényleg hívás
+    # történik.
+    from backend.usage_log import openai_hasznalat, rogzit
+    rogzit(feladat=feladat, szolgaltato="openai", modell=model,
+           hasznalat=openai_hasznalat(valasz), user_id=user_id)
+
+    return valasz["choices"][0]["message"]["content"].strip()
