@@ -322,9 +322,25 @@ Formátum:
             return [[] for _ in allasok]
 
         r.raise_for_status()
+        valasz = r.json()
+
+        # A napi cimkezes a legnagyobb Gemini-fogyaszto a rendszerben.
+        # Enelkul latnad, hogy fogy a keret, de nem azt, hogy mire.
+        try:
+            from backend.usage_log import gemini_hasznalat, rogzit
+
+            rogzit(
+                feladat="keszsegkinyeres_gyujteskor",
+                szolgaltato="gemini",
+                modell=GEMINI_MODELL,
+                hasznalat=gemini_hasznalat(valasz),
+            )
+        except Exception:
+            # A naplozas nem akaszthatja meg a gyujtest.
+            pass
 
         t = (
-            r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            valasz["candidates"][0]["content"]["parts"][0]["text"]
             .strip()
         )
 

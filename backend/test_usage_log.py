@@ -57,10 +57,55 @@ def test_koltseg_a_dragabb_modellel():
     assert koltseg_usd("gpt-5.6-terra", Hasznalat(1200, 800)) == Decimal("0.015000")
 
 
-def test_koltseg_geminire():
+def test_ingyenes_kereten_nincs_koltseg():
+    """A Gemini ingyenes keretén a hívás nem kerül pénzbe -- nulla, nem becslés."""
+    assert koltseg_usd(
+        "gemini-2.5-flash", Hasznalat(500, 250), szolgaltato="gemini"
+    ) == Decimal(0)
+
+
+def test_gemini_fizetos_kereten_szamol(monkeypatch):
+    """Ha egyszer fizetősre váltasz, ugyanaz a napló már valós összeget mutat."""
+    monkeypatch.setenv("GEMINI_FIZETOS", "1")
     # gemini-2.5-flash: 0,30 és 2,50 USD/millió.
     # 500 * 0,30/1e6 + 250 * 2,50/1e6 = 0,00015 + 0,000625 = 0,000775
-    assert koltseg_usd("gemini-2.5-flash", Hasznalat(500, 250)) == Decimal("0.000775")
+    assert koltseg_usd(
+        "gemini-2.5-flash", Hasznalat(500, 250), szolgaltato="gemini"
+    ) == Decimal("0.000775")
+
+
+def test_ingyenes_kereten_is_rogzulnek_a_tokenek(monkeypatch):
+    """A keret fogyása enélkül láthatatlan maradna."""
+    beszurt = {}
+
+    class FakeTabla:
+        def insert(self, sor):
+            beszurt.update(sor)
+            return self
+
+        def execute(self):
+            return None
+
+    class FakeSema:
+        def table(self, nev):
+            return FakeTabla()
+
+    class FakeKliens:
+        def schema(self, nev):
+            return FakeSema()
+
+    monkeypatch.setattr(usage_log, "kliens", lambda: FakeKliens())
+
+    rogzit(
+        feladat="keszsegkinyeres_gyujteskor",
+        szolgaltato="gemini",
+        modell="gemini-2.5-flash",
+        hasznalat=Hasznalat(500, 250),
+    )
+
+    assert beszurt["bemeneti_tokenek"] == 500
+    assert beszurt["kimeneti_tokenek"] == 250
+    assert beszurt["koltseg_usd"] == "0"
 
 
 def test_ismeretlen_modell_nulla_koltseg_de_nem_hiba():

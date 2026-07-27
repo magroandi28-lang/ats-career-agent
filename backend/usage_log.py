@@ -10,6 +10,7 @@ A napló szándékosan nem tárol prompt- vagy válaszszöveget: a mennyiséghez
 from dataclasses import dataclass
 from decimal import Decimal
 import logging
+import os
 
 from utils.adatbazis import kliens
 
@@ -20,6 +21,11 @@ _LOG = logging.getLogger(__name__)
 # Millió tokenre eső ár USD-ben: modell -> (bemenet, kimenet).
 # Források: developers.openai.com/api/docs/pricing és
 # ai.google.dev/gemini-api/docs/pricing -- ellenőrizve 2026-07-27.
+#
+# FIGYELEM: ezek a FIZETŐS csomag árai. A projekt a Gemini INGYENES keretén
+# fut, ott a hívás nem kerül pénzbe -- oda nulla kerül a naplóba, nem ezek
+# az árak. A Gemini-sorok csak akkor válnak élővé, ha egyszer fizetősre
+# váltasz (GEMINI_FIZETOS=1).
 #
 # Az árak változnak. Ha a szolgáltató számlája eltér a naplótól, ITT kell
 # javítani: ez az egyetlen hely, ahol ár szerepel a rendszerben.
@@ -34,6 +40,23 @@ ARAK: dict[str, tuple[Decimal, Decimal]] = {
 
 _MILLIO = Decimal(1_000_000)
 _FILLER = Decimal("0.000001")
+
+
+def _fizetos(szolgaltato: str) -> bool:
+    """Fizetős kereten fut-e ez a szolgáltató.
+
+    A fenti árak a FIZETŐS csomag árai. Ha ingyenes kereten futunk, a
+    hívásnak nincs pénzbeli költsége, és hamis biztonságérzetet adna, ha
+    a napló mégis mutatna összeget. A tokeneket ilyenkor is rögzítjük:
+    azokból látszik a keret fogyása, és ha később fizetősre váltasz,
+    visszamenőleg is összehasonlítható.
+
+    A Gemini alapból ingyenes keretnek számít, mert a projekt azon fut.
+    """
+    kapcsolo = os.getenv(f"{szolgaltato.upper()}_FIZETOS", "")
+    if kapcsolo:
+        return kapcsolo.strip().lower() in {"1", "true", "igen", "yes"}
+    return szolgaltato != "gemini"
 
 
 @dataclass(frozen=True)
@@ -71,13 +94,19 @@ def gemini_hasznalat(payload: dict) -> Hasznalat:
     )
 
 
-def koltseg_usd(modell: str, hasznalat: Hasznalat) -> Decimal:
+def koltseg_usd(
+    modell: str, hasznalat: Hasznalat, szolgaltato: str = ""
+) -> Decimal:
     """A hívás becsült ára.
 
-    Ismeretlen modellnél nulla: nem tippelünk. A tokenek ilyenkor is
-    rögzülnek, tehát az ár utólag pótolható -- egy kitalált ár viszont
-    hamis biztonságérzetet adna a keretedről.
+    Ingyenes kereten nulla -- ott a hívás nem kerül pénzbe, akármennyi
+    tokent fogyaszt. Ismeretlen modellnél szintén nulla: nem tippelünk.
+    A tokenek mindkét esetben rögzülnek, tehát a keret fogyása látszik,
+    és az ár utólag pótolható.
     """
+    if szolgaltato and not _fizetos(szolgaltato):
+        return Decimal(0)
+
     arak = ARAK.get(modell)
     if arak is None:
         _LOG.warning(
@@ -119,7 +148,9 @@ def rogzit(
                 "kimeneti_tokenek": hasznalat.kimeneti_tokenek,
                 # Stringként megy: a numeric mezőbe a float kerekítési hibát
                 # vinne, a Decimal pedig nem JSON-szerializálható.
-                "koltseg_usd": str(koltseg_usd(modell, hasznalat)),
+                "koltseg_usd": str(
+                    koltseg_usd(modell, hasznalat, szolgaltato)
+                ),
                 "sikeres": sikeres,
                 "hiba": str(hiba)[:200] if hiba else None,
             }
