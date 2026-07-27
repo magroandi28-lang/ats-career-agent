@@ -361,6 +361,50 @@ def test_formai_vizsgalat_jelzi_az_osszefolyo_sorokat():
     assert "osszefolyo_sorok" in kodok
 
 
+def test_formai_vizsgalat_jelzi_a_szuletesi_datumot():
+    """Életkor alapján tilos szűrni, mégis megtörténik -- a dátum elhagyható."""
+    from backend.workflow_actions import _formai_kifogasok
+
+    szoveg = _rendes_cv() + "\nSzületési idő: 1989. 04. 12."
+    kodok = {k["kod"] for k in _formai_kifogasok(szoveg)}
+    assert "szuletesi_datum" in kodok
+
+
+def test_formai_vizsgalat_jelzi_az_evszamos_email_cimet():
+    from backend.workflow_actions import _formai_kifogasok
+
+    szoveg = _rendes_cv().replace("@", "1975@", 1)
+    kodok = {k["kod"] for k in _formai_kifogasok(szoveg)}
+    assert "email_evszam" in kodok
+
+
+def test_formai_vizsgalat_jelzi_a_becenevet_az_email_cimben():
+    """A HR-esnek össze kell tudnia kötni a levelet a pályázattal."""
+    from backend.workflow_actions import _formai_kifogasok
+
+    szoveg = _rendes_cv().replace("kiss.peter@", "cicamica@", 1)
+    kodok = {k["kod"] for k in _formai_kifogasok(szoveg)}
+    assert "email_becenev" in kodok
+
+
+def test_formai_vizsgalat_elfogadja_a_nev_alapu_email_cimet():
+    """Ékezet és pont nem számít: „nemeth.eva@" a „Németh Éva" névhez tartozik."""
+    from backend.workflow_actions import _formai_kifogasok
+
+    szoveg = "Németh Éva\nnemeth.eva@pelda.hu\n06205551234\n" + "sor\n" * 200
+    kodok = {k["kod"] for k in _formai_kifogasok(szoveg)}
+    assert "email_becenev" not in kodok
+
+
+def test_formai_vizsgalat_nem_jelez_evszam_nelkuli_cimet():
+    """A hétköznapi e-mail-cím nem lehet kifogás -- különben zajos a lista."""
+    from backend.workflow_actions import _formai_kifogasok
+
+    kodok = {k["kod"] for k in _formai_kifogasok(_rendes_cv())}
+    assert "email_evszam" not in kodok
+    assert "szuletesi_datum" not in kodok
+
+
 def test_cv_ellenorzes_jovahagyott_cv_nelkul_elutasit(monkeypatch):
     from backend import workflow_actions
 

@@ -20,6 +20,7 @@ import re
 
 from agents.karrier_ugynok import allasok_minosegi_kereses
 from backend.cv_ats import ats_diagnozis
+from backend.keszseg_felismero import normalizal
 from backend.career_state_machine import CareerAction
 from backend.cv_import_service import cv_import_get
 from backend.gps_vocabulary import ellenorzott_esemeny, ellenorzott_snapshot
@@ -40,6 +41,31 @@ MAX_TALALAT: Final = 5
 # egyáltalán elérhetőség a dokumentumban, nem azt, hogy szabályos-e.
 EMAIL_MINTA: Final = re.compile(r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}")
 TELEFON_MINTA: Final = re.compile(r"(?:\+?\d[\d\s\-/()]{7,})")
+
+# Életkorra utaló jelek. Ezek nem formai hibák, hanem kockázatok: az
+# életkor alapján történő kiszűrés tiltott, mégis megtörténik, és a
+# CV-ből egyszerűen elhagyható. A dátumot csak akkor jelezzük, ha
+# tényleg születési dátumként szerepel, nem minden évszámot.
+SZULETESI_DATUM_MINTA: Final = re.compile(
+    r"szület(?:ési|ett)[^\n:]{0,20}:?\s*\d{4}", re.IGNORECASE
+)
+
+# Négyjegyű, 1940 és 2010 közötti szám az e-mail-cím helyi részében:
+# jellemzően születési év (pl. nemeth.eva1975@…).
+EMAIL_EVSZAM_MINTA: Final = re.compile(
+    r"[^\s@]*(?:19[4-9]\d|200\d|2010)[^\s@]*@"
+)
+
+# A név a dokumentum elején áll; ennyi karakteren belül keressük.
+NEV_SAV: Final = 300
+
+# Ennél rövidebb darabot nem tekintünk névrésznek („dr", „hu", kezdőbetűk).
+MIN_NEVRESZ: Final = 3
+
+# A terjedelmet (a szakmai ajánlás 1,5-2 oldal) szándékosan NEM mérjük itt.
+# A kinyert karakterszám nem arányos az oldalszámmal: egy tervezett, hasábos
+# CV három oldal is lehet 2000 karakterrel. Ha ezt jelezni akarjuk, a PDF
+# tényleges oldalszámát kell átadni a feltöltéskor, nem a szövegből becsülni.
 
 
 class ActionError(RuntimeError):
@@ -276,6 +302,35 @@ def _allasok_bemutatasa(ctx: ActionContext) -> ActionOutcome:
     )
 
 
+def _email_tartalmazza_a_nevet(cv_szoveg: str) -> bool:
+    """Az e-mail-cím elején szerepel-e a jelölt neve.
+
+    A név a CV elején áll, a cím helyi részét pedig pontok, kötőjelek és
+    számok tagolják. Ha a két halmaznak van közös eleme, a HR-es össze
+    tudja kötni a levelet a pályázattal. A `cicamica88@` nem tudja.
+
+    Nem ízlést mérünk: a név vagy szerepel benne, vagy nem.
+    """
+    talalat = EMAIL_MINTA.search(cv_szoveg)
+    if not talalat:
+        return True  # Az e-mail hiányát külön kifogás jelzi.
+
+    helyi_resz = talalat.group(0).split("@")[0]
+    # Betűhatáron darabolunk: a normalizálás a pontot és a kötőjelet már
+    # szóközzé alakította, a számokat viszont meghagyta („eva1975").
+    darabok = {
+        darab for darab in re.split(r"[^a-z]+", normalizal(helyi_resz))
+        if len(darab) >= MIN_NEVRESZ
+    }
+    if not darabok:
+        return False
+
+    # Magát az e-mail-címet ki kell venni a névsávból, különben a helyi rész
+    # önmagára illeszkedik, és minden cím átmenne.
+    nev_sav = normalizal(EMAIL_MINTA.sub(" ", cv_szoveg[:NEV_SAV]))
+    return any(darab in nev_sav for darab in darabok)
+
+
 def _formai_kifogasok(cv_szoveg: str) -> list[dict]:
     """Miért dobhatja ki a szűrő a dokumentumot, mielőtt bárki elolvasná.
 
@@ -319,6 +374,36 @@ def _formai_kifogasok(cv_szoveg: str) -> list[dict]:
                 "A szöveg sok helyen egyetlen hosszú sorba folyik össze. Ez "
                 "jellemzően több hasábos vagy táblázatos elrendezésből "
                 "adódik, amit a szűrőprogramok összekevernek."
+            ),
+        })
+
+    if SZULETESI_DATUM_MINTA.search(cv_szoveg):
+        kifogasok.append({
+            "kod": "szuletesi_datum",
+            "leiras": (
+                "Szerepel a születési dátumod. Ezt nem kötelező megadni, és "
+                "sajnos előfordul, hogy életkor alapján szűrnek ki jelölteket. "
+                "Hagyd ki — az életkorod az interjún úgyis kiderül."
+            ),
+        })
+
+    if not _email_tartalmazza_a_nevet(cv_szoveg):
+        kifogasok.append({
+            "kod": "email_becenev",
+            "leiras": (
+                "Az e-mail-címedben nem szerepel a neved. A HR-es így nehezen "
+                "köti össze a levelet a pályázatoddal, és a becenevet gyakran "
+                "komolytalannak látják. Egy név alapú cím sokat javít ezen."
+            ),
+        })
+
+    if EMAIL_EVSZAM_MINTA.search(cv_szoveg):
+        kifogasok.append({
+            "kod": "email_evszam",
+            "leiras": (
+                "Az e-mail-címed évszámot tartalmaz, ami elárulhatja a "
+                "születési évedet. Érdemes olyan címet használni a "
+                "pályázatokhoz, amiből ez nem derül ki."
             ),
         })
 
