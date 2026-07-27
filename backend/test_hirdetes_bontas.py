@@ -84,6 +84,19 @@ def test_amit_kinalunk_kulon_szekcioba_kerul():
     assert not any("műszak" in e for e in _szekcio(elemek, "elvaras"))
 
 
+def test_a_ber_akkor_is_ajanlat_ha_az_elvarasok_kozt_all():
+    """Sok hirdetés a bért az elvárások közé írja -- onnan „hiányozna" a CV-ből."""
+    szoveg = (
+        "Elvárások ~Kereskedelmi végzettség ~Bolti eladó pozícióban elérhető "
+        "havi bruttó fizetés 342 500 Ft ~Utazási költségtérítés"
+    )
+    elemek = bontas(szoveg)
+
+    assert any("végzettség" in e for e in _szekcio(elemek, "elvaras"))
+    assert any("342 500" in e for e in _szekcio(elemek, "ajanlat"))
+    assert not any("342 500" in e for e in _szekcio(elemek, "elvaras"))
+
+
 def test_portal_metaadat_kiesik():
     szoveg = "Feladatok ~Apply by 15-Aug-2026 ~Working hours 40 ~Árufeltöltés"
     feladatok = _szekcio(bontas(szoveg), "feladat")

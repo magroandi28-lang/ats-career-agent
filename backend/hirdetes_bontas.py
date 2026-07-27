@@ -27,9 +27,13 @@ SZEKCIOK: Final = [
                 r"|téged várunk, ha|akkor keresünk téged, ha|ha rendelkezel"
                 r"|elvárt (?:iskolai )?végzettség|előny, amivel rendelkezem"
                 r"|szükséges (?:tapasztalat|végzettség))\s*:?"),
-    ("ajanlat", r"(?:amit (?:kínálunk|nyújtunk|ajánlunk)|amit tőlünk kapsz"
-                r"|juttatások|amiért megéri nálunk|bérezés|munkakörülmények)"
-                r"\s*:?"),
+    # Csak olyan cím kerülhet ide, ami mondat közben nem fordul elő. A
+    # „fizetés" és a „feltételek" például nem: azok a szöveg belsejében is
+    # állnak, és kettévágnák a tételt. A bért tartalom alapján ismerjük fel.
+    ("ajanlat", r"(?:amit (?:kínálunk|nyújtunk|ajánlunk|biztosítunk|adunk)"
+                r"|amit tőlünk kapsz|juttatások|amiért megéri nálunk"
+                r"|bérezés|munkakörülmények|bér és juttatás"
+                r"|amiért érdemes|foglalkoztatás típusa)\s*:?"),
 ]
 _SZEKCIO_MINTA: Final = re.compile(
     "|".join(f"(?P<{nev}>{minta})" for nev, minta in SZEKCIOK), re.IGNORECASE
@@ -48,6 +52,17 @@ _ZAJ: Final = re.compile(
     r"^(?:apply by|working hours|állománycsoport|munkakör kiegészítése"
     r"|kapcsolódó nyertes pályázat|felajánlott havi|jelentkezés"
     r"|\d[\d\s.,-]*)\b",
+    re.IGNORECASE,
+)
+
+# Pénzről szóló tétel: ez mindig a munkáltató ajánlata, akármelyik szekció
+# alatt szerepel. Sok hirdetés a bért az elvárások közé írja, és onnan
+# „hiányozna" egy CV-ből -- ami képtelenség.
+_PENZ: Final = re.compile(
+    r"\b(?:brutt[oó]|nett[oó]|\d[\d\s.]*\s*(?:ft|forint)|órabér|orabor"
+    r"|fizetés|jövedelem|bérpótlék|jutalék|prémium|cafeteria|bérezés"
+    r"|költségtérítés|béren kívüli|bérlet|utazási támogatás"
+    r"|szállás|munkába járás)\b",
     re.IGNORECASE,
 )
 
@@ -133,7 +148,9 @@ def bontas(szoveg: str) -> list[tuple[str, str]]:
                     continue
                 if _ZAJ.match(tiszta):
                     continue
-                elemek.append((szekcio, tiszta))
+                # A pénz mindig ajánlat, akárhol áll: nem lehet CV-hiány.
+                vegleges = "ajanlat" if _PENZ.search(tiszta) else szekcio
+                elemek.append((vegleges, tiszta))
     return elemek
 
 
