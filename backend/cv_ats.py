@@ -17,6 +17,7 @@ from backend.keszseg_felismero import (
     normalizal,
     valtozatok_szakmahoz,
 )
+from backend.pozicionevek import cvben_szereplo, pozicionevek
 from utils.adatbazis import kliens, szakma_statisztika
 
 
@@ -165,6 +166,11 @@ def ats_diagnozis(cv_szoveg: str, szakma: str) -> dict:
         felismert_keszseg_idk(cv_szoveg, valtozatok)
     )
 
+    # A munkáltatók megnevezései. Ha egyik sem szerepel a CV-ben, a HR-es
+    # keresésénél a pályázat elő sem jön -- hiába megvan a tudás.
+    bevett_nevek = pozicionevek(szakma_id)
+    cvben_levo_nevek = cvben_szereplo(cv_szoveg, bevett_nevek)
+
     meglevo, hianyzo = [], []
     meglevo_suly = 0.0
     ossz_suly = 0.0
@@ -183,7 +189,14 @@ def ats_diagnozis(cv_szoveg: str, szakma: str) -> dict:
     szazalek = round(100 * meglevo_suly / ossz_suly) if ossz_suly else 0
     fontos_hianyzo = [h for h in hianyzo if h["fontos"]]
 
-    if not hianyzo:
+    # A hiányzó pozíciónév előbbre való a hiányzó készségnél: az egyezés
+    # nélkül a CV el sem jut odáig, hogy a készségeket nézzék.
+    if bevett_nevek and not cvben_levo_nevek:
+        fo_problema = (
+            f"A CV-ben nem szerepel egyik bevett megnevezés sem "
+            f"(pl. „{bevett_nevek[0]['nev']}”), pedig a HR-esek ezekre keresnek."
+        )
+    elif not hianyzo:
         fo_problema = "A leggyakoribb elvárások megvannak a CV-ben."
     elif fontos_hianyzo:
         fo_problema = (
@@ -204,4 +217,6 @@ def ats_diagnozis(cv_szoveg: str, szakma: str) -> dict:
         "meglevo_kulcsszavak": meglevo,
         "fo_problema": fo_problema,
         "kepzes_kell": bool(fontos_hianyzo),
+        "bevett_pozicionevek": bevett_nevek,
+        "cvben_szereplo_pozicionevek": cvben_levo_nevek,
     }
