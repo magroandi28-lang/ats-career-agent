@@ -363,11 +363,40 @@ export default function Home() {
         : elozo,
     );
 
-    // Flow szólal meg először: felveszi a fonalat, néven szólít, és
-    // javasol egy kezdést. Egyetlen hívás, csak közvetlenül belépés után.
     if (belepesUdvozletRef.current) return;
     belepesUdvozletRef.current = true;
     setKuldesFolyamatban(true);
+
+    // A Google-átirányítás előtt megadott keresztnév mentése. Enélkül
+    // hiába írta be a felhasználó: az OAuth-átirányítás eldobta volna.
+    const megorzottNev = window.localStorage.getItem(
+      "career_pending_given_name",
+    );
+    const nevMentes = megorzottNev
+      ? apiFetch("/api/v1/profile/draft", {
+          method: "PATCH",
+          body: JSON.stringify({ fields: { display_name: megorzottNev } }),
+        })
+          .then((valasz) =>
+            valasz.ok
+              ? apiFetch("/api/v1/profile/confirm", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    fields: ["display_name"],
+                    reason: "user_confirmation",
+                  }),
+                })
+              : null,
+          )
+          .catch(() => null)
+          .finally(() =>
+            window.localStorage.removeItem("career_pending_given_name"),
+          )
+      : Promise.resolve();
+
+    // Flow szólal meg először: felveszi a fonalat, néven szólít, és
+    // javasol egy kezdést. Csak a névmentés után, hogy már tudja a neved.
+    nevMentes.then(() =>
     apiFetch("/api/v1/flow/belepes-utan", {
       method: "POST",
       body: JSON.stringify({ vendeg_elozmeny: vendegSorok.slice(-6) }),
@@ -388,7 +417,8 @@ export default function Home() {
         ]);
       })
       .catch(() => {})
-      .finally(() => setKuldesFolyamatban(false));
+      .finally(() => setKuldesFolyamatban(false)),
+    );
   }, [session]);
 
   useEffect(() => {

@@ -49,6 +49,15 @@ export default function LoginPage() {
     setDolgozik(true);
     setHiba("");
     setUzenet("");
+    // A Google-átirányítás elhagyja az oldalt, és az űrlap mezői elvesznek.
+    // Ha a felhasználó beírta a keresztnevét, azt megőrizzük, és visszatérés
+    // után a profiljába mentjük -- különben hiába adta meg.
+    if (keresztnev.trim()) {
+      window.localStorage.setItem(
+        "career_pending_given_name",
+        keresztnev.trim(),
+      );
+    }
     const supabase = createClient();
     try {
       const { error } = await supabase.auth.signInWithOAuth({
