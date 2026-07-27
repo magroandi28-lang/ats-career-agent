@@ -106,18 +106,30 @@ const GPS_TERULETEK = [
   },
 ];
 
-const KEZDO_UZENET = {
-  szerep: "flow",
-  szoveg:
-    "Szia, Flow vagyok, a személyes karrierasszisztensed. Segítek átnézni vagy elkészíteni a CV-det, megtalálni a hozzád illő állásokat, és végigvezetlek a jelentkezés lépésein.",
-};
+// Belépés után nincs beégetett kezdőszöveg: Flow köszöntése a szerverről
+// jön, néven szólítva. Ez formálja üzenetté a válaszát.
+function koszontoUzenet(adat) {
+  return {
+    szerep: "flow",
+    szoveg: adat.uzenet,
+    gepel: true,
+    nevetKer: Boolean(adat.megszolitas_hianyzik),
+    nevJavaslatok: adat.nev_javaslatok || [],
+  };
+}
 
 // Vendégként Flow maga köszönt, betűnként kiírva. Fix szöveg, nincs
 // mögötte modellhívás.
 const VENDEG_UZENET = {
   szerep: "flow",
-  szoveg:
-    "Szia! Flow vagyok. Örülök, hogy benéztél. Mondd el nyugodtan, mi jár a fejedben a munkáddal kapcsolatban — szívesen meghallgatlak. Ha regisztrálsz, sokkal többet tudok segíteni: átnézem a CV-det és végigkísérlek az egész úton. Ha már jártál itt, lépj be, és onnan folytatjuk, ahol abbahagytuk.",
+  szoveg: [
+    "Szia, Flow vagyok, a személyes MI-karrierasszisztensed.",
+    "Nem csak egy önéletrajzot készítek neked. Megmutatom, hol van rád kereslet, mely állások illenek hozzád, és hogyan növelheted az esélyedet a kiválasztásban.",
+    // A rövidítés marad, de mellette ott a magyarázat: aki évek után lép
+    // vissza a munkaerőpiacra, annak az „ATS" és a „robotszűrő" is új szó.
+    "Átvizsgálom és ATS-re (robotszűrőre) optimalizálom a CV-det — ez az, ami a cégeknél előbb olvassa az önéletrajzod, mint bármelyik ember. Célzott motivációs levelet készítek, felépítem a portfóliódat, piaci körképet adok, és valódi álláshirdetések alapján végigvezetlek a jelentkezésig.",
+    "Mondd el, hol tartasz most, és hová szeretnél eljutni. Ha regisztrálsz, megőrzöm az előzményeidet, így mindig pontosan onnan folytatjuk, ahol abbahagytuk.",
+  ].join("\n\n"),
   gepel: true,
   // Az érkezéskori köszöntő lassabban íródik, hogy a látogató észrevegye.
   // A későbbi válaszok az alapértelmezett, gyorsabb ütemet kapják.
@@ -339,8 +351,9 @@ export default function Home() {
   }, [uzenetek, belepve]);
 
   // Belépés után: ha volt vendégbeszélgetés, azt folytatjuk, és az első
-  // üzenetnél kontextusként átadjuk Flow-nak. Ha nem volt, a vendégköszöntő
-  // helyére a bejelentkezett köszöntő kerül.
+  // üzenetnél kontextusként átadjuk Flow-nak. A vendégköszöntő helyére nem
+  // lép beégetett bemutatkozás -- belépés után Flow már ismeri a
+  // felhasználót, a „ki vagyok én" a vendégoldal dolga.
   useEffect(() => {
     if (!session) return;
     const nyers = window.localStorage.getItem("career_guest_chat");
@@ -357,10 +370,11 @@ export default function Home() {
     // a chatablakban a helyet az aktuális munkafolyamatnak kell hagyni.
     if (vendegSorok.length) vendegElozmenyRef.current = vendegSorok;
 
+    // A vendégköszöntő eltűnik, és NEM kerül a helyére másik fix szöveg:
+    // amíg Flow saját köszöntése megérkezik, a gépel-jelző tartja a helyet.
+    // Így egyetlen köszöntés van a képernyőn, nem kettő egymás után.
     setUzenetek((elozo) =>
-      elozo.length === 1 && elozo[0] === VENDEG_UZENET
-        ? [KEZDO_UZENET]
-        : elozo,
+      elozo.length === 1 && elozo[0] === VENDEG_UZENET ? [] : elozo,
     );
 
     if (belepesUdvozletRef.current) return;
@@ -394,9 +408,28 @@ export default function Home() {
           )
       : Promise.resolve();
 
+    // A Google-belépés előtt adott hozzájárulás nyoma. A `signInWithOAuth`
+    // nem tud metaadatot átvinni az átirányításon, ezért a belépési oldal
+    // localStorage-ba tette, és itt kerül a profilba. Csak akkor írjuk,
+    // ha még nincs: a meglévő nyom dátumát nem szabad felülvágni.
+    const nyersHozzajarulas = window.localStorage.getItem(
+      "career_pending_gdpr_consent",
+    );
+    window.localStorage.removeItem("career_pending_gdpr_consent");
+    let hozzajarulasMentes = Promise.resolve();
+    if (nyersHozzajarulas && !session.user?.user_metadata?.gdpr_consent_version) {
+      try {
+        hozzajarulasMentes = createClient()
+          .auth.updateUser({ data: JSON.parse(nyersHozzajarulas) })
+          .catch(() => null);
+      } catch {
+        // Sérült tartalom: nincs mit menteni.
+      }
+    }
+
     // Flow szólal meg először: felveszi a fonalat, néven szólít, és
     // javasol egy kezdést. Csak a névmentés után, hogy már tudja a neved.
-    nevMentes.then(() =>
+    Promise.all([nevMentes, hozzajarulasMentes]).then(() =>
     apiFetch("/api/v1/flow/belepes-utan", {
       method: "POST",
       body: JSON.stringify({ vendeg_elozmeny: vendegSorok.slice(-6) }),
@@ -404,17 +437,7 @@ export default function Home() {
       .then((valasz) => (valasz.ok ? valasz.json() : null))
       .then((adat) => {
         if (!adat?.uzenet) return;
-        // Flow saját üzenete LECSERÉLI a beégetett bemutatkozást, nem
-        // kerül alá: két hasonló köszöntés egymás után csak ismétlés.
-        setUzenetek([
-          {
-            szerep: "flow",
-            szoveg: adat.uzenet,
-            gepel: true,
-            nevetKer: Boolean(adat.megszolitas_hianyzik),
-            nevJavaslatok: adat.nev_javaslatok || [],
-          },
-        ]);
+        setUzenetek([koszontoUzenet(adat)]);
       })
       .catch(() => {})
       .finally(() => setKuldesFolyamatban(false)),
@@ -600,11 +623,30 @@ export default function Home() {
     setCvMuvelet(null);
     setWorkflowState(null);
     setValaszthatoLepesek([]);
-    setUzenetek([belepve ? KEZDO_UZENET : VENDEG_UZENET]);
+    setUzenetek(belepve ? [] : [VENDEG_UZENET]);
     setSzoveg("");
     setHiba(null);
-    setKuldesFolyamatban(false);
     gpsFrissites();
+
+    if (!belepve) {
+      setKuldesFolyamatban(false);
+      return;
+    }
+
+    // Belépve nincs mire visszaesni: friss beszélgetéshez Flow ugyanúgy
+    // köszönt, mint belépéskor -- csak vendégelőzmény nélkül.
+    try {
+      const valasz = await apiFetch("/api/v1/flow/belepes-utan", {
+        method: "POST",
+        body: JSON.stringify({ vendeg_elozmeny: [] }),
+      });
+      const adat = valasz.ok ? await valasz.json() : null;
+      if (adat?.uzenet) setUzenetek([koszontoUzenet(adat)]);
+    } catch {
+      // Köszöntés nélkül is használható a beszélgetés.
+    } finally {
+      setKuldesFolyamatban(false);
+    }
   }
 
   async function uzenetKuldese(uzenetSzoveg) {
@@ -885,7 +927,10 @@ export default function Home() {
                   {uzenetek.map((uzenet, index) => (
                     <div
                       key={`${uzenet.szerep}-${index}`}
-                      className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
+                      /* whitespace-pre-line: a többbekezdéses üzenetek
+                         (pl. a vendégköszöntő) különben egyetlen tömbbé
+                         folynának össze. */
+                      className={`max-w-[92%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-6 sm:max-w-[82%] ${
                         uzenet.szerep === "flow"
                           ? "border border-amber-300/12 bg-amber-300/[0.05] text-slate-200"
                           : "ml-auto border-2 border-amber-300/80 bg-slate-900/70 text-white"

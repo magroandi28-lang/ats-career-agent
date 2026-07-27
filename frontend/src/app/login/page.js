@@ -10,6 +10,36 @@ import { createClient } from "../../lib/supabase/client";
 // újra be kell kérni a hozzájárulást.
 const ADATKEZELES_VERZIO = "2026-07-26";
 
+// Ugyanaz a pipa két helyen: regisztrációkor az űrlap alján, belépéskor
+// közvetlenül a Google-gomb fölött. Egyszerre mindig csak az egyik látszik,
+// és mindkettő ugyanazt az `elfogadva` állapotot állítja.
+function HozzajarulasPipa({ elfogadva, setElfogadva, className }) {
+  return (
+    <label
+      className={`flex cursor-pointer items-start gap-2.5 text-xs leading-5 text-slate-300 ${className}`}
+    >
+      <input
+        type="checkbox"
+        checked={elfogadva}
+        onChange={(event) => setElfogadva(event.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 accent-amber-300"
+      />
+      <span>
+        Elolvastam és elfogadom az{" "}
+        <Link
+          href="/adatkezeles"
+          target="_blank"
+          className="font-semibold text-amber-200 underline hover:text-amber-100"
+        >
+          adatkezelési tájékoztatót
+        </Link>
+        . Tudomásul veszem, hogy a CV-m és a Flow-val folytatott beszélgetésem a
+        válasz elkészítéséhez a Google Gemini szolgáltatásába kerül.
+      </span>
+    </label>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [mod, setMod] = useState("belepes");
@@ -46,9 +76,25 @@ export default function LoginPage() {
   }
 
   async function googleBelepes() {
+    // Hozzájárulás nélkül nem indulhat OAuth: a Supabase az ismeretlen
+    // Google-fiókhoz azonnal létrehozza a fiókot, és onnantól nincs mit
+    // visszavonni. A gomb is tiltva van, ez a második zár.
+    if (!elfogadva) return;
+
     setDolgozik(true);
     setHiba("");
     setUzenet("");
+    // Az OAuth-átirányítás elhagyja az oldalt, és a `signInWithOAuth` -- a
+    // `signUp`-pal ellentétben -- nem tud user-metaadatot átvinni. A
+    // hozzájárulás nyomát ezért itt tesszük el, és a visszatérés után
+    // menti a főoldal a profilba.
+    window.localStorage.setItem(
+      "career_pending_gdpr_consent",
+      JSON.stringify({
+        gdpr_consent_version: ADATKEZELES_VERZIO,
+        gdpr_consent_at: new Date().toISOString(),
+      }),
+    );
     // A Google-átirányítás elhagyja az oldalt, és az űrlap mezői elvesznek.
     // Ha a felhasználó beírta a keresztnevét, azt megőrizzük, és visszatérés
     // után a profiljába mentjük -- különben hiába adta meg.
@@ -185,10 +231,22 @@ export default function LoginPage() {
             </div>
 
             <div className="px-7 py-9 sm:px-9">
+              {/* Belépés módban ez az egyetlen út, amin új fiók keletkezhet
+                  (ismeretlen Google-fiókhoz a Supabase azonnal létrehozza),
+                  ezért itt a pipának a gomb mellett a helye. Regisztráció
+                  módban az űrlap alján lévő példány takarja le. */}
+              {mod === "belepes" && (
+                <HozzajarulasPipa
+                  elfogadva={elfogadva}
+                  setElfogadva={setElfogadva}
+                  className="mb-4"
+                />
+              )}
+
               <button
                 type="button"
                 onClick={googleBelepes}
-                disabled={dolgozik || (mod === "regisztracio" && !elfogadva)}
+                disabled={dolgozik || !elfogadva}
                 className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-slate-100 hover:border-amber-300/40 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
@@ -310,27 +368,11 @@ export default function LoginPage() {
                       Legalább 12 karakter. Soha ne használd másik fiókod jelszavát.
                     </p>
 
-                    <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-xs leading-5 text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={elfogadva}
-                        onChange={(event) => setElfogadva(event.target.checked)}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-amber-300"
-                      />
-                      <span>
-                        Elolvastam és elfogadom az{" "}
-                        <Link
-                          href="/adatkezeles"
-                          target="_blank"
-                          className="font-semibold text-amber-200 underline hover:text-amber-100"
-                        >
-                          adatkezelési tájékoztatót
-                        </Link>
-                        . Tudomásul veszem, hogy a CV-m és a Flow-val folytatott
-                        beszélgetésem a válasz elkészítéséhez a Google Gemini
-                        szolgáltatásába kerül.
-                      </span>
-                    </label>
+                    <HozzajarulasPipa
+                      elfogadva={elfogadva}
+                      setElfogadva={setElfogadva}
+                      className="mt-4"
+                    />
                   </>
                 )}
 
