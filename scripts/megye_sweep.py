@@ -224,20 +224,19 @@ def main() -> int:
     except Exception as e:
         print(f"ESCO-párosítás hiba: {e}")
 
-    # Ami két hete nem jött vissza egyetlen söprésben sem, az eltűnt a piacról.
+    # A lejáratozás belefér a REST időkorlátjába, ezért itt fut: így a
+    # söprés után azonnal helyes az "aktív" hirdetések száma.
     try:
         valasz = db.rpc("hirdetes_lejarat", {"napok": 14}).execute()
         print(f"Eltűntnek jelölve: {valasz.data}")
     except Exception as e:
         print(f"Lejáratozási hiba: {e}")
 
-    # A lefedettség a friss számokból számoljon, különben a bizalmi szint
-    # egy napot késne.
-    try:
-        db.rpc("nezetek_frissitese").execute()
-        print("Nézetek frissítve.")
-    except Exception as e:
-        print(f"Nézetfrissítési hiba: {e}")
+    # A tudásanyag-címkézés és a nézetfrissítés NEM innen megy: a Supabase
+    # REST-végpontja 8 másodpercnél elvágja, és csendben kimaradna. Azokat a
+    # `napi_karbantartas()` végzi, amit a pg_cron futtat 05:30 UTC-kor --
+    # az adatbázison belül, időkorlát nélkül, a gyűjtéstől függetlenül.
+    print("A nézetfrissítést a pg_cron végzi (napi-karbantartas, 05:30 UTC).")
 
     print("A tételek kinyerése külön lépés: scripts/hirdetes_tetel_feltolto.py")
     return 0
