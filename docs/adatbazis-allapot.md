@@ -49,10 +49,16 @@ További RPC-k: `cv_illesztes`, `tudas_kereses_temaval`,
 
 ## Napi működés
 
-A `.github/workflows/jooble_gyujto.yml` hajnali 4-kor (UTC):
-megyénkénti söprés → EURES → tételkinyerés → adatőr.
-**Egyetlen fizetős lépés sincs benne.** A söprés a végén beköti az új
-szakmákat, lejáratozza az eltűnt hirdetéseket és frissíti a nézeteket.
+**Gyűjtés** — `.github/workflows/jooble_gyujto.yml`, 04:00 UTC:
+megyénkénti söprés → EURES → tételkinyerés → adatőr. A söprés a végén beköti
+az új szakmákat és lejáratozza az eltűnt hirdetéseket.
+**Egyetlen fizetős lépés sincs benne.**
+
+**Karbantartás** — `pg_cron`, 05:30 UTC (`napi-karbantartas`):
+tudásanyag-címkézés + minden materializált nézet frissítése.
+Ez azért fut az adatbázison belül, mert a Supabase REST-végpontja 8
+másodpercnél elvágja a hívást, és ezek a lépések tovább tartanak —
+kívülről hívva **csendben kimaradnának**.
 
 ## Amit tudni kell, mielőtt bárki nekiáll
 
