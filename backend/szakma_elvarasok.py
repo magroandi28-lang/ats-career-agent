@@ -68,13 +68,29 @@ def _ngramok(szoveg: str) -> set[str]:
     return talalt
 
 
+def _kulcs(sor: dict) -> str:
+    """Mi számít EGY hirdetésnek a gyakoriságban.
+
+    Nem a hirdetes_id: ugyanaz az állás több linken is fent van, és a
+    megyénkénti söprés az átfedő városok miatt fel is hozza mindet. Mérve:
+    15 209 sorból 13 567 a valódi állás, a többi ismétlés -- az "ápoló"
+    szakmánál 110 helyett 59 a valóság.
+
+    Ha a hirdetés sora bármiért nem jött vissza, a hirdetes_id a tartalék:
+    inkább számoljunk kétszer, mint hogy kiessen a tételből.
+    """
+    beagyazott = sor.get("hirdetesek") or {}
+    return beagyazott.get("tartalom_kulcs") or f"id:{sor['hirdetes_id']}"
+
+
 def _tetelek(db, szakma_id: int | None) -> list[dict]:
     sorok: list[dict] = []
     kezdet = 0
     while True:
         kerdes = (
             db.table("hirdetes_tetel")
-            .select("id, hirdetes_id, szakma_id, szekcio, szoveg")
+            .select("id, hirdetes_id, szakma_id, szekcio, szoveg,"
+                    " hirdetesek(tartalom_kulcs)")
             .in_("szekcio", list(MERT_SZEKCIOK))
             .order("id")
             .range(kezdet, kezdet + 999)
@@ -94,9 +110,9 @@ def _ossz_elofordulas(db) -> tuple[Counter, int]:
     Ez a viszonyítási alap. Ami mindenhol előfordul („önálló munkavégzés"),
     az egyik szakmára sem jellemző.
     """
-    hirdetesenkent: dict[int, set[str]] = defaultdict(set)
+    hirdetesenkent: dict[str, set[str]] = defaultdict(set)
     for sor in _tetelek(db, None):
-        hirdetesenkent[sor["hirdetes_id"]].update(_ngramok(sor["szoveg"]))
+        hirdetesenkent[_kulcs(sor)].update(_ngramok(sor["szoveg"]))
 
     szamlalo: Counter = Counter()
     for kifejezesek in hirdetesenkent.values():
@@ -114,19 +130,17 @@ def szakma_elvarasai(szakma_id: int | None) -> list[dict]:
     if not sajat:
         return []
 
-    hirdetesenkent: dict[int, set[str]] = defaultdict(set)
-    pelda: dict[str, str] = {}
+    hirdetesenkent: dict[str, set[str]] = defaultdict(set)
     megfogalmazasok: dict[str, set[str]] = defaultdict(set)
+    # Kifejezésenként MINDEN forrásmondat, gyakorisággal. Ebből lesz a
+    # megjelenített címke -- lásd `_cimke`.
+    mondatok: dict[str, Counter] = defaultdict(Counter)
     for sor in sajat:
         kifejezesek = _ngramok(sor["szoveg"])
-        hirdetesenkent[sor["hirdetes_id"]].update(kifejezesek)
+        hirdetesenkent[_kulcs(sor)].update(kifejezesek)
         for kifejezes in kifejezesek:
             megfogalmazasok[kifejezes].add(normalizal(sor["szoveg"]))
-            # A legrövidebb forrásmondatot őrizzük meg: az idézhető a
-            # legjobban, mert nem tartalmaz felesleges környezetet.
-            regi = pelda.get(kifejezes)
-            if regi is None or len(sor["szoveg"]) < len(regi):
-                pelda[kifejezes] = sor["szoveg"]
+            mondatok[kifejezes][sor["szoveg"].strip()] += 1
 
     darab = len(hirdetesenkent)
     sajat_szamlalo: Counter = Counter()
@@ -155,12 +169,67 @@ def szakma_elvarasai(szakma_id: int | None) -> list[dict]:
             "elofordulas": elofordulas,
             "szazalek": round(szazalek, 1),
             "kiemelkedes": round(kiemelkedes, 1),
-            "pelda": pelda.get(kifejezes, ""),
+            "pelda": _cimke(mondatok[kifejezes]),
         })
 
     # Gyakoriság ÉS kiemelkedés együtt: külön-külön egyik sem jó rangsor.
     eredmeny.sort(key=lambda sor: -(sor["szazalek"] * sor["kiemelkedes"]))
-    return _atfedesek_nelkul(eredmeny)[:TOP]
+    return _olvashato(_atfedesek_nelkul(eredmeny))[:TOP]
+
+
+def _cimke(szamlalo: Counter) -> str:
+    """A kifejezéshez tartozó legjobban idézhető forrásmondat.
+
+    Nem elég a leggyakoribbat venni: a legtöbb mondat egyszer-kétszer
+    fordul elő, és döntetlennél a legrövidebb nyerne -- így lett a címke
+    „Vezetőüléses". Ezért előbb a mondat MINŐSÉGE dönt, és csak utána a
+    gyakoriság.
+
+    Amit a minőség jelent: nagybetűvel kezdődik (nem egy mondat közepéből
+    kivágott darab), nincs benne kettőspont (az felsorolás-maradvány:
+    „Előny: 3312, 3313…"), és nem csonka hosszúságú.
+    """
+    if not szamlalo:
+        return ""
+
+    def pont(par: tuple[str, int]) -> tuple:
+        mondat, darab = par
+        tiszta = mondat.strip()
+        minoseg = (
+            int(tiszta[:1].isupper())
+            + int(":" not in tiszta)
+            + int(12 <= len(tiszta) <= 70)
+            # A csupa kisbetűs, ragadt szövegdarab jellemzően a bontó
+            # hibájából származik, nem a munkáltató mondata.
+            + int(tiszta.count("  ") == 0)
+        )
+        return (minoseg, darab, -len(tiszta))
+
+    return max(szamlalo.items(), key=pont)[0]
+
+
+def _olvashato(elvarasok: list[dict]) -> list[dict]:
+    """A megjelenített név a munkáltató mondata legyen, ne a szótöredék.
+
+    Az n-gram jó CSOPORTOSÍTÓ kulcs -- azzal tudjuk összefogni a sokféle
+    megfogalmazást --, de megjeleníteni nem szabad. A magyar toldalékolás
+    miatt az n-gramok így néztek ki: „ervenyes", „atvetele", „targoncavezetoi".
+    Ezek külön-külön semmit nem jelentenek, miközben a mögöttük álló mondat
+    tökéletes: „Érvényes targoncás jogosítvány".
+
+    Ezért a `nev` a forrásmondat lesz. A számok nem változnak, csak az,
+    amit a felhasználó és a modell lát. Ami több kifejezésnél ugyanarra a
+    mondatra vezet, az egyetlen sorrá olvad -- a legerősebbet megtartva.
+    """
+    latott: dict[str, dict] = {}
+    for sor in elvarasok:
+        cimke = (sor.get("pelda") or sor["nev"]).strip()
+        megvan = latott.get(cimke)
+        if megvan is None or sor["elofordulas"] > megvan["elofordulas"]:
+            latott[cimke] = {**sor, "nev": cimke, "kulcs": sor["nev"]}
+    # Az eredeti rangsor helyreáll: az összevonás csak elvett, nem rendezett át.
+    sorrend = {sor["nev"]: i for i, sor in enumerate(elvarasok)}
+    return sorted(latott.values(), key=lambda sor: sorrend[sor["kulcs"]])
 
 
 def _atfedesek_nelkul(elvarasok: list[dict]) -> list[dict]:

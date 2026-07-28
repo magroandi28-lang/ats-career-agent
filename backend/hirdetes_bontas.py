@@ -39,8 +39,14 @@ _SZEKCIO_MINTA: Final = re.compile(
     "|".join(f"(?P<{nev}>{minta})" for nev, minta in SZEKCIOK), re.IGNORECASE
 )
 
-# A hirdetés által kitett felsorolásjelek.
-_ELEM_HATAR: Final = re.compile(r"\s*[~•*;]\s*|\s+-\s+|\n\s*[-–]\s*")
+# A hirdetés által kitett felsorolásjelek. A sima sortörés is határ: a
+# tárolt Jooble-kivonatokban nincs sortörés, de a teljes szövegű forrásoknál
+# (pl. munkáltatói hirdetésoldal) a felsorolás soronként áll.
+_ELEM_HATAR: Final = re.compile(r"\s*[~•*;]\s*|\s+-\s+|\n+\s*[-–]?\s*")
+
+# Kétnyelvű hirdetés maradványa: „Elvárások / Requirements Szakirányú…".
+# A magyar szekciócím illeszkedett, az angol párja a tétel elejére ragadt.
+_IDEGEN_CIM: Final = re.compile(r"^/\s*[A-Z][a-zA-Z]+\s+")
 
 _NAGYBETU: Final = "AÁBCDEÉFGHIÍJKLMNOÓÖŐPQRSTUÚÜŰVWXYZ"
 
@@ -119,7 +125,14 @@ def _mondatokra(resz: str) -> list[str]:
             # Névelő vagy kötőszó után a mondat folytatódik, nem új tétel
             # kezdődik: „Kiszolgálás a Spar üzletben".
             and len(elozo) > 2
-            and not elozo.endswith((":", ",", "és", "vagy"))
+            # A kötőszót TELJES SZÓKÉNT kell nézni, nem végződésként.
+            # Az `endswith("és")` a magyar -és képzőre is illeszkedett
+            # („munkavégzés", „ellenőrzés", „árufeltöltés"), ezért a bontó
+            # pont a leggyakoribb főnevek után nem vágott. Az így
+            # összeragadt tétel túllépte a 160 karaktert, és eldobódott --
+            # tehát nem csak ragadt, hanem el is veszett.
+            and elozo.lower() not in ("és", "vagy")
+            and not elozo.endswith((":", ","))
             and len(szo) > 3
         )
         if uj_tetel:
@@ -158,6 +171,7 @@ def bontas(szoveg: str) -> list[tuple[str, str]]:
         for jelolt in _ELEM_HATAR.split(resz):
             for nyers in _mondatokra(jelolt or ""):
                 tiszta = _CSONKA.sub("", nyers).strip(" .,;:")
+                tiszta = _IDEGEN_CIM.sub("", tiszta)
                 tiszta = re.sub(r"\s+", " ", tiszta)
                 if not (MIN_HOSSZ <= len(tiszta) <= MAX_HOSSZ):
                     continue

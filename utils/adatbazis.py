@@ -655,7 +655,11 @@ def _hirdetes_ment(db, allas: dict, szakma_id):
         "link": link,
         "datum_szoveg": allas.get("datum", ""),
         "forras_tipus": forras,
-        "bersav": allas.get("bersav", ""),
+        # Ha nincs bér, NULL kerüljön be, ne üres string. A kettő keveredése
+        # miatt adott a "bersav is not null" szűrő 11 701 találatot, pedig
+        # csak ~2 000-ben volt tényleges bér -- és emiatt lett minden
+        # bérstatisztika hamis. Az adatbázis ezt már megszorítással is tiltja.
+        "bersav": allas.get("bersav") or None,
     }
     r = db.table("hirdetesek").insert(sor).execute()
     return r.data[0]["id"] if r.data else None
