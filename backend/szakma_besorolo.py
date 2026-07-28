@@ -15,6 +15,7 @@ Nulla modellhívás: névillesztés, mindig ugyanaz az eredmény.
 
 import re
 import unicodedata
+from collections import Counter, defaultdict
 from typing import Final, NamedTuple
 
 
@@ -69,6 +70,22 @@ def _szavak(cimke: str) -> list[str]:
     return [sz for sz in normalizal(cimke).split() if len(sz) >= MIN_SZO]
 
 
+def _elotag(szo: str) -> str:
+    """A szóból az az eleje, aminek egyeznie kell.
+
+    Nem fix hat betű: a magyar összetett szavak hosszúak, és egy rögzített
+    rövid előtag túl sokat fog meg. A „vezetőasszisztens" hat betűs előtagja
+    „vezeto", ami benne van a „targoncavezető"-ben is -- emiatt egy
+    targoncás hirdetés vezetőasszisztensnek minősült.
+
+    A szó végéből csak a toldaléknyi rész marad le (három betű), a többi
+    egyezzen. Így a „targoncavezeto" -> „targoncavez" nem téveszthető össze
+    a „vezetoasszisztens" -> „vezetoasszisz" alakkal, viszont a
+    „fejleszto"/„fejlesztők" pár még mindig összeér.
+    """
+    return szo[:max(ELOTAG, len(szo) - 3)]
+
+
 def _feltetelek(cimke: str) -> list[tuple[str, bool]]:
     """Amit a címnek tartalmaznia kell, hogy erre a címkére illeszkedjen.
 
@@ -83,8 +100,12 @@ def _feltetelek(cimke: str) -> list[tuple[str, bool]]:
     ki: list[tuple[str, bool]] = []
     for sz in normalizal(cimke).split():
         if len(sz) >= MIN_SZO:
-            ki.append((sz[:ELOTAG], False))
-        elif len(sz) >= 2:
+            ki.append((_elotag(sz), False))
+        else:
+            # Az egybetűs darabokat sem szabad eldobni. Az "M&A specialist"
+            # normalizálva "m a specialist" -- ha csak a "specialist" maradna,
+            # a címke MINDEN specialistát magához vonzana, és a
+            # "B2B Sales Specialist" M&A elemzőnek minősülne.
             ki.append((sz, True))
     return ki
 
@@ -98,8 +119,12 @@ def _suly(cimke: str) -> int:
     magához vonzana, pusztán mert hosszabb a neve. Így viszont az
     "AOI-operátor" és a puszta "operátor" azonos súlyú, a "gyári operátor"
     pedig erősebb mindkettőnél -- ahogy kell.
+
+    A súly a TÉNYLEGESEN ILLESZTETT részekből számol, nem a teljes szavakból:
+    ha csak az előtag egyezik, akkor csak az számítson. Különben egy hosszú
+    összetett szó akkor is nyerne, ha csak a rövid eleje illeszkedett.
     """
-    return sum(len(sz) for sz in _szavak(cimke))
+    return sum(len(e) for e, _onallo in _feltetelek(cimke))
 
 
 class Besorolo:
@@ -107,18 +132,54 @@ class Besorolo:
 
     def __init__(self, foglalkozasok: list[dict], szakmak: list[dict],
                  parok: list[dict]):
-        # foglalkozas_uri -> szakma_id (ha már van hozzárendelt szakma)
-        self.uri_szakma: dict[str, int] = {
-            p["foglalkozas_uri"]: p["szakma_id"] for p in parok
-        }
+        # foglalkozas_uri -> szakma_id.
+        #
+        # Egy foglalkozáshoz több szakma is tartozhat: a "raktáros"
+        # ESCO-foglalkozás a "raktáros" ÉS a "Raktári kisegítő" szakmához is
+        # hozzá van kötve. Ilyenkor nem szabad a véletlenre bízni, melyik
+        # nyer -- a hirdetés különben rossz szakmához kerülne.
+        #
+        # A szabály: az a szakma nyer, aminek a NEVE megegyezik a foglalkozás
+        # nevével; ha egyik sem ilyen, akkor a legrégebbi (legkisebb azonosító),
+        # hogy a besorolás futásról futásra ugyanaz maradjon.
+        foglalkozas_nev = {f["uri"]: normalizal(f.get("nev") or "")
+                           for f in foglalkozasok}
+        szakma_nevek = {s["id"]: normalizal(s["nev"]) for s in szakmak}
+        jeloltek: dict[str, list[int]] = defaultdict(list)
+        for p in parok:
+            jeloltek[p["foglalkozas_uri"]].append(p["szakma_id"])
+
+        self.uri_szakma: dict[str, int] = {}
+        for uri, idk in jeloltek.items():
+            cel = foglalkozas_nev.get(uri, "")
+            self.uri_szakma[uri] = min(
+                idk, key=lambda i: (szakma_nevek.get(i, "") != cel, i))
         self.szakma_nev: dict[int, str] = {s["id"]: s["nev"] for s in szakmak}
+        # A foglalkozás MAGYAR neve, URI szerint. A találat jöhet angol
+        # címkéről is ("carpenter"), de a szakma neve akkor is a magyar
+        # legyen ("ács") -- különben angol nevű szakmák keletkeznének az
+        # adatbázisban. A `cimke` mező őrzi meg, mi illeszkedett valójában.
+        self.magyar_nev: dict[str, str] = {
+            f["uri"]: f["nev"] for f in foglalkozasok if f.get("nev")
+        }
 
         # (előtaglista, súly, uri, isco, megjelenített név)
         self.cimkek: list[tuple[list[str], int, str | None, str | None, str]] = []
 
+        # A hivatalos (preferált) nevek erősebbek az alternatíváknál. A
+        # "carpenter" az "ács" ANGOL HIVATALOS neve, ugyanakkor a
+        # "díszletépítő" egyik alternatívája is -- azonos súlynál a hivatalos
+        # nyerjen, különben a találgatás dönt.
+        PREFERALT_TOBBLET = 1
         for f in foglalkozasok:
-            nevek = [f["nev"]] + list(f.get("alt_nevek") or [])
-            for nev in nevek:
+            hivatalos = [f["nev"]] + ([f["nev_en"]] if f.get("nev_en") else [])
+            for nev in hivatalos:
+                elo = _feltetelek(nev)
+                if elo:
+                    self.cimkek.append(
+                        (elo, _suly(nev) + PREFERALT_TOBBLET,
+                         f["uri"], f.get("isco_kod"), nev))
+            for nev in list(f.get("alt_nevek") or []):
                 elo = _feltetelek(nev)
                 if elo:
                     self.cimkek.append(
@@ -132,6 +193,31 @@ class Besorolo:
                 self.cimkek.append(
                     (elo, _suly(s["nev"]) + 1, None, None, s["nev"]))
         self.sajat: dict[str, int] = {s["nev"]: s["id"] for s in szakmak}
+        self._index_epit()
+
+    def _index_epit(self) -> None:
+        """Fordított index: melyik feltétel-darab melyik címkékben szerepel.
+
+        Enélkül minden hirdetéscímhez végig kellene próbálni mind a ~48 ezer
+        címkét (magyar + angol), ami egy teljes söprésnél százmilliós
+        nagyságrendű összehasonlítás.
+
+        Minden címkét a LEGRITKÁBB feltétele alá jegyzünk be. Így egy címke
+        egyszer szerepel az indexben, és a jelöltlista kicsi marad: a
+        „targoncavezető" cím a „targon" kulcson át pár tucat címkét hoz elő,
+        nem negyvennyolcezret.
+        """
+        gyakorisag: Counter = Counter()
+        for elo, _s, _u, _i, _n in self.cimkek:
+            for e, _onallo in elo:
+                gyakorisag[e] += 1
+
+        self.index: dict[str, list[int]] = defaultdict(list)
+        for i, (elo, _s, _u, _i2, _n) in enumerate(self.cimkek):
+            if not elo:
+                continue
+            ritka = min(elo, key=lambda p: gyakorisag[p[0]])
+            self.index[ritka[0]].append(i)
 
     def besorol(self, cim: str) -> Talalat | None:
         """A címre illeszkedő LEGERŐSEBB címke nyer.
@@ -144,9 +230,28 @@ class Besorolo:
             return None
         szavak = set(norm.split())
 
+        # Csak azok a címkék jöhetnek szóba, amiknek a ritka feltétele
+        # egyáltalán előfordul a címben.
+        #
+        # A feltétel BÁRHOL illeszkedhet, nem csak szó elején: a „vezeto"
+        # benne van a „targoncavezeto"-ben. Ezért a cím minden szavából
+        # minden 4-6 hosszú részletet megnézünk -- ez pontosan az a
+        # halmaz, amiből a `_feltetelek` előtagjai származhatnak.
+        jeloltek: set[int] = set()
+        for sz in szavak:
+            if len(sz) >= 2:
+                jeloltek.update(self.index.get(sz, ()))
+            # A feltétel a címke szavának előtagja, tetszőleges hosszú, és
+            # a címben bárhol állhat -- ezért a cím minden elég hosszú
+            # részletét megnézzük. Szótári keresés, tehát olcsó.
+            for hossz in range(MIN_SZO, len(sz) + 1):
+                for k in range(0, len(sz) - hossz + 1):
+                    jeloltek.update(self.index.get(sz[k:k + hossz], ()))
+
         legjobb = None
         legjobb_suly = 0
-        for elo, suly, uri, isco, nev in self.cimkek:
+        for i in jeloltek:
+            elo, suly, uri, isco, nev = self.cimkek[i]
             if suly <= legjobb_suly:
                 continue
             if all((e in szavak) if onallo else (e in norm) for e, onallo in elo):
@@ -164,6 +269,7 @@ class Besorolo:
         kategoria = ISCO_KATEGORIA.get((isco or "")[:1], "Egyéb")
         return Talalat(
             szakma_id,
-            self.szakma_nev.get(szakma_id) if szakma_id else nev,
+            self.szakma_nev.get(szakma_id) if szakma_id
+            else self.magyar_nev.get(uri, nev),
             uri, isco, kategoria, nev,
         )

@@ -130,8 +130,19 @@ def main() -> int:
           f"{'IGEN' if ir else 'NEM (próba)'}")
 
     print("Besoroló építése...")
+    # Az angol nevek is bekerülnek: sok multi angolul hirdet, és a Zala-próbán
+    # a be nem soroltak nagy része angol című volt. Az ESCO ugyanarra az
+    # URI-ra adja mindkét nyelvet, tehát a találat ugyanoda vezet.
+    foglalkozasok = _mind(
+        db, "esco_foglalkozas", "uri, nev, isco_kod, alt_nevek, nev_en, alt_nevek_en")
+    for f in foglalkozasok:
+        # A `nev_en` külön marad: az a hivatalos angol név, és a besoroló
+        # erősebbnek veszi az alternatíváknál.
+        f["alt_nevek"] = (list(f.get("alt_nevek") or [])
+                          + list(f.get("alt_nevek_en") or []))
+
     besorolo = Besorolo(
-        _mind(db, "esco_foglalkozas", "uri, nev, isco_kod, alt_nevek"),
+        foglalkozasok,
         _mind(db, "szakmak", "id, nev"),
         _mind(db, "szakma_esco", "szakma_id, foglalkozas_uri"),
     )

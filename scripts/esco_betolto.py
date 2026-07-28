@@ -10,7 +10,13 @@ A csomag letöltése: https://esco.ec.europa.eu/hu/use-esco/download
     Fájltípus: csv | Nyelv: hu
 
 Futtatás a projekt gyökeréből:
-    python scripts/esco_betolto.py "C:/.../ESCO dataset - ... - hu - csv.zip"
+    python scripts/esco_betolto.py "…hu - csv.zip"
+    python scripts/esco_betolto.py --angol "…en - csv.zip"
+
+Az `--angol` csak a foglalkozások angol neveit tölti be a magyar sorokra:
+sok multi angolul hirdet, és a besoroló szótára enélkül nem ismeri fel őket.
+Az URI-k mindkét csomagban azonosak, a készségkapcsolatok pedig
+nyelvfüggetlenek -- azokat nem kell újratölteni.
 
 Újrafuttatható: mindent felülír (upsert), semmit nem duplikál.
 Nulla modellhívás.
@@ -50,10 +56,129 @@ def _feltolt(db, tabla: str, sorok: list[dict], kulcs: str) -> int:
     return len(sorok)
 
 
+def angol_nevek(ut: Path, db) -> int:
+    """Csak az angol foglalkozásneveket írja rá a meglévő sorokra."""
+    z = zipfile.ZipFile(ut)
+    nev = next(n for n in (i.filename for i in z.infolist())
+               if n.startswith("occupations_") and n.endswith(".csv"))
+    sorok = {}
+    for r in _csv(z, nev):
+        if r.get("preferredLabel"):
+            sorok[r["conceptUri"]] = {
+                "uri": r["conceptUri"],
+                "nev_en": r["preferredLabel"],
+                "alt_nevek_en": _cimkek(r.get("altLabels")),
+            }
+    # Kötegelt upsert, nem soronkénti update: az utóbbi 3 039 külön hívás
+    # lenne. Az upserthez viszont kell a magyar `nev` is (NOT NULL), ezért
+    # előbb beolvassuk a meglévő sorokat.
+    meglevo, kezdet = {}, 0
+    while True:
+        adag = (db.table("esco_foglalkozas").select("uri, nev")
+                .range(kezdet, kezdet + 999).execute().data or [])
+        meglevo.update({r["uri"]: r["nev"] for r in adag})
+        if len(adag) < 1000:
+            break
+        kezdet += 1000
+
+    lista = [{"uri": u, "nev": meglevo[u],
+              "nev_en": s["nev_en"], "alt_nevek_en": s["alt_nevek_en"]}
+             for u, s in sorok.items() if u in meglevo]
+    hianyzo = len(sorok) - len(lista)
+    print(f"Angol nevek: {len(lista)} foglalkozásra"
+          + (f" ({hianyzo} URI nincs a magyar csomagban)" if hianyzo else ""))
+
+    for i in range(0, len(lista), ADAG):
+        db.table("esco_foglalkozas").upsert(
+            lista[i:i + ADAG], on_conflict="uri").execute()
+        print(f"    {min(i + ADAG, len(lista))}/{len(lista)}", end="\r")
+    print(f"    {len(lista)}/{len(lista)}      ")
+    return len(lista)
+
+
+def angol_nevek_apibol(db) -> int:
+    """Angol nevek az ESCO nyilvános API-jából, URI-nként.
+
+    Alternatíva a ZIP-hez: a letöltő oldal CAPTCHA mögött van, az API nem.
+    Lassabb (foglalkozásonként egy kérés), de egyszeri, és nem kell hozzá
+    semmit letölteni. Adagonként ment, tehát egy megszakadt futás sem vész el.
+    """
+    import time
+    import requests
+
+    fejlec = {"User-Agent": "karrier-ugynokseg/1.0", "Accept": "application/json"}
+    vegpont = "https://ec.europa.eu/esco/api/resource/occupation"
+
+    sorok, kezdet = [], 0
+    while True:
+        adag = (db.table("esco_foglalkozas").select("uri, nev")
+                .is_("nev_en", "null").range(kezdet, kezdet + 999).execute().data or [])
+        sorok += adag
+        if len(adag) < 1000:
+            break
+        kezdet += 1000
+
+    print(f"Angol név nélküli foglalkozás: {len(sorok)}")
+    kesz, hiba, puffer = 0, 0, []
+    for i, sor in enumerate(sorok, start=1):
+        try:
+            r = requests.get(vegpont, params={"uri": sor["uri"], "language": "en"},
+                             headers=fejlec, timeout=20)
+            d = r.json() if "json" in (r.headers.get("content-type") or "") else None
+        except Exception:
+            d = None
+        if d and d.get("title"):
+            puffer.append({
+                "uri": sor["uri"],
+                "nev": sor["nev"],
+                "nev_en": d["title"],
+                "alt_nevek_en": list((d.get("alternativeLabel") or {}).get("en", []))[:30],
+            })
+            kesz += 1
+        else:
+            hiba += 1
+        if len(puffer) >= 200:
+            db.table("esco_foglalkozas").upsert(puffer, on_conflict="uri").execute()
+            puffer = []
+        if i % 100 == 0:
+            print(f"    {i}/{len(sorok)}  (siker {kesz}, hiba {hiba})", end="\r")
+        # Nyilvános EU-kiszolgáló: ne terheljük.
+        time.sleep(0.15)
+
+    if puffer:
+        db.table("esco_foglalkozas").upsert(puffer, on_conflict="uri").execute()
+    print(f"    {len(sorok)}/{len(sorok)}  (siker {kesz}, hiba {hiba})      ")
+    return kesz
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("Add meg az ESCO ZIP útvonalát.")
         return 1
+
+    if sys.argv[1] == "--angol-api":
+        db = kliens()
+        if db is None:
+            print("Nincs adatbázis-kapcsolat.")
+            return 1
+        angol_nevek_apibol(db)
+        print("Kész. Frissítsd a névlistát:")
+        print("    refresh materialized view public.esco_nev;")
+        return 0
+
+    if sys.argv[1] == "--angol":
+        if len(sys.argv) < 3:
+            print("Add meg az ANGOL ESCO ZIP útvonalát.")
+            return 1
+        db = kliens()
+        if db is None:
+            print("Nincs adatbázis-kapcsolat.")
+            return 1
+        angol_nevek(Path(sys.argv[2]), db)
+        print("Kész. Frissítsd a névlistát:")
+        print("    refresh materialized view public.esco_nev;")
+        return 0
+
     ut = Path(sys.argv[1])
     if not ut.exists():
         print(f"Nincs ilyen fájl: {ut}")
