@@ -1,3 +1,6 @@
+-- Utólag mentve az éles migrációs naplóból (20260724162459).
+-- A migráció lefutott az adatbázison, de fájl nem tartozott hozzá.
+
 -- Verziózott karrierprofil-alap. Közvetlen böngészős hozzáférés nincs.
 
 create table if not exists private.career_profiles (
@@ -136,3 +139,4 @@ alter table private.career_gps_events
             'portfolio_published'
         )
     );
+

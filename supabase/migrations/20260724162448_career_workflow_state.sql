@@ -1,3 +1,6 @@
+-- Utólag mentve az éles migrációs naplóból (20260724162448).
+-- A migráció lefutott az adatbázison, de fájl nem tartozott hozzá.
+
 -- Determinisztikus karrierfolyamat-állapot.
 -- A kliens és az LLM nem írhatja közvetlenül; csak a backend service role.
 
@@ -60,3 +63,4 @@ alter table private.career_workflows force row level security;
 
 revoke all on table private.career_workflows from public, anon, authenticated;
 grant all on table private.career_workflows to service_role;
+

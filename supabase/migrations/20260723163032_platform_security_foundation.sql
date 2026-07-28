@@ -1,3 +1,6 @@
+-- Utólag mentve az éles migrációs naplóból (20260723163032).
+-- A migráció lefutott az adatbázison, de fájl nem tartozott hozzá.
+
 -- Platform–adat–biztonság alap
 -- A böngésző kizárólag az üres, explicit `api` sémát láthatja.
 -- Az alkalmazás a meglévő katalógust a backend titkos kulcsával éri el.
@@ -128,3 +131,4 @@ revoke all on function public.tudas_kereses(extensions.vector, integer)
   from public, anon, authenticated;
 grant execute on function public.tudas_kereses(extensions.vector, integer)
   to service_role;
+

@@ -164,6 +164,20 @@ def main() -> int:
     ujak = [a for a in egyedi.values() if a["link"] not in megvan]
     print(f"Ebből még nincs az adatbázisban: {len(ujak)}")
 
+    # Láttamozás: amit most is látunk, az él. Enélkül nem tudnánk
+    # megkülönböztetni a nyitott állást a betöltöttől -- fél év múlva a
+    # piaci körkép halott hirdetésekből számolna.
+    if ir and megvan:
+        latott, linkek = 0, list(megvan)
+        for i in range(0, len(linkek), 500):
+            try:
+                v = db.rpc("hirdetes_lattam",
+                           {"linkek": linkek[i:i + 500]}).execute()
+                latott += v.data or 0
+            except Exception as e:
+                print(f"Láttamozási hiba: {e}")
+        print(f"Láttamozva (még él): {latott}")
+
     # Besorolás
     csoport: dict[tuple[str, str], list[dict]] = defaultdict(list)
     besorolatlan: list[str] = []
@@ -209,6 +223,21 @@ def main() -> int:
         print(f"Új ESCO-kapcsolat: {valasz.data}")
     except Exception as e:
         print(f"ESCO-párosítás hiba: {e}")
+
+    # Ami két hete nem jött vissza egyetlen söprésben sem, az eltűnt a piacról.
+    try:
+        valasz = db.rpc("hirdetes_lejarat", {"napok": 14}).execute()
+        print(f"Eltűntnek jelölve: {valasz.data}")
+    except Exception as e:
+        print(f"Lejáratozási hiba: {e}")
+
+    # A lefedettség a friss számokból számoljon, különben a bizalmi szint
+    # egy napot késne.
+    try:
+        db.rpc("nezetek_frissitese").execute()
+        print("Nézetek frissítve.")
+    except Exception as e:
+        print(f"Nézetfrissítési hiba: {e}")
 
     print("A tételek kinyerése külön lépés: scripts/hirdetes_tetel_feltolto.py")
     return 0
