@@ -19,9 +19,7 @@ Futtatás a projekt gyökeréből:
     python scripts/eures_gyujto.py                   # a teljes szakmalista
     python scripts/eures_gyujto.py "villanyszerelő"  # csak egy szakma
 
-Nincs AI-hívás a kereséshez (ingyenes, kulcs nélküli EURES API). A készség-
-kinyerés a Jooble-gyűjtővel MEGEGYEZŐEN a Google Gemini ingyenes szintjét
-használja (közös napi keret — lásd a Gemini-kvóta megjegyzést lentebb).
+Sem a keresés, sem a táblafolyamat nem indít AI- vagy modellhívást.
 """
 
 import os
@@ -41,14 +39,9 @@ from utils.adatbazis import (  # noqa: E402
     kliens,
 )
 from utils.eures import eures_kereses  # noqa: E402
-from jooble_gyujto import (  # noqa: E402
-    GEMINI_KINYERES_GYUJTESKOR,
-    SZAKMAK,
-    keszsegek_kinyerese,
-)
+from jooble_gyujto import SZAKMAK  # noqa: E402
 
 DARAB = 50
-CSOMAG_MERET = 10
 GYUJTESI_FUTAS = gyujtesi_futas_azonosito("eures")
 GYUJTO_VERZIO = gyujto_verzio("eures")
 
@@ -120,21 +113,7 @@ def szakma_gyujtes(szakma: str, kategoria: str) -> int:
         "szakma_kategoria": kategoria,
     }
 
-    mentve = 0
-
-    for i in range(0, len(allasok), CSOMAG_MERET):
-        csomag = allasok[i:i + CSOMAG_MERET]
-        keszsegek = keszsegek_kinyerese(csomag)
-        mentve += gyujtes_mentese(
-            szakma_info,
-            csomag,
-            keszsegek,
-        )
-
-        if GEMINI_KINYERES_GYUJTESKOR:
-            time.sleep(5)
-
-    return mentve
+    return gyujtes_mentese(szakma_info, allasok)
 
 
 def main():

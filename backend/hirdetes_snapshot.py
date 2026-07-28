@@ -99,8 +99,158 @@ def nyelv_megallapitasa(szoveg: str, jelzes: str | None = None) -> str:
 def elemzesi_szoveg(raw_szoveg: str) -> str:
     """A teljes nyers szöveg determinisztikus, származtatott tisztítása."""
 
-    tagek_nelkul = re.sub(r"<[^>]+>", " ", raw_szoveg or "")
-    return " ".join(html.unescape(tagek_nelkul).split())
+    return _elemzesi_szoveg_poziciokkal(raw_szoveg)[0]
+
+
+def _elemzesi_szoveg_poziciokkal(
+    raw_szoveg: str,
+) -> tuple[str, list[int], list[int]]:
+    """Tisztított szöveg és karakterenkénti nyers forráspozíciók.
+
+    A pozíciótérkép teszi lehetővé, hogy egy kinyert tételhez ne csak a
+    snapshotot, hanem a nyers forrásból vett pontos, változatlan részletet
+    és annak fél-nyílt ``[kezdet, vég)`` tartományát is eltároljuk.
+    """
+
+    nyers = raw_szoveg if isinstance(raw_szoveg, str) else ""
+    karakterek: list[tuple[str, int, int]] = []
+    index = 0
+    while index < len(nyers):
+        if nyers[index] == "<":
+            tag_vege = nyers.find(">", index + 1)
+            if tag_vege >= 0:
+                karakterek.append((" ", index, tag_vege + 1))
+                index = tag_vege + 1
+                continue
+        if nyers[index] == "&":
+            entitas_vege = nyers.find(";", index + 1, index + 16)
+            if entitas_vege >= 0:
+                entitas = nyers[index : entitas_vege + 1]
+                feloldott = html.unescape(entitas)
+                if feloldott != entitas:
+                    karakterek.extend(
+                        (karakter, index, entitas_vege + 1)
+                        for karakter in feloldott
+                    )
+                    index = entitas_vege + 1
+                    continue
+        karakterek.append((nyers[index], index, index + 1))
+        index += 1
+
+    eredmeny: list[str] = []
+    kezdetek: list[int] = []
+    vegek: list[int] = []
+    whitespace_kezdet: int | None = None
+    whitespace_veg: int | None = None
+    for karakter, nyers_kezdet, nyers_veg in karakterek:
+        if karakter.isspace():
+            if whitespace_kezdet is None:
+                whitespace_kezdet = nyers_kezdet
+            whitespace_veg = nyers_veg
+            continue
+        if eredmeny and whitespace_kezdet is not None:
+            eredmeny.append(" ")
+            kezdetek.append(whitespace_kezdet)
+            vegek.append(whitespace_veg or whitespace_kezdet)
+        whitespace_kezdet = None
+        whitespace_veg = None
+        eredmeny.append(karakter)
+        kezdetek.append(nyers_kezdet)
+        vegek.append(nyers_veg)
+    return "".join(eredmeny), kezdetek, vegek
+
+
+def forrasbizonyitek_keresese(
+    raw_szoveg: str,
+    kinyert_szoveg: str,
+) -> dict | None:
+    """Pontos, nyers forrásrészlet egy kinyert szöveghez.
+
+    Ha a kinyert szöveg nem vezethető vissza egyértelműen a snapshot
+    szövegére, ``None`` tér vissza. Ilyen tételt a V2 feldolgozó nem ment.
+    """
+
+    keresett = " ".join((kinyert_szoveg or "").split())
+    if not keresett:
+        return None
+    tisztitott, kezdetek, vegek = _elemzesi_szoveg_poziciokkal(raw_szoveg)
+    pozicio = tisztitott.find(keresett)
+    if pozicio < 0:
+        pozicio = tisztitott.lower().find(keresett.lower())
+    if pozicio < 0:
+        return None
+    utolso = pozicio + len(keresett) - 1
+    if utolso >= len(vegek):
+        return None
+    nyers_kezdet = kezdetek[pozicio]
+    nyers_veg = vegek[utolso]
+    return {
+        "forras_bizonyitek": raw_szoveg[nyers_kezdet:nyers_veg],
+        "forras_bizonyitek_kezdete": nyers_kezdet,
+        "forras_bizonyitek_vege": nyers_veg,
+    }
+
+
+def _eures_teljes_validacios_hibak(
+    *,
+    raw_payload: Any,
+    raw_szoveg: str,
+    forras_azonosito: str,
+    forras_szoveg_mezo: str,
+) -> list[str]:
+    """Az EURES ``teljes`` minősítés forrásséma- és egyezéskapuja."""
+
+    if not isinstance(raw_payload, dict):
+        return ["eures_forrassema_ervenytelen"]
+
+    azonosito = raw_payload.get("id")
+    cim = raw_payload.get("title")
+    leiras = raw_payload.get("description")
+    kotelezo_helyes = (
+        isinstance(azonosito, (str, int))
+        and bool(str(azonosito).strip())
+        and isinstance(cim, str)
+        and bool(cim.strip())
+        and isinstance(leiras, str)
+        and bool(leiras.strip())
+    )
+    opcionalis_tipusok = (
+        ("employer", dict),
+        ("locationMap", dict),
+        ("availableLanguages", list),
+        ("positionScheduleCodes", list),
+    )
+    opcionalis_helyes = all(
+        kulcs not in raw_payload or isinstance(raw_payload[kulcs], tipus)
+        for kulcs, tipus in opcionalis_tipusok
+    )
+
+    hibak: list[str] = []
+    if not kotelezo_helyes or not opcionalis_helyes:
+        hibak.append("eures_forrassema_ervenytelen")
+    if forras_szoveg_mezo != "description":
+        hibak.append("eures_szovegmezo_nem_description")
+    if isinstance(leiras, str) and raw_szoveg != leiras:
+        hibak.append("eures_raw_szoveg_nem_egyezik")
+    if azonosito is not None and forras_azonosito != str(azonosito):
+        hibak.append("eures_forras_azonosito_nem_egyezik")
+    return hibak
+
+
+def forras_specifikus_validacios_hibak(snapshot: dict) -> list[str]:
+    """A tárolt snapshot forrásspecifikus kapujának újraellenőrzése."""
+
+    if (
+        snapshot.get("forras_tipus") == "eures"
+        and snapshot.get("szoveg_minoseg") == "teljes"
+    ):
+        return _eures_teljes_validacios_hibak(
+            raw_payload=snapshot.get("raw_payload"),
+            raw_szoveg=snapshot.get("raw_szoveg", ""),
+            forras_azonosito=snapshot.get("forras_azonosito", ""),
+            forras_szoveg_mezo=snapshot.get("forras_szoveg_mezo", ""),
+        )
+    return []
 
 
 def snapshot_keszitese(
@@ -152,6 +302,15 @@ def snapshot_keszitese(
     if minoseg not in ERVENYES_MINOSEGEK:
         hibak.append("ervenytelen_szoveg_minoseg")
         minoseg = "ismeretlen"
+    if forras == "eures" and minoseg == "teljes":
+        hibak.extend(
+            _eures_teljes_validacios_hibak(
+                raw_payload=raw_payload,
+                raw_szoveg=eredeti_szoveg,
+                forras_azonosito=azonosito,
+                forras_szoveg_mezo=szoveg_mezo,
+            )
+        )
     if not (forras_url or "").strip():
         figyelmeztetesek.append("hianyzo_forras_url")
     if minoseg == "snippet":
