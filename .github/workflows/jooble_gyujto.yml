@@ -44,32 +44,19 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/eures_gyujto.py
 
-      # Eloszor az ingyenes szotar dolgozik.
-      - name: Szotar-cimkezo futtatasa (Gemini elott)
-        if: always()
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: python scripts/keszseg_szotaras.py
-
-      # A maradek potlasa korlatozott Gemini-keretbol.
-      - name: Keszseg-potlo futtatasa
-        if: always()
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          KESZSEG_POTLO_MAX_CSOMAG: ${{ vars.KESZSEG_POTLO_MAX_CSOMAG || '5' }}
-          KESZSEG_POTLO_CSOMAG_MERET: ${{ vars.KESZSEG_POTLO_CSOMAG_MERET || '10' }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: python scripts/keszseg_potlo.py
-
-      # Az új készségekkel ismét ingyen címkézünk.
-      - name: Szotar-cimkezo ujrafuttatasa
-        if: always()
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: python scripts/keszseg_szotaras.py
+      # A REGI KESZSEGCIMKE-LANC KIKERULT A NAPI FUTASBOL.
+      #
+      # A keszseg_szotaras.py es a keszseg_potlo.py a `keszsegek` +
+      # `hirdetes_keszseg` tablaparost toltotte -- azt, amit a `hirdetes_tetel`
+      # leváltott. A potlo ezen felul Gemini-hivasokat hasznalt, tehat naponta
+      # fogyott a keret egy tablaert, amit mar nem hasznalunk.
+      #
+      # AZ ADAT NEM VESZETT EL: a tablak es a soraik erintetlenul megvannak
+      # (keszsegek 7 399, hirdetes_keszseg 23 440), csak a napi karbantartasuk
+      # allt le. A `keszseg_valtozat` szotar (11 911 CV-oldali szinonima) tovabbra
+      # is kell, azt semmi nem erinti. A vegleges dontes kulon feladat.
+      #
+      # A napi gyujtes ezzel egyetlen fillerbe sem kerul.
 
       # A hirdetesszoveg feldarabolasa a sajat szerkezete menten. Nulla
       # modellhivas. Csak az uj hirdeteseket dolgozza fel; teljes
