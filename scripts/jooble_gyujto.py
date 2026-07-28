@@ -9,7 +9,6 @@ Futtatás:
     python scripts/jooble_gyujto.py "bolti eladó"
 """
 
-import json
 import os
 import re
 import sys
@@ -20,32 +19,22 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from backend.hirdetes_snapshot import (  # noqa: E402
+    gyujtesi_futas_azonosito,
+    gyujto_verzio,
+    kanonikus_json,
+    sha256_szoveg,
+)
 from utils.adatbazis import (  # noqa: E402
     gyujtes_mentese,
     keszsegnev_normalizalas,
     kliens,
-    letezo_linkek,
 )
 
 load_dotenv()
 
 JOOBLE_API_KEY = os.getenv("JOOBLE_API_KEY", "")
 JOOBLE_URL = "https://hu.jooble.org/api/"
-
-# A napi gyűjtésnél kikapcsolható a Gemini használata.
-# Így először az ingyenes szótáras címkéző dolgozhat.
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODELL = os.getenv("GEMINI_MODELL", "gemini-2.5-flash")
-GEMINI_KINYERES_GYUJTESKOR = os.getenv(
-    "GEMINI_KINYERES_GYUJTESKOR", "1"
-).strip().lower() not in ("0", "false", "nem", "off")
-
-GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    f"{GEMINI_MODELL}:generateContent"
-)
-
-_GEMINI_KVOTA_ELFOGYOTT = False
 
 SZAKMAK = [
     ("bolti eladó", "Kereskedelem"),
@@ -151,7 +140,8 @@ SZAKMAK = [
 
 HELYSZIN = ""
 MAX_OLDAL = 4
-CSOMAG_MERET = 10
+GYUJTESI_FUTAS = gyujtesi_futas_azonosito("jooble")
+GYUJTO_VERZIO = gyujto_verzio("jooble")
 
 SZINONIMAK = {
     "szoftvertesztelő": [
@@ -222,148 +212,6 @@ SZINONIMAK = {
 }
 
 
-def gemini_kvota_elfogyott() -> bool:
-    """Jelzi, ha ebben a futásban 429-es kvótahiba érkezett."""
-    return _GEMINI_KVOTA_ELFOGYOTT
-
-
-def keszsegek_kinyerese(
-    allasok: list,
-    kenyszerit: bool = False,
-) -> list:
-    """Készségek kinyerése a Gemini API-val."""
-    global _GEMINI_KVOTA_ELFOGYOTT
-
-    if not allasok:
-        return []
-
-    if not kenyszerit and not GEMINI_KINYERES_GYUJTESKOR:
-        return [[] for _ in allasok]
-
-    if _GEMINI_KVOTA_ELFOGYOTT:
-        return [[] for _ in allasok]
-
-    if not GEMINI_API_KEY:
-        print(
-            "FIGYELEM: GEMINI_API_KEY hiányzik — "
-            "készségek nélkül mentünk."
-        )
-        return [[] for _ in allasok]
-
-    lista = "\n\n".join(
-        [
-            (
-                f"[{i}] {a.get('cim', '')} — {a.get('ceg', '')}\n"
-                f"{a.get('snippet', '')}"
-            )
-            for i, a in enumerate(allasok)
-        ]
-    )
-
-    prompt = f"""
-Álláshirdetésekből kell strukturáltan kinyerned a készségeket és elvárásokat.
-
-HIRDETÉSEK:
-{lista}
-
-Minden hirdetéshez add meg a benne szereplő készségeket szakmai néven.
-
-A típus pontosan ezek egyike lehet:
-- elvaras: végzettség, tapasztalat, nyelvtudás, bizonyítvány, jogosítvány
-- feladat: amit a munkakörben csinálni kell
-- eszkoz: konkrét szoftver, technológia vagy gép
-- soft: személyes készség
-- iparag: terület vagy szektor
-
-Szabályok:
-- Hirdetésenként 3–8 elem.
-- Helyszínt, bért, munkaidőt és juttatást ne adj meg készségként.
-- A neveket egységes, szakmai formában add vissza.
-- Válaszolj kizárólag JSON-tömbként.
-
-Formátum:
-[
-  {{
-    "index": 0,
-    "keszsegek": [
-      {{
-        "nev": "pénztárgép kezelése",
-        "tipus": "feladat"
-      }}
-    ]
-  }}
-]
-"""
-
-    try:
-        r = requests.post(
-            GEMINI_URL,
-            params={"key": GEMINI_API_KEY},
-            json={
-                "contents": [
-                    {
-                        "parts": [
-                            {
-                                "text": prompt,
-                            }
-                        ]
-                    }
-                ]
-            },
-            timeout=60,
-        )
-
-        if r.status_code == 429:
-            _GEMINI_KVOTA_ELFOGYOTT = True
-            print(
-                "Gemini-kvóta elfogyott (429) — "
-                "a feldolgozás leáll."
-            )
-            return [[] for _ in allasok]
-
-        r.raise_for_status()
-        valasz = r.json()
-
-        # A napi cimkezes a legnagyobb Gemini-fogyaszto a rendszerben.
-        # Enelkul latnad, hogy fogy a keret, de nem azt, hogy mire.
-        try:
-            from backend.usage_log import gemini_hasznalat, rogzit
-
-            rogzit(
-                feladat="keszsegkinyeres_gyujteskor",
-                szolgaltato="gemini",
-                modell=GEMINI_MODELL,
-                hasznalat=gemini_hasznalat(valasz),
-            )
-        except Exception:
-            # A naplozas nem akaszthatja meg a gyujtest.
-            pass
-
-        t = (
-            valasz["candidates"][0]["content"]["parts"][0]["text"]
-            .strip()
-        )
-
-        if "```json" in t:
-            t = t.split("```json")[1].split("```")[0].strip()
-        elif "```" in t:
-            t = t.split("```")[1].split("```")[0].strip()
-
-        adat = json.loads(t)
-        eredmeny = [[] for _ in allasok]
-
-        for elem in adat:
-            idx = elem.get("index")
-            if isinstance(idx, int) and 0 <= idx < len(allasok):
-                eredmeny[idx] = elem.get("keszsegek", [])
-
-        return eredmeny
-
-    except Exception as e:
-        print(f"Gemini-hiba a készségkinyerésnél: {e}")
-        return [[] for _ in allasok]
-
-
 def _tisztit(szoveg: str) -> str:
     """HTML-tagek és felesleges szóközök eltávolítása."""
     szoveg = re.sub(r"<[^>]+>", " ", szoveg or "")
@@ -403,27 +251,50 @@ def jooble_kereses(kulcsszo: str) -> list:
             break
 
         for j in jobs:
-            cim = _tisztit(j.get("title", ""))
-
-            if not cim:
-                continue
-
+            forras_adat = j if isinstance(j, dict) else {}
+            cim = _tisztit(forras_adat.get("title", ""))
+            raw_szoveg_ertek = forras_adat.get("snippet")
+            raw_szoveg = (
+                raw_szoveg_ertek
+                if isinstance(raw_szoveg_ertek, str)
+                else ""
+            )
+            link = (forras_adat.get("link") or "").strip()
+            forras_azonosito = str(
+                forras_adat.get("id")
+                or link
+                or sha256_szoveg(kanonikus_json(j))
+            )
             allasok.append(
                 {
                     "cim": cim,
-                    "ceg": _tisztit(j.get("company", "")),
+                    "ceg": _tisztit(forras_adat.get("company", "")),
                     "snippet": _tisztit(
-                        j.get("snippet", "")
+                        raw_szoveg
                     )[:500],
-                    "link": (j.get("link") or "").strip(),
+                    "link": link,
                     "helyszin": _tisztit(
-                        j.get("location", "")
+                        forras_adat.get("location", "")
                     ),
-                    "datum": (j.get("updated") or "")[:10],
+                    "datum": (forras_adat.get("updated") or "")[:10],
                     "bersav": _tisztit(
-                        j.get("salary", "")
+                        forras_adat.get("salary", "")
                     ),
                     "forras_tipus": "jooble",
+                    "_snapshot": {
+                        "forras_azonosito": forras_azonosito,
+                        "forras_url": link or None,
+                        "keresesi_kulcsszo": kulcsszo,
+                        "forras_szoveg_mezo": "snippet",
+                        # Az API egyedi hirdetéseleme és eredeti snippetje
+                        # változatlanul kerül az audit-rétegbe.
+                        "raw_payload": j,
+                        "raw_szoveg": raw_szoveg,
+                        "nyelv": forras_adat.get("language"),
+                        "szoveg_minoseg": "snippet",
+                        "gyujto_verzio": GYUJTO_VERZIO,
+                        "gyujtesi_futas": GYUJTESI_FUTAS,
+                    },
                 }
             )
 
@@ -449,6 +320,9 @@ def szakma_gyujtes(
         for allas in jooble_kereses(kulcsszo):
             azonosito = (
                 allas["link"]
+                or (allas.get("_snapshot") or {}).get(
+                    "forras_azonosito"
+                )
                 or allas["cim"] + allas["ceg"]
             )
             egyedi.setdefault(azonosito, allas)
@@ -463,22 +337,9 @@ def szakma_gyujtes(
     if not allasok:
         return 0
 
-    megvan = letezo_linkek(
-        [allas["link"] for allas in allasok]
-    )
-
-    ujak = [
-        allas
-        for allas in allasok
-        if allas["link"] not in megvan
-    ]
-
     print(
-        f"Ebből új, még nincs az adatbázisban: {len(ujak)}"
+        f"Snapshotolandó forráselem: {len(allasok)}"
     )
-
-    if not ujak:
-        return 0
 
     szakma_info = {
         "szakma": szakma,
@@ -487,18 +348,7 @@ def szakma_gyujtes(
 
     mentve = 0
 
-    for i in range(0, len(ujak), CSOMAG_MERET):
-        csomag = ujak[i : i + CSOMAG_MERET]
-        keszsegek = keszsegek_kinyerese(csomag)
-
-        mentve += gyujtes_mentese(
-            szakma_info,
-            csomag,
-            keszsegek,
-        )
-
-        if GEMINI_KINYERES_GYUJTESKOR:
-            time.sleep(5)
+    mentve += gyujtes_mentese(szakma_info, allasok)
 
     return mentve
 

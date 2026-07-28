@@ -19,7 +19,10 @@ from collections import Counter, defaultdict
 from typing import Final
 
 from backend.keszseg_felismero import normalizal
-from utils.adatbazis import kliens
+from utils.adatbazis import (
+    hiteles_szarmasztott_sorok_hirdetesekhez,
+    kliens,
+)
 
 
 # A CV-hez ezt a két szekciót mérjük. Az `ajanlat` a munkáltató ígérete, a
@@ -74,7 +77,11 @@ def _tetelek(db, szakma_id: int | None) -> list[dict]:
     while True:
         kerdes = (
             db.table("hirdetes_tetel")
-            .select("id, hirdetes_id, szakma_id, szekcio, szoveg")
+            .select(
+                "id,hirdetes_id,szakma_id,szekcio,szoveg,"
+                "snapshot_id,feldolgozo_verzio,forras_bizonyitek,"
+                "forras_bizonyitek_kezdete,forras_bizonyitek_vege"
+            )
             .in_("szekcio", list(MERT_SZEKCIOK))
             .order("id")
             .range(kezdet, kezdet + 999)
@@ -84,8 +91,9 @@ def _tetelek(db, szakma_id: int | None) -> list[dict]:
         adag = kerdes.execute().data or []
         sorok.extend(adag)
         if len(adag) < 1000:
-            return sorok
+            break
         kezdet += 1000
+    return hiteles_szarmasztott_sorok_hirdetesekhez(db, sorok)
 
 
 def _ossz_elofordulas(db) -> tuple[Counter, int]:
