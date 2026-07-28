@@ -11,7 +11,6 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 from utils.adatbazis import (
-    gyujtes_mentese,
     ceginfo_cache_lekerdez,
     ceginfo_cache_ment,
     friss_hirdetesek,
@@ -316,8 +315,11 @@ def allasok_keresese(szakma: str, helyszin: str = "Budapest", ajanlott_cegek: li
             kulcs_szavak = kulcs.split()
             if any(szo in szakma_lower for szo in kulcs_szavak):
                 print(f"Mock: {len(allasok)} allas")
-                return allasok
-        return list(MOCK_ALLASOK.values())[0]
+                return [_nem_elemezheto_jeloles(a) for a in allasok]
+        return [
+            _nem_elemezheto_jeloles(a)
+            for a in list(MOCK_ALLASOK.values())[0]
+        ]
 
     # ── DB-FIRST: előbb a SAJÁT adatbázisunkból ajánlunk ─────
     # Ha az adott szakmából van elég friss (30 napnál újabb) hirdetésünk,
@@ -327,7 +329,7 @@ def allasok_keresese(szakma: str, helyszin: str = "Budapest", ajanlott_cegek: li
         helyszin=helyszin,
         max_nap=30,
         limit=15,
-        elemzeshez=True,
+        elemzeshez=False,
     )
     if len(sajat) >= 5:
         print(f"DB-FIRST: {len(sajat)} allas a sajat adatbazisbol — nincs netes kereses.")
@@ -420,7 +422,10 @@ def allasok_keresese(szakma: str, helyszin: str = "Budapest", ajanlott_cegek: li
 
             a["forras_tipus"] = tipus
             a.setdefault("helyszin", helyszin)
-            allasok.append(a)
+            # Az interaktív scraper nem auditált gyűjtő. A találatot
+            # megmutathatjuk, de provenance nélkül nem elemezhetjük és nem
+            # menthetjük hiteles adatként.
+            allasok.append(_nem_elemezheto_jeloles(a))
         if len(allasok) >= 10:
             break
 
@@ -475,7 +480,8 @@ def ats_diagnozis(cv_szoveg: str, allasok: list, szakma_info: dict) -> dict:
     ]
     if not allasok:
         return {
-            "illeszkedes_szazalek": 0,
+            "illeszkedes_szazalek": None,
+            "ats_elerheto": False,
             "van_eselye": True,
             "hianyzo_kulcsszavak": [],
             "meglevo_kulcsszavak": [],
@@ -538,10 +544,13 @@ SZIGORÚ szabályok:
         szoveg = szoveg.split("```")[1].split("```")[0].strip()
 
     try:
-        return json.loads(szoveg)
+        eredmeny = json.loads(szoveg)
+        eredmeny["ats_elerheto"] = True
+        return eredmeny
     except Exception:
         return {
             "illeszkedes_szazalek": 50,
+            "ats_elerheto": True,
             "van_eselye": True,
             "hianyzo_kulcsszavak": [],
             "meglevo_kulcsszavak": [],
@@ -827,27 +836,90 @@ def ekezet_nelkul(szoveg: str) -> str:
 
 # ── 7/B. ÁLLÁSOK RANGSOROLÁSA (1 modellhívás, top 5) ─────────
 
+def _nem_elemezheto_jeloles(allas: dict) -> dict:
+    """Listázható, de személyre szabásra és ATS-re tiltott találat."""
+
+    jelolt = dict(allas)
+    jelolt["elemzesre_alkalmas"] = False
+    jelolt["ats_elerheto"] = False
+    jelolt["szemelyre_szabott"] = False
+    jelolt["rangsorolt"] = False
+    jelolt["provenance_elerheto"] = bool(jelolt.get("snapshot_id"))
+    jelolt.pop("illeszkedes", None)
+    jelolt["indoklas"] = (
+        "A hirdetés listázható, de teljes, validált forrásszöveg nélkül "
+        "nem pontozható és nem rangsorolható személyre szabottan."
+    )
+    return jelolt
+
+
+def _megjelenitesi_lista(
+    rangsorolt: list,
+    listazhato: list,
+    *,
+    limit: int,
+) -> list:
+    """A hiteles rangsort nem elemezhető, de listázható sorokkal tölti fel."""
+
+    eredmeny = list(rangsorolt[:limit])
+    latott = {
+        (a.get("id"), a.get("link"), a.get("cim"))
+        for a in eredmeny
+    }
+    for allas in listazhato:
+        if allas.get("elemzesre_alkalmas") is True:
+            continue
+        kulcs = (allas.get("id"), allas.get("link"), allas.get("cim"))
+        if kulcs in latott:
+            continue
+        eredmeny.append(_nem_elemezheto_jeloles(allas))
+        latott.add(kulcs)
+        if len(eredmeny) >= limit:
+            break
+    return eredmeny
+
+
 def allasok_rangsorolasa(cv_szoveg: str, allasok: list, szakma_info: dict,
                          top_n: int = 5) -> list:
     """A talált hirdetéseket EGYETLEN modellhívással összeveti a CV-vel,
     illeszkedés szerint pontozza, és a legjobb (max top_n) állást adja vissza.
     CV nélkül egyszerűen az első top_n állást adja (nincs mit pontozni)."""
-    allasok = [
+    listazhato_allasok = list(allasok or [])
+    elemezheto_allasok = [
         allas
-        for allas in allasok
+        for allas in listazhato_allasok
         if allas.get("elemzesre_alkalmas") is True
     ]
-    if not allasok:
-        return []
+    if not elemezheto_allasok:
+        return _megjelenitesi_lista(
+            [],
+            listazhato_allasok,
+            limit=top_n,
+        )
     # CV nélkül nem tudunk illeszkedést mérni -> első néhány, semleges pontszámmal
     if not cv_szoveg:
-        return [dict(a, illeszkedes=0, indoklas="") for a in allasok[:top_n]]
+        rangsorolt = [
+            dict(
+                a,
+                illeszkedes=None,
+                indoklas="",
+                ats_elerheto=True,
+                szemelyre_szabott=False,
+                rangsorolt=False,
+            )
+            for a in elemezheto_allasok[:top_n]
+        ]
+        return _megjelenitesi_lista(
+            rangsorolt,
+            listazhato_allasok,
+            limit=top_n,
+        )
 
     # Az összes hirdetést EGYBEN adjuk a modellnek -> 1 hívás
     lista_szoveg = "\n\n".join([
         f"[{i}] Cég: {a.get('ceg','')} | Pozíció: {a.get('cim','')}\n"
         f"Elvárások: {a.get('snippet','')}"
-        for i, a in enumerate(allasok)
+        for i, a in enumerate(elemezheto_allasok)
     ])
 
     prompt = f"""Te egy magyar recruiter vagy. Egy jelölt CV-jét kell összevetned több álláshirdetéssel.
@@ -879,23 +951,55 @@ Csak a hirdetések sorszámait (index) használd, semmi mást ne adj hozzá."""
         rangsor = json.loads(szoveg)
     except Exception:
         # Ha a rangsorolás bármiért elhasal, ne dőljön össze: első top_n állás
-        return [dict(a, illeszkedes=0, indoklas="") for a in allasok[:top_n]]
+        rangsorolt = [
+            dict(
+                a,
+                illeszkedes=0,
+                indoklas="",
+                ats_elerheto=True,
+                szemelyre_szabott=True,
+                rangsorolt=True,
+            )
+            for a in elemezheto_allasok[:top_n]
+        ]
+        return _megjelenitesi_lista(
+            rangsorolt,
+            listazhato_allasok,
+            limit=top_n,
+        )
 
     eredmeny = []
     for elem in rangsor:
         idx = elem.get("index")
-        if isinstance(idx, int) and 0 <= idx < len(allasok):
-            allas = dict(allasok[idx])
+        if isinstance(idx, int) and 0 <= idx < len(elemezheto_allasok):
+            allas = dict(elemezheto_allasok[idx])
             allas["illeszkedes"] = elem.get("illeszkedes", 0)
             allas["indoklas"] = elem.get("indoklas", "")
+            allas["ats_elerheto"] = True
+            allas["szemelyre_szabott"] = True
+            allas["rangsorolt"] = True
             eredmeny.append(allas)
         if len(eredmeny) >= top_n:
             break
 
     # Ha a modell kevesebbet adott vissza, töltsük fel a maradékból
     if not eredmeny:
-        eredmeny = [dict(a, illeszkedes=0, indoklas="") for a in allasok[:top_n]]
-    return eredmeny
+        eredmeny = [
+            dict(
+                a,
+                illeszkedes=0,
+                indoklas="",
+                ats_elerheto=True,
+                szemelyre_szabott=True,
+                rangsorolt=True,
+            )
+            for a in elemezheto_allasok[:top_n]
+        ]
+    return _megjelenitesi_lista(
+        eredmeny,
+        listazhato_allasok,
+        limit=top_n,
+    )
 
 
 # ── 7/B-2. DETERMINISZTIKUS RANGSOROLÁS (nem AI — halmaz-egyezés) ────────
@@ -984,7 +1088,7 @@ def allasok_minosegi_kereses(cv_szoveg: str, szakma_info: dict,
         helyszin=helyszin,
         max_nap=30,
         limit=15,
-        elemzeshez=True,
+        elemzeshez=False,
     )
     rangsorolt = allasok_rangsorolasa_determinisztikus(
         cv_kulcsszavak, db_talalatok, top_n=max(len(db_talalatok), 1)
@@ -1006,12 +1110,20 @@ def allasok_minosegi_kereses(cv_szoveg: str, szakma_info: dict,
         jok = [a for a in rangsorolt if a.get("illeszkedes", 0) >= KUSZOB_JO_ILLESZKEDES]
         volt_elo_kereses = any(not a.get("adatbazisbol") for a in osszes)
         forras = "adatbazis+elo" if volt_elo_kereses else "adatbazis"
+    else:
+        osszes = db_talalatok
 
     if jok:
+        megjelenitendo = _megjelenitesi_lista(
+            jok,
+            osszes,
+            limit=5,
+        )
         return {
             "van_jo_talalat": True,
             "forras": forras,
             "top_5": jok[:5],
+            "allasok": megjelenitendo,
             "tovabbi_jo_talalat_szama": max(0, len(jok) - 5),
         }
 
@@ -1026,10 +1138,16 @@ def allasok_minosegi_kereses(cv_szoveg: str, szakma_info: dict,
     except Exception:
         pass
 
+    megjelenitendo = _megjelenitesi_lista(
+        rangsorolt,
+        osszes,
+        limit=5,
+    )
     return {
         "van_jo_talalat": False,
         "forras": forras,
         "legjobb_elerheto": rangsorolt[:5],
+        "allasok": megjelenitendo,
         "szakma_piaci_trendje": trend_kategoria,
         "atjaras_ajanlott": True,
     }
@@ -1216,19 +1334,6 @@ def run(cv_szoveg: str = "", szakma_megadva: str = "",
     # A találatokat illeszkedés szerint rangsoroljuk -> legjobb max 5 (1 modellhívás)
     top_allasok = allasok_rangsorolasa(cv_szoveg, nyers_allasok, szakma_info, top_n=5)
 
-    # ── PASSZÍV ADATGYŰJTÉS: az ÖSSZES talált hirdetést mentjük Supabase-be ──
-    # (nem csak a top 5-öt — minden adat érték!) Hibatűrő: ha nincs Supabase
-    # beállítva vagy bármi hiba van, az alkalmazás zavartalanul megy tovább.
-    if not TESZT_MOD:
-        try:
-            # Ami a saját adatbázisunkból jött, azt NEM mentjük újra
-            mentendo = [a for a in nyers_allasok if not a.get("adatbazisbol")]
-            if mentendo:
-                keszsegek = keszsegek_kinyerese(mentendo)
-                gyujtes_mentese(szakma_info, mentendo, keszsegek)
-        except Exception as e:
-            print(f"[adatbazis] Gyujtes kihagyva: {e}")
-
     # CÉGINFÓT NEM hívunk itt — csak a felületi gomb kéri le (kredit-kímélés)
 
     # Diagnózis a top állások elvárásai alapján (1 hívás, a legjobb találatokra)
@@ -1253,8 +1358,11 @@ def run(cv_szoveg: str = "", szakma_megadva: str = "",
         "link": a.get("link", ""),
         "forras_tipus": a.get("forras_tipus", ""),
         "adatbazisbol": a.get("adatbazisbol", False),
-        "illeszkedes": a.get("illeszkedes", 0),
+        "illeszkedes": a.get("illeszkedes"),
         "indoklas": a.get("indoklas", ""),
+        "elemzesre_alkalmas": a.get("elemzesre_alkalmas") is True,
+        "ats_elerheto": a.get("ats_elerheto") is True,
+        "szemelyre_szabott": a.get("szemelyre_szabott") is True,
         "cv": "",
         "motivacios_level": "",
         "jovahagyva": False

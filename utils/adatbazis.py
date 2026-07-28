@@ -266,9 +266,22 @@ def friss_hirdetesek(
                 "datum": s.get("datum_szoveg", ""),
                 "bersav": s.get("bersav", ""),
                 "forras_tipus": s.get("forras_tipus", "egyeb"),
+                "snapshot_id": snapshot.get("id"),
+                "validacios_allapot": snapshot.get(
+                    "validacios_allapot",
+                    "legacy",
+                ),
+                "listazasra_alkalmas": snapshot.get(
+                    "listazasra_alkalmas",
+                    True,
+                ),
                 "szoveg_minoseg": snapshot.get("szoveg_minoseg"),
                 "elemzesre_alkalmas": snapshot.get(
                     "elemzesre_alkalmas",
+                    False,
+                ),
+                "legacy_snapshot_nelkuli": snapshot.get(
+                    "legacy_snapshot_nelkuli",
                     False,
                 ),
                 "adatbazisbol": True,   # jelzés: ezt NEM kell újra menteni
@@ -997,18 +1010,37 @@ def elemzesre_alkalmas_hirdetes_idk(db, hirdetes_idk: list) -> set:
 # ── HIRDETÉSEK + KÉSZSÉGEK MENTÉSE ───────────────────────────
 
 def gyujtes_mentese(szakma_info: dict, allasok: list, keszsegek_per_allas: list = None) -> int:
-    """A keresés összes eredményét elmenti (passzív gyűjtés).
+    """Auditált forrásgyűjtés eredményeit menti.
 
     keszsegek_per_allas: az allasok listával párhuzamos lista, elemei
     [{"nev": "...", "tipus": "elvaras"}, ...] alakúak.
 
-    Hibatűrő: bármely lépés elhasalhat, a többi attól még lefut.
+    Provenance nélküli élő vagy mock találatnál még a szakma táblához sem
+    írunk. A felhasználói keresés nem adatgyűjtő csatorna.
+
+    Hibatűrő: egy auditált forráselem hibája a többit nem állítja meg.
     Visszaadja az ÚJ (nem duplikátum) hirdetések számát."""
-    db = kliens()
-    if not db or not allasok:
+    if not allasok:
         return 0
     if not keszsegek_per_allas:
         keszsegek_per_allas = [[] for _ in allasok]
+
+    auditalthato = []
+    for allas, keszsegek in zip(allasok, keszsegek_per_allas):
+        snapshot = _snapshot_keszitese_allasbol(allas)
+        if snapshot is None:
+            print(
+                "[adatbazis] Provenance nelkuli hirdetes nem kerul "
+                "adatbazisba."
+            )
+            continue
+        auditalthato.append((allas, keszsegek, snapshot))
+    if not auditalthato:
+        return 0
+
+    db = kliens()
+    if not db:
+        return 0
 
     szakma_id = None
     try:
@@ -1017,15 +1049,8 @@ def gyujtes_mentese(szakma_info: dict, allasok: list, keszsegek_per_allas: list 
         print(f"[adatbazis] Szakma mentes hiba: {e}")
 
     mentve = 0
-    for allas, keszsegek in zip(allasok, keszsegek_per_allas):
+    for allas, keszsegek, snapshot in auditalthato:
         try:
-            snapshot = _snapshot_keszitese_allasbol(allas)
-            if snapshot is None:
-                print(
-                    "[adatbazis] Snapshot-metaadat nelkuli hirdetes "
-                    "karanten miatt nem kerul a szarmaztatott retegbe."
-                )
-                continue
             tarolt_snapshot = _snapshot_mentese(db, snapshot)
             if not tarolt_snapshot.get("listazasra_alkalmas"):
                 print(
@@ -1058,7 +1083,10 @@ def gyujtes_mentese(szakma_info: dict, allasok: list, keszsegek_per_allas: list 
         except Exception as e:
             print(f"[adatbazis] Hirdetes mentes hiba: {e}")
 
-    print(f"[adatbazis] {mentve} uj hirdetes mentve ({len(allasok)} talalatbol).")
+    print(
+        f"[adatbazis] {mentve} uj hirdetes mentve "
+        f"({len(auditalthato)} auditalthato talalatbol)."
+    )
     return mentve
 
 
