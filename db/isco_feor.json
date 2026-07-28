@@ -1,0 +1,3206 @@
+[
+ {
+  "isco": "1111",
+  "feor": "1110",
+  "isco_nev": "Törvényhozók",
+  "feor_nev": "Törvényhozó, miniszter, államtitkár"
+ },
+ {
+  "isco": "1111",
+  "feor": "1122",
+  "isco_nev": "Törvényhozók",
+  "feor_nev": "Helyi önkormányzat választott vezetője"
+ },
+ {
+  "isco": "1112",
+  "feor": "1123",
+  "isco_nev": "Országos közigazgatási vezetők",
+  "feor_nev": "Helyi önkormányzat kinevezett vezetője"
+ },
+ {
+  "isco": "1114",
+  "feor": "1131",
+  "isco_nev": "Érdekképviseleti szervezetek vezetői",
+  "feor_nev": "Társadalmi (érdek-képviseleti) és egyéb szervezet"
+ },
+ {
+  "isco": "1114",
+  "feor": "1132",
+  "isco_nev": "Érdekképviseleti szervezetek vezetői",
+  "feor_nev": "Egyházi vezető"
+ },
+ {
+  "isco": "1120",
+  "feor": "1210",
+  "isco_nev": "Ügyvezetők és vezérigazgatók",
+  "feor_nev": "Gazdasági, költségvetési szervezet vezetője (igazgató,"
+ },
+ {
+  "isco": "1211",
+  "feor": "1411",
+  "isco_nev": "Pénzügyi vezetők",
+  "feor_nev": "Számviteli és pénzügyi tevékenységet folytató egység"
+ },
+ {
+  "isco": "1212",
+  "feor": "1412",
+  "isco_nev": "Emberi erőforrás-gazdálkodási vezetők",
+  "feor_nev": "Személyzeti vezető, humánpolitikai egység vezetője"
+ },
+ {
+  "isco": "1213",
+  "feor": "1121",
+  "isco_nev": "Stratégiai vezetők",
+  "feor_nev": "Országos és területi közigazgatás, igazságszolgáltatás"
+ },
+ {
+  "isco": "1213",
+  "feor": "1414",
+  "isco_nev": "Stratégiai vezetők",
+  "feor_nev": "Vállalati stratégiatervezési egység vezetője"
+ },
+ {
+  "isco": "1219",
+  "feor": "1419",
+  "isco_nev": "Máshová nem sorolható üzleti és igazgatási vezetők",
+  "feor_nev": "Egyéb gazdasági tevékenységet segítő egység vezetője"
+ },
+ {
+  "isco": "1221",
+  "feor": "1415",
+  "isco_nev": "Értékesítési és marketingvezetők",
+  "feor_nev": "Értékesítési és marketingtevékenységet folytató egység"
+ },
+ {
+  "isco": "1222",
+  "feor": "1416",
+  "isco_nev": "Reklám- és PR-vezetők",
+  "feor_nev": "Reklám-, PR- és egyéb kommunikációs tevékenységet"
+ },
+ {
+  "isco": "1223",
+  "feor": "1413",
+  "isco_nev": "Kutatási és fejlesztési vezetők",
+  "feor_nev": "Kutatási és fejlesztési tevékenységet folytató egység"
+ },
+ {
+  "isco": "1311",
+  "feor": "1311",
+  "isco_nev": "Mezőgazdasági és erdőgazdálkodási termelési vezetők",
+  "feor_nev": "Mezőgazdasági, erdészeti, halászati és vadászati"
+ },
+ {
+  "isco": "1312",
+  "feor": "1311",
+  "isco_nev": "Halgazdálkodási és halászati termelési vezetők",
+  "feor_nev": "Mezőgazdasági, erdészeti, halászati és vadászati"
+ },
+ {
+  "isco": "1321",
+  "feor": "1312",
+  "isco_nev": "Feldolgozóipari vezetők",
+  "feor_nev": "Ipari tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1322",
+  "feor": "1312",
+  "isco_nev": "Bányászati vezetők",
+  "feor_nev": "Ipari tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1323",
+  "feor": "1313",
+  "isco_nev": "Építési vezetők",
+  "feor_nev": "Építőipari tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1324",
+  "feor": "1321",
+  "isco_nev": "Beszerzési, elosztási értékesítési és hasonló vezetők",
+  "feor_nev": "Szállítási, logisztikai és raktározási tevékenységet"
+ },
+ {
+  "isco": "1341",
+  "feor": "1325",
+  "isco_nev": "Gyermekgondozási szolgáltatások vezetői",
+  "feor_nev": "Gyermekgondozási tevékenységet folytató egység"
+ },
+ {
+  "isco": "1342",
+  "feor": "1327",
+  "isco_nev": "Egészségügyi szolgáltatások vezetői",
+  "feor_nev": "Egészségügyi tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1343",
+  "feor": "1326",
+  "isco_nev": "Idősgondozási szolgáltatások vezetői",
+  "feor_nev": "Idősgondozási tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1344",
+  "feor": "1324",
+  "isco_nev": "Szociális szolgáltatások vezetői",
+  "feor_nev": "Szociális tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1345",
+  "feor": "1328",
+  "isco_nev": "Oktatási vezetők",
+  "feor_nev": "Oktatási-nevelési tevékenységet folytató egység"
+ },
+ {
+  "isco": "1346",
+  "feor": "1323",
+  "isco_nev": "Pénzügyi és biztosítási szolgáltatások vezetői",
+  "feor_nev": "Pénzintézeti tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1349",
+  "feor": "1329",
+  "isco_nev": "Máshová nem sorolható szakmai szolgáltatások vezetői",
+  "feor_nev": "Egyéb szolgáltatást nyújtó egység vezetője"
+ },
+ {
+  "isco": "1349",
+  "feor": "1335",
+  "isco_nev": "Máshová nem sorolható szakmai szolgáltatások vezetői",
+  "feor_nev": "Kulturális tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1411",
+  "feor": "1331",
+  "isco_nev": "Szállodaigazgatók",
+  "feor_nev": "Szálláshely-szolgáltatási tevékenységet folytató egység"
+ },
+ {
+  "isco": "1412",
+  "feor": "1332",
+  "isco_nev": "Étteremvezetők",
+  "feor_nev": "Vendéglátó tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1420",
+  "feor": "1333",
+  "isco_nev": "Kis- és nagykereskedelmi vezetők",
+  "feor_nev": "Kereskedelmi tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1431",
+  "feor": "1335",
+  "isco_nev": "Sport-, rekreációs és kulturális központok vezetői",
+  "feor_nev": "Kulturális tevékenységet folytató egység vezetője"
+ },
+ {
+  "isco": "1431",
+  "feor": "1336",
+  "isco_nev": "Sport-, rekreációs és kulturális központok vezetői",
+  "feor_nev": "Sport- és rekreációs tevékenységet folytató egység"
+ },
+ {
+  "isco": "1439",
+  "feor": "1334",
+  "isco_nev": "Máshová nem sorolható szolgáltatások vezetői",
+  "feor_nev": "Üzleti szolgáltatási tevékenységet folytató egység"
+ },
+ {
+  "isco": "1439",
+  "feor": "1339",
+  "isco_nev": "Máshová nem sorolható szolgáltatások vezetői",
+  "feor_nev": "Egyéb kereskedelmi, vendéglátó és hasonló"
+ },
+ {
+  "isco": "2111",
+  "feor": "2161",
+  "isco_nev": "Fizikusok és csillagászok",
+  "feor_nev": "Fizikus"
+ },
+ {
+  "isco": "2111",
+  "feor": "2162",
+  "isco_nev": "Fizikusok és csillagászok",
+  "feor_nev": "Csillagász"
+ },
+ {
+  "isco": "2112",
+  "feor": "2163",
+  "isco_nev": "Meteorológusok",
+  "feor_nev": "Meteorológus"
+ },
+ {
+  "isco": "2113",
+  "feor": "2164",
+  "isco_nev": "Kémikusok",
+  "feor_nev": "Kémikus"
+ },
+ {
+  "isco": "2114",
+  "feor": "2165",
+  "isco_nev": "Geológusok és geofizikusok",
+  "feor_nev": "Geológus"
+ },
+ {
+  "isco": "2120",
+  "feor": "2166",
+  "isco_nev": "Matematikusok, biztosításmatematikusok (aktuáriusok)",
+  "feor_nev": "Matematikus"
+ },
+ {
+  "isco": "2120",
+  "feor": "2625",
+  "isco_nev": "Matematikusok, biztosításmatematikusok (aktuáriusok)",
+  "feor_nev": "Statisztikus"
+ },
+ {
+  "isco": "2131",
+  "feor": "2167",
+  "isco_nev": "Biológusok, botanikusok, zoológusok és hasonló",
+  "feor_nev": "Biológus, botanikus, zoológus és rokon foglalkozású"
+ },
+ {
+  "isco": "2131",
+  "feor": "2169",
+  "isco_nev": "Biológusok, botanikusok, zoológusok és hasonló",
+  "feor_nev": "Egyéb természettudományi foglalkozású"
+ },
+ {
+  "isco": "2132",
+  "feor": "2131",
+  "isco_nev": "Mezőgazdasági, erdészeti és halászati tanácsadók",
+  "feor_nev": "Mezőgazdasági mérnök"
+ },
+ {
+  "isco": "2132",
+  "feor": "2132",
+  "isco_nev": "Mezőgazdasági, erdészeti és halászati tanácsadók",
+  "feor_nev": "Erdő- és természetvédelmi mérnök"
+ },
+ {
+  "isco": "2132",
+  "feor": "2242",
+  "isco_nev": "Mezőgazdasági, erdészeti és halászati tanácsadók",
+  "feor_nev": "Növényorvos (növényvédelmi szakértő)"
+ },
+ {
+  "isco": "2133",
+  "feor": "2168",
+  "isco_nev": "Környezetvédelmi foglalkozásúak",
+  "feor_nev": "Környezetfelmérő, -tanácsadó"
+ },
+ {
+  "isco": "2141",
+  "feor": "3161",
+  "isco_nev": "Ipari és termelési mérnökök",
+  "feor_nev": "Munka- és termelésszervező"
+ },
+ {
+  "isco": "2141",
+  "feor": "3162",
+  "isco_nev": "Ipari és termelési mérnökök",
+  "feor_nev": "Energetikus"
+ },
+ {
+  "isco": "2141",
+  "feor": "3163",
+  "isco_nev": "Ipari és termelési mérnökök",
+  "feor_nev": "Munkavédelmi és üzembiztonsági foglalkozású"
+ },
+ {
+  "isco": "2142",
+  "feor": "2116",
+  "isco_nev": "Építőmérnökök",
+  "feor_nev": "Építőmérnök"
+ },
+ {
+  "isco": "2143",
+  "feor": "2168",
+  "isco_nev": "Környezetvédelmi mérnökök",
+  "feor_nev": "Környezetfelmérő, -tanácsadó"
+ },
+ {
+  "isco": "2144",
+  "feor": "2118",
+  "isco_nev": "Gépészmérnökök",
+  "feor_nev": "Gépészmérnök"
+ },
+ {
+  "isco": "2145",
+  "feor": "2117",
+  "isco_nev": "Vegyészmérnökök",
+  "feor_nev": "Vegyészmérnök"
+ },
+ {
+  "isco": "2146",
+  "feor": "2111",
+  "isco_nev": "Bánya- és kohómérnökök és hasonló foglalkozásúak",
+  "feor_nev": "Bányamérnök"
+ },
+ {
+  "isco": "2146",
+  "feor": "2112",
+  "isco_nev": "Bánya- és kohómérnökök és hasonló foglalkozásúak",
+  "feor_nev": "Kohó- és anyagmérnök"
+ },
+ {
+  "isco": "2149",
+  "feor": "2113",
+  "isco_nev": "Máshová nem sorolható mérnökök",
+  "feor_nev": "Élelmiszer-ipari mérnök"
+ },
+ {
+  "isco": "2149",
+  "feor": "2114",
+  "isco_nev": "Máshová nem sorolható mérnökök",
+  "feor_nev": "Fa- és könnyűipari mérnök"
+ },
+ {
+  "isco": "2149",
+  "feor": "2137",
+  "isco_nev": "Máshová nem sorolható mérnökök",
+  "feor_nev": "Minőségbiztosítási mérnök"
+ },
+ {
+  "isco": "2149",
+  "feor": "2139",
+  "isco_nev": "Máshová nem sorolható mérnökök",
+  "feor_nev": "Egyéb, máshova nem sorolható mérnök"
+ },
+ {
+  "isco": "2151",
+  "feor": "2121",
+  "isco_nev": "Erősáramú villamosmérnökök",
+  "feor_nev": "Villamosmérnök (energetikai mérnök)"
+ },
+ {
+  "isco": "2152",
+  "feor": "2122",
+  "isco_nev": "Gyengeáramú villamosmérnökök",
+  "feor_nev": "Villamosmérnök (elektronikai mérnök)"
+ },
+ {
+  "isco": "2153",
+  "feor": "2123",
+  "isco_nev": "Telekommunikációs mérnökök",
+  "feor_nev": "Telekommunikációs mérnök"
+ },
+ {
+  "isco": "2161",
+  "feor": "2115",
+  "isco_nev": "Építészek",
+  "feor_nev": "Építészmérnök"
+ },
+ {
+  "isco": "2162",
+  "feor": "2133",
+  "isco_nev": "Tájépítészek",
+  "feor_nev": "Táj- és kertépítészmérnök"
+ },
+ {
+  "isco": "2163",
+  "feor": "2723",
+  "isco_nev": "Termék- és divattervezők",
+  "feor_nev": "Iparművész, gyártmány- és ruhatervező"
+ },
+ {
+  "isco": "2164",
+  "feor": "2134",
+  "isco_nev": "Várostervezők és közlekedési mérnökök",
+  "feor_nev": "Település- és közlekedéstervező mérnök"
+ },
+ {
+  "isco": "2165",
+  "feor": "2135",
+  "isco_nev": "Térképészek és földmérők",
+  "feor_nev": "Földmérő és térinformatikus"
+ },
+ {
+  "isco": "2166",
+  "feor": "2136",
+  "isco_nev": "Tervezőgrafikusok és multimédiatervezők",
+  "feor_nev": "Grafikus és multimédia-tervező"
+ },
+ {
+  "isco": "2211",
+  "feor": "2211",
+  "isco_nev": "Általános orvosok",
+  "feor_nev": "Általános orvos"
+ },
+ {
+  "isco": "2212",
+  "feor": "2212",
+  "isco_nev": "Szakorvosok",
+  "feor_nev": "Szakorvos"
+ },
+ {
+  "isco": "2221",
+  "feor": "2231",
+  "isco_nev": "Diplomás ápolók",
+  "feor_nev": "Ápoló (felsőfokú képzettséghez kapcsolódó)"
+ },
+ {
+  "isco": "2222",
+  "feor": "2232",
+  "isco_nev": "Szülésznők",
+  "feor_nev": "Szülész(nő) (felsőfokú képzettséghez kapcsolódó)"
+ },
+ {
+  "isco": "2230",
+  "feor": "2228",
+  "isco_nev": "Hagyományos és alternatív gyógyítók",
+  "feor_nev": "Alternatív gyógymódot alkalmazó"
+ },
+ {
+  "isco": "2250",
+  "feor": "2241",
+  "isco_nev": "Állatorvosok",
+  "feor_nev": "Állatorvos"
+ },
+ {
+  "isco": "2261",
+  "feor": "2213",
+  "isco_nev": "Fogorvosok",
+  "feor_nev": "Fogorvos, fogszakorvos"
+ },
+ {
+  "isco": "2262",
+  "feor": "2214",
+  "isco_nev": "Gyógyszerészek",
+  "feor_nev": "Gyógyszerész, szakgyógyszerész"
+ },
+ {
+  "isco": "2263",
+  "feor": "2221",
+  "isco_nev": "Környezet-, foglalkozás-egészségügyi és higiénés",
+  "feor_nev": "Környezet- és foglalkozás-egészségügyi foglalkozású"
+ },
+ {
+  "isco": "2264",
+  "feor": "2224",
+  "isco_nev": "Fizioterapeuták",
+  "feor_nev": "Gyógytornász"
+ },
+ {
+  "isco": "2265",
+  "feor": "2223",
+  "isco_nev": "Dietetikusok és táplálkozás-szakértők",
+  "feor_nev": "Dietetikus és táplálkozási tanácsadó"
+ },
+ {
+  "isco": "2266",
+  "feor": "2227",
+  "isco_nev": "Audiológusok és beszédterapeuták",
+  "feor_nev": "Hallás- és beszédterapeuta"
+ },
+ {
+  "isco": "2267",
+  "feor": "2222",
+  "isco_nev": "Optometristák",
+  "feor_nev": "Optometrista"
+ },
+ {
+  "isco": "2269",
+  "feor": "2229",
+  "isco_nev": "Máshová nem sorolható egészségügyi foglalkozásúak",
+  "feor_nev": "Egyéb humán-egészségügyi (társ)foglalkozású"
+ },
+ {
+  "isco": "2310",
+  "feor": "2410",
+  "isco_nev": "Egyetemek és egyéb felsőoktatási intézmények oktatói",
+  "feor_nev": "Egyetemi, főiskolai oktató, tanár"
+ },
+ {
+  "isco": "2320",
+  "feor": "2422",
+  "isco_nev": "Szakoktatók",
+  "feor_nev": "Középfokú nevelési-oktatási intézményi szakoktató,"
+ },
+ {
+  "isco": "2330",
+  "feor": "2421",
+  "isco_nev": "Középiskolai tanárok",
+  "feor_nev": "Középiskolai tanár"
+ },
+ {
+  "isco": "2341",
+  "feor": "2431",
+  "isco_nev": "Általános iskolai tanárok",
+  "feor_nev": "Általános iskolai tanár, tanító"
+ },
+ {
+  "isco": "2342",
+  "feor": "2432",
+  "isco_nev": "Óvodapedagógusok",
+  "feor_nev": "Csecsemő- és kisgyermeknevelő, óvodapedagógus"
+ },
+ {
+  "isco": "2351",
+  "feor": "2491",
+  "isco_nev": "Oktatás-módszertani foglalkozásúak",
+  "feor_nev": "Pedagógiai szakértő, szaktanácsadó"
+ },
+ {
+  "isco": "2352",
+  "feor": "2441",
+  "isco_nev": "Gyógypedagógusok",
+  "feor_nev": "Gyógypedagógus"
+ },
+ {
+  "isco": "2352",
+  "feor": "2442",
+  "isco_nev": "Gyógypedagógusok",
+  "feor_nev": "Konduktor"
+ },
+ {
+  "isco": "2353",
+  "feor": "2492",
+  "isco_nev": "Egyéb nyelvtanárok",
+  "feor_nev": "Nyelvtanár (iskolarendszeren kívül)"
+ },
+ {
+  "isco": "2354",
+  "feor": "2493",
+  "isco_nev": "Egyéb zenetanárok",
+  "feor_nev": "Zenetanár (iskolarendszeren kívül)"
+ },
+ {
+  "isco": "2355",
+  "feor": "2494",
+  "isco_nev": "Egyéb művészeti oktatók",
+  "feor_nev": "Egyéb művészetek tanára (iskolarendszeren kívül)"
+ },
+ {
+  "isco": "2356",
+  "feor": "2495",
+  "isco_nev": "Információs technológiák oktatói",
+  "feor_nev": "Informatikatanár (iskolarendszeren kívül)"
+ },
+ {
+  "isco": "2359",
+  "feor": "2499",
+  "isco_nev": "Máshová nem sorolható oktatási foglalkozásúak",
+  "feor_nev": "Egyéb szakképzett oktató, nevelő"
+ },
+ {
+  "isco": "2411",
+  "feor": "2512",
+  "isco_nev": "Könyvelők és könyvvizsgálók",
+  "feor_nev": "Adótanácsadó, adószakértő"
+ },
+ {
+  "isco": "2411",
+  "feor": "2513",
+  "isco_nev": "Könyvelők és könyvvizsgálók",
+  "feor_nev": "Könyvvizsgáló, könyvelő, könyvszakértő"
+ },
+ {
+  "isco": "2411",
+  "feor": "2514",
+  "isco_nev": "Könyvelők és könyvvizsgálók",
+  "feor_nev": "Kontroller"
+ },
+ {
+  "isco": "2412",
+  "feor": "2511",
+  "isco_nev": "Pénzügyi és befektetési tanácsadók",
+  "feor_nev": "Pénzügyi elemző és befektetési tanácsadó"
+ },
+ {
+  "isco": "2413",
+  "feor": "2511",
+  "isco_nev": "Pénzügyi elemzők",
+  "feor_nev": "Pénzügyi elemző és befektetési tanácsadó"
+ },
+ {
+  "isco": "2421",
+  "feor": "2521",
+  "isco_nev": "Vezetési tanácsadók és szervezeti elemzők",
+  "feor_nev": "Szervezetirányítási elemző, szervező"
+ },
+ {
+  "isco": "2422",
+  "feor": "2522",
+  "isco_nev": "Stratégiai fejlesztők, elemzők",
+  "feor_nev": "Üzletpolitikai elemző, szervező"
+ },
+ {
+  "isco": "2423",
+  "feor": "2523",
+  "isco_nev": "Személyzeti szakemberek és karrier-tanácsadók",
+  "feor_nev": "Személyzeti és pályaválasztási szakértő"
+ },
+ {
+  "isco": "2424",
+  "feor": "2524",
+  "isco_nev": "Továbbképzési és személyzet-fejlesztési foglalkozásúak",
+  "feor_nev": "Képzési és személyzetfejlesztési szakértő"
+ },
+ {
+  "isco": "2431",
+  "feor": "2531",
+  "isco_nev": "Reklám- és marketing foglalkozásúak",
+  "feor_nev": "Piackutató, reklám- és marketingtevékenységet tervező,"
+ },
+ {
+  "isco": "2431",
+  "feor": "3632",
+  "isco_nev": "Reklám- és marketing foglalkozásúak",
+  "feor_nev": "Marketing- és PR-ügyintéző"
+ },
+ {
+  "isco": "2432",
+  "feor": "2532",
+  "isco_nev": "PR foglalkozásúak",
+  "feor_nev": "PR-tevékenységet tervező, szervező"
+ },
+ {
+  "isco": "2432",
+  "feor": "3632",
+  "isco_nev": "PR foglalkozásúak",
+  "feor_nev": "Marketing- és PR-ügyintéző"
+ },
+ {
+  "isco": "2433",
+  "feor": "2533",
+  "isco_nev": "Műszaki és gyógyászati termékek/szolgáltatások",
+  "feor_nev": "Kereskedelmi tervező, szervező"
+ },
+ {
+  "isco": "2434",
+  "feor": "2534",
+  "isco_nev": "Információs és kommunikációs technológiák értékesítői",
+  "feor_nev": "Informatikai és telekommunikációs technológiai"
+ },
+ {
+  "isco": "2511",
+  "feor": "2141",
+  "isco_nev": "Rendszerelemzők",
+  "feor_nev": "Rendszerelemző (informatikai)"
+ },
+ {
+  "isco": "2512",
+  "feor": "2142",
+  "isco_nev": "Szoftverfejlesztők",
+  "feor_nev": "Szoftverfejlesztő"
+ },
+ {
+  "isco": "2513",
+  "feor": "2143",
+  "isco_nev": "Web- és multimédia-fejlesztők",
+  "feor_nev": "Hálózat- és multimédia-fejlesztő"
+ },
+ {
+  "isco": "2514",
+  "feor": "2144",
+  "isco_nev": "Alkalmazásfejlesztők",
+  "feor_nev": "Alkalmazásprogramozó"
+ },
+ {
+  "isco": "2519",
+  "feor": "2149",
+  "isco_nev": "Máshová nem sorolható szoftver- és",
+  "feor_nev": "Egyéb szoftver- és alkalmazásfejlesztő, -elemző"
+ },
+ {
+  "isco": "2521",
+  "feor": "2151",
+  "isco_nev": "Adatbázis-tervezők és -rendszergazdák",
+  "feor_nev": "Adatbázis-tervező és -üzemeltető"
+ },
+ {
+  "isco": "2522",
+  "feor": "2152",
+  "isco_nev": "Rendszergazdák",
+  "feor_nev": "Rendszergazda"
+ },
+ {
+  "isco": "2523",
+  "feor": "2153",
+  "isco_nev": "Számítógép-hálózati foglalkozásúak",
+  "feor_nev": "Számítógép-hálózati elemző, üzemeltető"
+ },
+ {
+  "isco": "2611",
+  "feor": "2612",
+  "isco_nev": "Ügyvédek, ügyészek, jogszabály-szövegezők",
+  "feor_nev": "Ügyész"
+ },
+ {
+  "isco": "2611",
+  "feor": "2615",
+  "isco_nev": "Ügyvédek, ügyészek, jogszabály-szövegezők",
+  "feor_nev": "Ügyvéd"
+ },
+ {
+  "isco": "2612",
+  "feor": "2613",
+  "isco_nev": "Bírák",
+  "feor_nev": "Bíró"
+ },
+ {
+  "isco": "2619",
+  "feor": "2611",
+  "isco_nev": "Máshová nem sorolható jogi foglalkozásúak",
+  "feor_nev": "Jogász, jogtanácsos"
+ },
+ {
+  "isco": "2619",
+  "feor": "2614",
+  "isco_nev": "Máshová nem sorolható jogi foglalkozásúak",
+  "feor_nev": "Közjegyző"
+ },
+ {
+  "isco": "2619",
+  "feor": "2619",
+  "isco_nev": "Máshová nem sorolható jogi foglalkozásúak",
+  "feor_nev": "Egyéb jogi foglalkozású"
+ },
+ {
+  "isco": "2619",
+  "feor": "2910",
+  "isco_nev": "Máshová nem sorolható jogi foglalkozásúak",
+  "feor_nev": "Egyéb magasan képzett ügyintéző"
+ },
+ {
+  "isco": "2621",
+  "feor": "2712",
+  "isco_nev": "Levél- és irattárosok, muzeológusok",
+  "feor_nev": "Levéltáros"
+ },
+ {
+  "isco": "2621",
+  "feor": "2713",
+  "isco_nev": "Levél- és irattárosok, muzeológusok",
+  "feor_nev": "Muzeológus, múzeumi gyűjteménygondnok"
+ },
+ {
+  "isco": "2622",
+  "feor": "2711",
+  "isco_nev": "Könyvtárosok és hasonló információs foglalkozásúak",
+  "feor_nev": "Könyvtáros, informatikus könyvtáros"
+ },
+ {
+  "isco": "2631",
+  "feor": "2624",
+  "isco_nev": "Közgazdászok",
+  "feor_nev": "Elemző közgazdász"
+ },
+ {
+  "isco": "2631",
+  "feor": "2629",
+  "isco_nev": "Közgazdászok",
+  "feor_nev": "Egyéb társadalomtudományi foglalkozású"
+ },
+ {
+  "isco": "2631",
+  "feor": "2910",
+  "isco_nev": "Közgazdászok",
+  "feor_nev": "Egyéb magasan képzett ügyintéző"
+ },
+ {
+  "isco": "2632",
+  "feor": "2623",
+  "isco_nev": "Szociológusok, antropológusok, és hasonló",
+  "feor_nev": "Néprajzkutató"
+ },
+ {
+  "isco": "2632",
+  "feor": "2626",
+  "isco_nev": "Szociológusok, antropológusok, és hasonló",
+  "feor_nev": "Szociológus, demográfus"
+ },
+ {
+  "isco": "2632",
+  "feor": "2629",
+  "isco_nev": "Szociológusok, antropológusok, és hasonló",
+  "feor_nev": "Egyéb társadalomtudományi foglalkozású"
+ },
+ {
+  "isco": "2633",
+  "feor": "2621",
+  "isco_nev": "Filozófusok, történészek és politológusok",
+  "feor_nev": "Filozófus, politológus"
+ },
+ {
+  "isco": "2633",
+  "feor": "2622",
+  "isco_nev": "Filozófusok, történészek és politológusok",
+  "feor_nev": "Történész, régész"
+ },
+ {
+  "isco": "2634",
+  "feor": "2628",
+  "isco_nev": "Pszichológusok",
+  "feor_nev": "Pszichológus"
+ },
+ {
+  "isco": "2635",
+  "feor": "2311",
+  "isco_nev": "Szociális munkások, tanácsadással foglalkozó",
+  "feor_nev": "Szociálpolitikus"
+ },
+ {
+  "isco": "2635",
+  "feor": "2312",
+  "isco_nev": "Szociális munkások, tanácsadással foglalkozó",
+  "feor_nev": "Szociális munkás és tanácsadó"
+ },
+ {
+  "isco": "2636",
+  "feor": "2730",
+  "isco_nev": "Vallási foglalkozásúak",
+  "feor_nev": "Pap (lelkész), egyházi foglalkozású"
+ },
+ {
+  "isco": "2641",
+  "feor": "2715",
+  "isco_nev": "Írók és hasonló szerzők",
+  "feor_nev": "Könyv- és lapkiadó szerkesztője"
+ },
+ {
+  "isco": "2641",
+  "feor": "2721",
+  "isco_nev": "Írók és hasonló szerzők",
+  "feor_nev": "Író (újságíró nélkül)"
+ },
+ {
+  "isco": "2642",
+  "feor": "2715",
+  "isco_nev": "Újságírók",
+  "feor_nev": "Könyv- és lapkiadó szerkesztője"
+ },
+ {
+  "isco": "2642",
+  "feor": "2716",
+  "isco_nev": "Újságírók",
+  "feor_nev": "Újságíró, rádióműsor-, televízióműsor-szerkesztő"
+ },
+ {
+  "isco": "2643",
+  "feor": "2627",
+  "isco_nev": "Fordítók, tolmácsok és egyéb nyelvészek",
+  "feor_nev": "Nyelvész, fordító, tolmács"
+ },
+ {
+  "isco": "2643",
+  "feor": "3514",
+  "isco_nev": "Fordítók, tolmácsok és egyéb nyelvészek",
+  "feor_nev": "Jelnyelvi tolmács"
+ },
+ {
+  "isco": "2651",
+  "feor": "2722",
+  "isco_nev": "Vizuális művészek",
+  "feor_nev": "Képzőművész"
+ },
+ {
+  "isco": "2652",
+  "feor": "2724",
+  "isco_nev": "Zenészek, énekesek és zeneszerzők",
+  "feor_nev": "Zeneszerző, zenész, énekes"
+ },
+ {
+  "isco": "2653",
+  "feor": "2727",
+  "isco_nev": "Táncosok és koreográfusok",
+  "feor_nev": "Táncművész, koreográfus"
+ },
+ {
+  "isco": "2654",
+  "feor": "2725",
+  "isco_nev": "Film, színház- és hasonló rendezők, producerek",
+  "feor_nev": "Rendező, operatőr"
+ },
+ {
+  "isco": "2655",
+  "feor": "2726",
+  "isco_nev": "Színművészek",
+  "feor_nev": "Színész, bábművész"
+ },
+ {
+  "isco": "2656",
+  "feor": "3719",
+  "isco_nev": "Rádió-, televízió- és egyéb médiabemondók",
+  "feor_nev": "Egyéb művészeti és kulturális foglalkozású"
+ },
+ {
+  "isco": "2659",
+  "feor": "2728",
+  "isco_nev": "Máshová nem sorolható képző- és előadó-művészek",
+  "feor_nev": "Cirkuszi- és hasonló előadóművész"
+ },
+ {
+  "isco": "2659",
+  "feor": "2729",
+  "isco_nev": "Máshová nem sorolható képző- és előadó-művészek",
+  "feor_nev": "Egyéb alkotó- és előadó-művészi foglalkozású (felsőfokú"
+ },
+ {
+  "isco": "3111",
+  "feor": "3139",
+  "isco_nev": "Kémia- és fizika tudományok technikusai",
+  "feor_nev": "Egyéb, máshova nem sorolható technikus"
+ },
+ {
+  "isco": "3112",
+  "feor": "3117",
+  "isco_nev": "Építésztechnikusok",
+  "feor_nev": "Építő- és építésztechnikus"
+ },
+ {
+  "isco": "3113",
+  "feor": "3121",
+  "isco_nev": "Erősáramú villamosipari technikusok",
+  "feor_nev": "Villamosipari technikus (energetikai technikus)"
+ },
+ {
+  "isco": "3114",
+  "feor": "3122",
+  "isco_nev": "Gyengeáramú villamosipari technikusok",
+  "feor_nev": "Villamosipari technikus (elektronikai technikus)"
+ },
+ {
+  "isco": "3115",
+  "feor": "3116",
+  "isco_nev": "Gépésztechnikusok",
+  "feor_nev": "Gépésztechnikus"
+ },
+ {
+  "isco": "3116",
+  "feor": "3115",
+  "isco_nev": "Vegyésztechnikusok",
+  "feor_nev": "Vegyésztechnikus"
+ },
+ {
+  "isco": "3117",
+  "feor": "3111",
+  "isco_nev": "Bányászati és kohászati technikusok",
+  "feor_nev": "Bányászati technikus"
+ },
+ {
+  "isco": "3117",
+  "feor": "3112",
+  "isco_nev": "Bányászati és kohászati technikusok",
+  "feor_nev": "Kohó- és anyagtechnikus"
+ },
+ {
+  "isco": "3118",
+  "feor": "3136",
+  "isco_nev": "Műszaki rajzolók",
+  "feor_nev": "Műszaki rajzoló, szerkesztő"
+ },
+ {
+  "isco": "3119",
+  "feor": "3113",
+  "isco_nev": "Máshová nem sorolható természettudományi és",
+  "feor_nev": "Élelmiszer-ipari technikus"
+ },
+ {
+  "isco": "3119",
+  "feor": "3114",
+  "isco_nev": "Máshová nem sorolható természettudományi és",
+  "feor_nev": "Fa- és könnyűipari technikus"
+ },
+ {
+  "isco": "3119",
+  "feor": "3133",
+  "isco_nev": "Máshová nem sorolható természettudományi és",
+  "feor_nev": "Földmérő és térinformatikai technikus"
+ },
+ {
+  "isco": "3119",
+  "feor": "3135",
+  "isco_nev": "Máshová nem sorolható természettudományi és",
+  "feor_nev": "Minőségbiztosítási technikus"
+ },
+ {
+  "isco": "3119",
+  "feor": "3139",
+  "isco_nev": "Máshová nem sorolható természettudományi és",
+  "feor_nev": "Egyéb, máshova nem sorolható technikus"
+ },
+ {
+  "isco": "3119",
+  "feor": "3162",
+  "isco_nev": "Máshová nem sorolható természettudományi és",
+  "feor_nev": "Energetikus"
+ },
+ {
+  "isco": "3119",
+  "feor": "3163",
+  "isco_nev": "Máshová nem sorolható természettudományi és",
+  "feor_nev": "Munkavédelmi és üzembiztonsági foglalkozású"
+ },
+ {
+  "isco": "3119",
+  "feor": "3190",
+  "isco_nev": "Máshová nem sorolható természettudományi és",
+  "feor_nev": "Egyéb műszaki foglalkozású"
+ },
+ {
+  "isco": "3121",
+  "feor": "3211",
+  "isco_nev": "Bányászati irányítók",
+  "feor_nev": "Bányászati szakmai irányító, felügyelő"
+ },
+ {
+  "isco": "3122",
+  "feor": "3212",
+  "isco_nev": "Feldolgozóipari irányítók",
+  "feor_nev": "Feldolgozóipari szakmai irányító, felügyelő"
+ },
+ {
+  "isco": "3123",
+  "feor": "3213",
+  "isco_nev": "Építőipari irányítók",
+  "feor_nev": "Építőipari szakmai irányító, felügyelő"
+ },
+ {
+  "isco": "3131",
+  "feor": "3151",
+  "isco_nev": "Erőműkezelők",
+  "feor_nev": "Energetikai (erőművi) berendezés vezérlője"
+ },
+ {
+  "isco": "3132",
+  "feor": "3152",
+  "isco_nev": "Égetőüzemi és víztisztító berendezések kezelői",
+  "feor_nev": "Égető-, víz- és csatornaművi berendezés vezérlője"
+ },
+ {
+  "isco": "3133",
+  "feor": "3153",
+  "isco_nev": "Vegyipari feldolgozó berendezések kezelői",
+  "feor_nev": "Vegyipari alapanyag-feldolgozó berendezés vezérlője"
+ },
+ {
+  "isco": "3134",
+  "feor": "3154",
+  "isco_nev": "Kőolaj- és földgázfinomító berendezések kezelői",
+  "feor_nev": "Kőolaj- és földgázfinomító berendezés vezérlője"
+ },
+ {
+  "isco": "3135",
+  "feor": "3155",
+  "isco_nev": "Fémfeldolgozási folyamatirányító rendszerek kezelői",
+  "feor_nev": "Fémgyártási berendezés vezérlője"
+ },
+ {
+  "isco": "3139",
+  "feor": "3159",
+  "isco_nev": "Folyamatirányító rendszerek máshová nem sorolható",
+  "feor_nev": "Egyéb folyamatirányító berendezés vezérlője"
+ },
+ {
+  "isco": "3142",
+  "feor": "3131",
+  "isco_nev": "Mezőgazdasági technikusok",
+  "feor_nev": "Mezőgazdasági technikus"
+ },
+ {
+  "isco": "3142",
+  "feor": "3342",
+  "isco_nev": "Mezőgazdasági technikusok Mezőgazdasági",
+  "feor_nev": "Növényorvosi (növényvédelmi) asszisztens"
+ },
+ {
+  "isco": "3143",
+  "feor": "3132",
+  "isco_nev": "Erdésztechnikusok Erdésztechnikusok",
+  "feor_nev": "Erdő- és természetvédelmi technikus"
+ },
+ {
+  "isco": "3151",
+  "feor": "3171",
+  "isco_nev": "Hajógépészek",
+  "feor_nev": "Tengeri és belvízi hajóparancsnok, fedélzeti tiszt"
+ },
+ {
+  "isco": "3152",
+  "feor": "3171",
+  "isco_nev": "Hajós fedélzeti tisztek és hajóvezetők",
+  "feor_nev": "Tengeri és belvízi hajóparancsnok, fedélzeti tiszt"
+ },
+ {
+  "isco": "3153",
+  "feor": "3172",
+  "isco_nev": "Légijármű-vezetők és hasonló foglalkozásúak",
+  "feor_nev": "Légijármű-vezető, hajózómérnök"
+ },
+ {
+  "isco": "3154",
+  "feor": "3173",
+  "isco_nev": "Légiirányítók",
+  "feor_nev": "Légiforgalmi irányító"
+ },
+ {
+  "isco": "3155",
+  "feor": "3174",
+  "isco_nev": "Légiközlekedés-biztonsági elektrotechnikusok",
+  "feor_nev": "Légiforgalmi irányítástechnikai berendezések"
+ },
+ {
+  "isco": "3211",
+  "feor": "3323",
+  "isco_nev": "Orvosi képalkotó diagnosztikai és terápiás",
+  "feor_nev": "Orvosi képalkotó diagnosztikai és terápiás"
+ },
+ {
+  "isco": "3212",
+  "feor": "3324",
+  "isco_nev": "Orvosi és patológiai labortechnikusok",
+  "feor_nev": "Orvosi laboratóriumi asszisztens"
+ },
+ {
+  "isco": "3213",
+  "feor": "3326",
+  "isco_nev": "Gyógyszerésztechnikusok és -asszisztensek",
+  "feor_nev": "Gyógyszertári és gyógyszerellátási asszisztens"
+ },
+ {
+  "isco": "3214",
+  "feor": "3333",
+  "isco_nev": "Gyógyászatisegédeszköz- és fogtechnikusok",
+  "feor_nev": "Fogtechnikus"
+ },
+ {
+  "isco": "3214",
+  "feor": "3334",
+  "isco_nev": "Gyógyászatisegédeszköz- és fogtechnikusok",
+  "feor_nev": "Ortopédiai eszközkészítő"
+ },
+ {
+  "isco": "3221",
+  "feor": "3311",
+  "isco_nev": "Ápolók",
+  "feor_nev": "Ápoló, szakápoló"
+ },
+ {
+  "isco": "3222",
+  "feor": "3312",
+  "isco_nev": "Szülészeti asszisztensek",
+  "feor_nev": "Szülész(nő)i tevékenység segítője"
+ },
+ {
+  "isco": "3230",
+  "feor": "3327",
+  "isco_nev": "Hagyományos orvoslás és alternatív gyógymód",
+  "feor_nev": "Alternatív gyógymódok alkalmazásának segítője"
+ },
+ {
+  "isco": "3240",
+  "feor": "3341",
+  "isco_nev": "Állatorvosi technikusok és asszisztensek",
+  "feor_nev": "Állatorvosi asszisztens"
+ },
+ {
+  "isco": "3251",
+  "feor": "3325",
+  "isco_nev": "Fogászati asszisztensek és terapeuták",
+  "feor_nev": "Fogászati asszisztens"
+ },
+ {
+  "isco": "3252",
+  "feor": "3322",
+  "isco_nev": "Egészségügyi nyilvántartások és dokumentációk",
+  "feor_nev": "Egészségügyi dokumentátor"
+ },
+ {
+  "isco": "3253",
+  "feor": "2225",
+  "isco_nev": "Közösségi egészségügyi foglalkozásúak Közösségi",
+  "feor_nev": "Védőnő"
+ },
+ {
+  "isco": "3254",
+  "feor": "3335",
+  "isco_nev": "Látszerészek",
+  "feor_nev": "Látszerész"
+ },
+ {
+  "isco": "3255",
+  "feor": "3332",
+  "isco_nev": "Fizioterápiás technikusok és asszisztensek",
+  "feor_nev": "Fizioterápiás asszisztens, masszőr"
+ },
+ {
+  "isco": "3256",
+  "feor": "3321",
+  "isco_nev": "Orvosi asszisztensek",
+  "feor_nev": "Általános egészségügyi asszisztens"
+ },
+ {
+  "isco": "3257",
+  "feor": "3331",
+  "isco_nev": "Környezet- és foglalkozás-egészségügyi ellenőrök",
+  "feor_nev": "Környezet- és foglalkozás-egészségügyi kiegészítő"
+ },
+ {
+  "isco": "3258",
+  "feor": "2226",
+  "isco_nev": "Mentőápolók",
+  "feor_nev": "Mentőtiszt"
+ },
+ {
+  "isco": "3259",
+  "feor": "3339",
+  "isco_nev": "Máshová nem sorolható egészségügyi foglalkozásúak",
+  "feor_nev": "Egyéb, humánegészségügyhöz kapcsolódó foglalkozású"
+ },
+ {
+  "isco": "3311",
+  "feor": "3613",
+  "isco_nev": "Értékpapír-kereskedők és pénzügyi közvetítők",
+  "feor_nev": "Tőzsde- és pénzügyi ügynök, bróker"
+ },
+ {
+  "isco": "3312",
+  "feor": "3612",
+  "isco_nev": "Hitel- és kölcsönügyintézők",
+  "feor_nev": "Pénzintézeti ügyintéző"
+ },
+ {
+  "isco": "3313",
+  "feor": "3611",
+  "isco_nev": "Számviteli foglalkozásúak",
+  "feor_nev": "Pénzügyi ügyintéző (a pénzintézeti ügyintéző kivételével)"
+ },
+ {
+  "isco": "3313",
+  "feor": "3614",
+  "isco_nev": "Számviteli foglalkozásúak",
+  "feor_nev": "Számviteli ügyintéző"
+ },
+ {
+  "isco": "3314",
+  "feor": "3615",
+  "isco_nev": "Statisztikusokat, matematikusokat és aktuáriusokat",
+  "feor_nev": "Statisztikai ügyintéző"
+ },
+ {
+  "isco": "3315",
+  "feor": "3616",
+  "isco_nev": "Becsüsök és kárfelmérők",
+  "feor_nev": "Értékbecslő, kárbecslő, kárszakértő"
+ },
+ {
+  "isco": "3321",
+  "feor": "3621",
+  "isco_nev": "Biztosítási üzletkötők",
+  "feor_nev": "Biztosítási ügynök, ügyintéző"
+ },
+ {
+  "isco": "3322",
+  "feor": "3622",
+  "isco_nev": "Kereskedelmi értékesítők",
+  "feor_nev": "Kereskedelmi ügyintéző"
+ },
+ {
+  "isco": "3323",
+  "feor": "3623",
+  "isco_nev": "Felvásárlók",
+  "feor_nev": "Anyaggazdálkodó, felvásárló"
+ },
+ {
+  "isco": "3324",
+  "feor": "3624",
+  "isco_nev": "Kereskedelmi üzletkötők",
+  "feor_nev": "Ügynök (a biztosítási ügynök kivételével)"
+ },
+ {
+  "isco": "3331",
+  "feor": "3622",
+  "isco_nev": "Vámügyintézők és speditőrök",
+  "feor_nev": "Kereskedelmi ügyintéző"
+ },
+ {
+  "isco": "3332",
+  "feor": "3631",
+  "isco_nev": "Konferencia- és rendezvényszervezők",
+  "feor_nev": "Konferencia- és rendezvényszervező"
+ },
+ {
+  "isco": "3333",
+  "feor": "3520",
+  "isco_nev": "Munka- és bérmunka-közvetítők",
+  "feor_nev": "Munkaerő-piaci szolgáltatási ügyintéző"
+ },
+ {
+  "isco": "3334",
+  "feor": "3633",
+  "isco_nev": "Ingatlanügynökök és -kezelők",
+  "feor_nev": "Ingatlanügynök, ingatlanforgalmazási ügyintéző"
+ },
+ {
+  "isco": "3339",
+  "feor": "3639",
+  "isco_nev": "Máshová nem sorolható üzleti szolgáltatásokat nyújtók",
+  "feor_nev": "Egyéb, máshova nem sorolható üzleti jellegű"
+ },
+ {
+  "isco": "3339",
+  "feor": "3910",
+  "isco_nev": "Máshová nem sorolható üzleti szolgáltatásokat nyújtók",
+  "feor_nev": "Egyéb ügyintéző"
+ },
+ {
+  "isco": "3341",
+  "feor": "3161",
+  "isco_nev": "Irodavezetők",
+  "feor_nev": "Munka- és termelésszervező"
+ },
+ {
+  "isco": "3341",
+  "feor": "3221",
+  "isco_nev": "Irodavezetők",
+  "feor_nev": "Irodai szakmai irányító, felügyelő"
+ },
+ {
+  "isco": "3342",
+  "feor": "3642",
+  "isco_nev": "Jogi titkárok",
+  "feor_nev": "Jogi asszisztens"
+ },
+ {
+  "isco": "3343",
+  "feor": "3641",
+  "isco_nev": "Igazgatási és ügyvezetési titkárok",
+  "feor_nev": "Személyi asszisztens"
+ },
+ {
+  "isco": "3343",
+  "feor": "3649",
+  "isco_nev": "Igazgatási és ügyvezetési titkárok",
+  "feor_nev": "Egyéb igazgatási és jogi asszisztens"
+ },
+ {
+  "isco": "3344",
+  "feor": "3322",
+  "isco_nev": "Orvosírnokok",
+  "feor_nev": "Egészségügyi dokumentátor"
+ },
+ {
+  "isco": "3351",
+  "feor": "3651",
+  "isco_nev": "Vám- és határfelügyeleti ügyintézők",
+  "feor_nev": "Vám- és pénzügyőr"
+ },
+ {
+  "isco": "3352",
+  "feor": "3652",
+  "isco_nev": "Adóhatósági ügyintézők",
+  "feor_nev": "Adó- és illetékhivatali ügyintéző"
+ },
+ {
+  "isco": "3353",
+  "feor": "3653",
+  "isco_nev": "Szociális ellátásokat kezelő ügyintézők",
+  "feor_nev": "Társadalombiztosítási és segélyezési hatósági ügyintéző"
+ },
+ {
+  "isco": "3354",
+  "feor": "3654",
+  "isco_nev": "Hatósági engedélyezési ügyintézők",
+  "feor_nev": "Hatósági engedélyek kiadásával foglalkozó ügyintéző"
+ },
+ {
+  "isco": "3355",
+  "feor": "3655",
+  "isco_nev": "Rendőrfelügyelők és nyomozók",
+  "feor_nev": "Nyomozó"
+ },
+ {
+  "isco": "3359",
+  "feor": "3659",
+  "isco_nev": "Máshová nem sorolható közhivatali ügyintézők",
+  "feor_nev": "Egyéb hatósági ügyintéző"
+ },
+ {
+  "isco": "3359",
+  "feor": "3910",
+  "isco_nev": "Máshová nem sorolható közhivatali ügyintézők",
+  "feor_nev": "Egyéb ügyintéző"
+ },
+ {
+  "isco": "3411",
+  "feor": "3649",
+  "isco_nev": "Jogi és hasonló foglalkozásúak",
+  "feor_nev": "Egyéb igazgatási és jogi asszisztens"
+ },
+ {
+  "isco": "3411",
+  "feor": "3910",
+  "isco_nev": "Jogi és hasonló foglalkozásúak",
+  "feor_nev": "Egyéb ügyintéző"
+ },
+ {
+  "isco": "3412",
+  "feor": "3511",
+  "isco_nev": "Szociális foglalkozásúak",
+  "feor_nev": "Szociális segítő"
+ },
+ {
+  "isco": "3412",
+  "feor": "3513",
+  "isco_nev": "Szociális foglalkozásúak",
+  "feor_nev": "Szociális gondozó, szakgondozó"
+ },
+ {
+  "isco": "3412",
+  "feor": "3515",
+  "isco_nev": "Szociális foglalkozásúak",
+  "feor_nev": "Ifjúságsegítő"
+ },
+ {
+  "isco": "3413",
+  "feor": "3730",
+  "isco_nev": "Vallási kiegészítő foglalkozásúak",
+  "feor_nev": "Egyéb vallási foglalkozású"
+ },
+ {
+  "isco": "3421",
+  "feor": "3721",
+  "isco_nev": "Sportolók",
+  "feor_nev": "Sportoló"
+ },
+ {
+  "isco": "3422",
+  "feor": "2717",
+  "isco_nev": "Sportedzők, -oktatók és -tisztségviselők",
+  "feor_nev": "Szakképzett edző, sportszervező, -irányító"
+ },
+ {
+  "isco": "3423",
+  "feor": "3722",
+  "isco_nev": "Fitneszoktatók és szabadidős programok vezetői",
+  "feor_nev": "Fitnesz- és rekreációs program irányítója"
+ },
+ {
+  "isco": "3431",
+  "feor": "3713",
+  "isco_nev": "Fényképészek",
+  "feor_nev": "Fényképész"
+ },
+ {
+  "isco": "3432",
+  "feor": "3714",
+  "isco_nev": "Épületbelső-tervezők és -dekoratőrök",
+  "feor_nev": "Díszletező, díszítő"
+ },
+ {
+  "isco": "3432",
+  "feor": "3716",
+  "isco_nev": "Épületbelső-tervezők és -dekoratőrök",
+  "feor_nev": "Lakberendező, dekoratőr"
+ },
+ {
+  "isco": "3433",
+  "feor": "3717",
+  "isco_nev": "Kiállítótermi, múzeumi és könyvtári technikusok",
+  "feor_nev": "Kulturális intézményi szaktechnikus"
+ },
+ {
+  "isco": "3434",
+  "feor": "3222",
+  "isco_nev": "Konyhafőnökök",
+  "feor_nev": "Konyhafőnök, séf"
+ },
+ {
+  "isco": "3435",
+  "feor": "2714",
+  "isco_nev": "Egyéb művészeti és kulturális foglalkozásúak",
+  "feor_nev": "Kulturális szervező"
+ },
+ {
+  "isco": "3435",
+  "feor": "2719",
+  "isco_nev": "Egyéb művészeti és kulturális foglalkozásúak",
+  "feor_nev": "Egyéb kulturális és sportfoglalkozású (felsőfokú"
+ },
+ {
+  "isco": "3435",
+  "feor": "3711",
+  "isco_nev": "Egyéb művészeti és kulturális foglalkozásúak",
+  "feor_nev": "Segédszínész, statiszta"
+ },
+ {
+  "isco": "3435",
+  "feor": "3712",
+  "isco_nev": "Egyéb művészeti és kulturális foglalkozásúak",
+  "feor_nev": "Segédrendező"
+ },
+ {
+  "isco": "3435",
+  "feor": "3715",
+  "isco_nev": "Egyéb művészeti és kulturális foglalkozásúak",
+  "feor_nev": "Kiegészítő filmgyártási és színházi foglalkozású"
+ },
+ {
+  "isco": "3435",
+  "feor": "3719",
+  "isco_nev": "Egyéb művészeti és kulturális foglalkozásúak",
+  "feor_nev": "Egyéb művészeti és kulturális foglalkozású"
+ },
+ {
+  "isco": "3511",
+  "feor": "3141",
+  "isco_nev": "Információs és kommunikációs technológiák üzemeltető",
+  "feor_nev": "Informatikai és kommunikációs rendszereket kezelő"
+ },
+ {
+  "isco": "3512",
+  "feor": "3142",
+  "isco_nev": "Információs és kommunikációs technológiák",
+  "feor_nev": "Informatikai és kommunikációs rendszerek felhasználóit"
+ },
+ {
+  "isco": "3513",
+  "feor": "3143",
+  "isco_nev": "Számítógépes hálózatok és rendszerek technikusai",
+  "feor_nev": "Számítógéphálózat- és rendszertechnikus"
+ },
+ {
+  "isco": "3514",
+  "feor": "3144",
+  "isco_nev": "Webtechnikusok",
+  "feor_nev": "Webrendszer- (hálózati) technikus"
+ },
+ {
+  "isco": "3521",
+  "feor": "3145",
+  "isco_nev": "Műsorszórási és audiovizuális technikusok",
+  "feor_nev": "Műsorszóró és audiovizuális technikus"
+ },
+ {
+  "isco": "3522",
+  "feor": "3146",
+  "isco_nev": "Távközlési technikusok",
+  "feor_nev": "Telekommunikációs technikus"
+ },
+ {
+  "isco": "4110",
+  "feor": "4112",
+  "isco_nev": "Általános irodai foglalkozásúak",
+  "feor_nev": "Általános irodai adminisztrátor"
+ },
+ {
+  "isco": "4120",
+  "feor": "4111",
+  "isco_nev": "Titkárok (általános)",
+  "feor_nev": "Titkár(nő)"
+ },
+ {
+  "isco": "4131",
+  "feor": "4113",
+  "isco_nev": "Gépírók és szövegszerkesztők",
+  "feor_nev": "Gépíró, szövegszerkesztő"
+ },
+ {
+  "isco": "4132",
+  "feor": "4114",
+  "isco_nev": "Adatrögzítők",
+  "feor_nev": "Adatrögzítő, kódoló"
+ },
+ {
+  "isco": "4211",
+  "feor": "4211",
+  "isco_nev": "Bankpénztárosok és hasonló foglalkozásúak",
+  "feor_nev": "Banki pénztáros"
+ },
+ {
+  "isco": "4211",
+  "feor": "4227",
+  "isco_nev": "Bankpénztárosok és hasonló foglalkozásúak",
+  "feor_nev": "Postai ügyfélkapcsolati foglalkozású"
+ },
+ {
+  "isco": "4212",
+  "feor": "4212",
+  "isco_nev": "Bukmékerek, krupiék és hasonló foglalkozásúak",
+  "feor_nev": "Szerencsejáték-szervező"
+ },
+ {
+  "isco": "4213",
+  "feor": "4213",
+  "isco_nev": "Zálogosok és pénzkölcsönzők",
+  "feor_nev": "Zálogházi ügyintéző és pénzkölcsönző"
+ },
+ {
+  "isco": "4214",
+  "feor": "3656",
+  "isco_nev": "Adósságbehajtók és hasonló foglalkozásúak",
+  "feor_nev": "Végrehajtó, adósságbehajtó"
+ },
+ {
+  "isco": "4221",
+  "feor": "4221",
+  "isco_nev": "Utazási irodai ügyintézők",
+  "feor_nev": "Utazásszervező, tanácsadó"
+ },
+ {
+  "isco": "4222",
+  "feor": "4225",
+  "isco_nev": "Telefonos ügyfélszolgálati ügyintézők",
+  "feor_nev": "Ügyfélszolgálati központ tájékoztatója"
+ },
+ {
+  "isco": "4223",
+  "feor": "4225",
+  "isco_nev": "Telefonközpont-kezelők",
+  "feor_nev": "Ügyfélszolgálati központ tájékoztatója"
+ },
+ {
+  "isco": "4224",
+  "feor": "4223",
+  "isco_nev": "Szállodai fogadóportások",
+  "feor_nev": "Szállodai recepciós"
+ },
+ {
+  "isco": "4225",
+  "feor": "4224",
+  "isco_nev": "Ügyfélszolgálati ügyintézők",
+  "feor_nev": "Ügyfél- (vevő)tájékoztató"
+ },
+ {
+  "isco": "4226",
+  "feor": "4222",
+  "isco_nev": "Recepciósok (általános)",
+  "feor_nev": "Recepciós"
+ },
+ {
+  "isco": "4227",
+  "feor": "4226",
+  "isco_nev": "Összeírók és piackutatási kérdezők",
+  "feor_nev": "Lakossági kérdező, összeíró"
+ },
+ {
+  "isco": "4229",
+  "feor": "4229",
+  "isco_nev": "Máshová nem sorolható, ügyfél-tájékoztatási",
+  "feor_nev": "Egyéb ügyfélkapcsolati foglalkozású"
+ },
+ {
+  "isco": "4311",
+  "feor": "4121",
+  "isco_nev": "Számviteli és könyvelési nyilvántartók",
+  "feor_nev": "Könyvelő (analitikus)"
+ },
+ {
+  "isco": "4312",
+  "feor": "4123",
+  "isco_nev": "Statisztikai, pénzügyi és biztosítási nyilvántartók",
+  "feor_nev": "Pénzügyi, statisztikai, biztosítási adminisztrátor"
+ },
+ {
+  "isco": "4313",
+  "feor": "4122",
+  "isco_nev": "Bérszámfejtők",
+  "feor_nev": "Bérelszámoló"
+ },
+ {
+  "isco": "4321",
+  "feor": "4131",
+  "isco_nev": "Készletnyilvántartók",
+  "feor_nev": "Készlet- és anyagnyilvántartó"
+ },
+ {
+  "isco": "4322",
+  "feor": "3161",
+  "isco_nev": "Termelési nyilvántartók",
+  "feor_nev": "Munka- és termelésszervező"
+ },
+ {
+  "isco": "4323",
+  "feor": "3161",
+  "isco_nev": "Szállítmányozási nyilvántartók",
+  "feor_nev": "Munka- és termelésszervező"
+ },
+ {
+  "isco": "4323",
+  "feor": "4132",
+  "isco_nev": "Szállítmányozási nyilvántartók",
+  "feor_nev": "Szállítási, szállítmányozási nyilvántartó"
+ },
+ {
+  "isco": "4411",
+  "feor": "4133",
+  "isco_nev": "Könyvtári nyilvántartók",
+  "feor_nev": "Könyvtári, levéltári nyilvántartó"
+ },
+ {
+  "isco": "4412",
+  "feor": "3161",
+  "isco_nev": "Postai kézbesítők és válogatók",
+  "feor_nev": "Munka- és termelésszervező"
+ },
+ {
+  "isco": "4412",
+  "feor": "4135",
+  "isco_nev": "Postai kézbesítők és válogatók",
+  "feor_nev": "Postai szolgáltató (kézbesítő, válogató)"
+ },
+ {
+  "isco": "4413",
+  "feor": "4114",
+  "isco_nev": "Kódolók, korrektúrázók és hasonló irodai foglalkozásúak",
+  "feor_nev": "Adatrögzítő, kódoló"
+ },
+ {
+  "isco": "4415",
+  "feor": "4136",
+  "isco_nev": "Iktatók, fénymásolók",
+  "feor_nev": "Iratkezelő, irattáros"
+ },
+ {
+  "isco": "4416",
+  "feor": "4134",
+  "isco_nev": "Személyzeti nyilvántartási foglalkozásúak",
+  "feor_nev": "Humánpolitikai adminisztrátor"
+ },
+ {
+  "isco": "4419",
+  "feor": "4129",
+  "isco_nev": "Máshová nem sorolható egyéb irodai kisegítő",
+  "feor_nev": "Egyéb számviteli foglalkozású"
+ },
+ {
+  "isco": "4419",
+  "feor": "4190",
+  "isco_nev": "Máshová nem sorolható egyéb irodai kisegítő",
+  "feor_nev": "Egyéb, máshova nem sorolható irodai, ügyviteli"
+ },
+ {
+  "isco": "5111",
+  "feor": "5232",
+  "isco_nev": "Utaskísérők és stewardok",
+  "feor_nev": "Utaskísérő (repülőn, hajón)"
+ },
+ {
+  "isco": "5112",
+  "feor": "5231",
+  "isco_nev": "Kalauzok",
+  "feor_nev": "Kalauz, menetjegyellenőr"
+ },
+ {
+  "isco": "5113",
+  "feor": "5233",
+  "isco_nev": "Idegenvezetők",
+  "feor_nev": "Idegenvezető"
+ },
+ {
+  "isco": "5120",
+  "feor": "5131",
+  "isco_nev": "Szakácsok",
+  "feor_nev": "Vendéglős"
+ },
+ {
+  "isco": "5120",
+  "feor": "5134",
+  "isco_nev": "Szakácsok",
+  "feor_nev": "Szakács"
+ },
+ {
+  "isco": "5131",
+  "feor": "5132",
+  "isco_nev": "Felszolgálók",
+  "feor_nev": "Pincér"
+ },
+ {
+  "isco": "5132",
+  "feor": "5133",
+  "isco_nev": "Pultosok",
+  "feor_nev": "Pultos"
+ },
+ {
+  "isco": "5141",
+  "feor": "5211",
+  "isco_nev": "Fodrászok",
+  "feor_nev": "Fodrász"
+ },
+ {
+  "isco": "5142",
+  "feor": "5212",
+  "isco_nev": "Kozmetikusok és hasonló foglalkozásúak",
+  "feor_nev": "Kozmetikus"
+ },
+ {
+  "isco": "5142",
+  "feor": "5213",
+  "isco_nev": "Kozmetikusok és hasonló foglalkozásúak",
+  "feor_nev": "Manikűrös, pedikűrös"
+ },
+ {
+  "isco": "5151",
+  "feor": "5241",
+  "isco_nev": "Takarítási és házvezetői munka irányítói szállodákban",
+  "feor_nev": "Vezető takarító"
+ },
+ {
+  "isco": "5152",
+  "feor": "5242",
+  "isco_nev": "Házvezetők",
+  "feor_nev": "Házvezető"
+ },
+ {
+  "isco": "5153",
+  "feor": "5243",
+  "isco_nev": "Épületgondnokok",
+  "feor_nev": "Épületgondnok"
+ },
+ {
+  "isco": "5161",
+  "feor": "5219",
+  "isco_nev": "Asztrológusok, jövendőmondók és hasonló",
+  "feor_nev": "Egyéb személyi szolgáltatási foglalkozású"
+ },
+ {
+  "isco": "5162",
+  "feor": "5229",
+  "isco_nev": "Társalkodók és komornyikok",
+  "feor_nev": "Egyéb személygondozási foglalkozású"
+ },
+ {
+  "isco": "5163",
+  "feor": "5293",
+  "isco_nev": "Temetkezési vállalkozók és balzsamozók",
+  "feor_nev": "Temetkezési foglalkozású"
+ },
+ {
+  "isco": "5164",
+  "feor": "5292",
+  "isco_nev": "Hobbiállat-gondozók és -kozmetikusok",
+  "feor_nev": "Hobbiállat-gondozó, -kozmetikus"
+ },
+ {
+  "isco": "5165",
+  "feor": "5291",
+  "isco_nev": "Gépjárművezető-oktatók",
+  "feor_nev": "Járművezető-oktató"
+ },
+ {
+  "isco": "5169",
+  "feor": "5219",
+  "isco_nev": "Máshová nem sorolható személyi szolgáltatási",
+  "feor_nev": "Egyéb személyi szolgáltatási foglalkozású"
+ },
+ {
+  "isco": "5169",
+  "feor": "5299",
+  "isco_nev": "Máshová nem sorolható személyi szolgáltatási",
+  "feor_nev": "Egyéb, máshova nem sorolható szolgáltatási"
+ },
+ {
+  "isco": "5211",
+  "feor": "5115",
+  "isco_nev": "Utcai és piaci árusok (kivéve élelmiszerárusok)",
+  "feor_nev": "Piaci, utcai árus"
+ },
+ {
+  "isco": "5212",
+  "feor": "5116",
+  "isco_nev": "Utcai élelmiszerárusok",
+  "feor_nev": "Piaci, utcai étel- és italárus"
+ },
+ {
+  "isco": "5221",
+  "feor": "5111",
+  "isco_nev": "Kereskedők",
+  "feor_nev": "Kereskedő"
+ },
+ {
+  "isco": "5222",
+  "feor": "5112",
+  "isco_nev": "Vezető eladók",
+  "feor_nev": "Vezető eladó"
+ },
+ {
+  "isco": "5223",
+  "feor": "5113",
+  "isco_nev": "Beosztott eladók",
+  "feor_nev": "Bolti eladó"
+ },
+ {
+  "isco": "5223",
+  "feor": "5114",
+  "isco_nev": "Beosztott eladók",
+  "feor_nev": "Kölcsönző"
+ },
+ {
+  "isco": "5230",
+  "feor": "5117",
+  "isco_nev": "Pénztárosok és jegyárusítók",
+  "feor_nev": "Bolti pénztáros, jegypénztáros"
+ },
+ {
+  "isco": "5241",
+  "feor": "5122",
+  "isco_nev": "Manökenek és egyéb modellek",
+  "feor_nev": "Áru- és divatbemutató"
+ },
+ {
+  "isco": "5242",
+  "feor": "5122",
+  "isco_nev": "Termékbemutató ügynökök",
+  "feor_nev": "Áru- és divatbemutató"
+ },
+ {
+  "isco": "5243",
+  "feor": "5129",
+  "isco_nev": "Házaló ügynökök",
+  "feor_nev": "Egyéb, máshova nem sorolható kereskedelmi"
+ },
+ {
+  "isco": "5244",
+  "feor": "5123",
+  "isco_nev": "Telefonos/multimédiás értékesítő ügynökök",
+  "feor_nev": "Telefonos (multimédiás) értékesítési ügynök"
+ },
+ {
+  "isco": "5245",
+  "feor": "5121",
+  "isco_nev": "Benzinkutasok",
+  "feor_nev": "Üzemanyagtöltő állomás kezelője"
+ },
+ {
+  "isco": "5246",
+  "feor": "5131",
+  "isco_nev": "Büfések",
+  "feor_nev": "Vendéglős"
+ },
+ {
+  "isco": "5249",
+  "feor": "5129",
+  "isco_nev": "Máshová nem sorolható értékesítési foglalkozásúak",
+  "feor_nev": "Egyéb, máshova nem sorolható kereskedelmi"
+ },
+ {
+  "isco": "5311",
+  "feor": "3512",
+  "isco_nev": "Gyermekgondozók",
+  "feor_nev": "Hivatásos nevelőszülő, főállású anya"
+ },
+ {
+  "isco": "5311",
+  "feor": "5221",
+  "isco_nev": "Gyermekgondozók",
+  "feor_nev": "Gyermekfelügyelő, dajka"
+ },
+ {
+  "isco": "5312",
+  "feor": "3410",
+  "isco_nev": "Iskolai kisegítők",
+  "feor_nev": "Oktatási asszisztens"
+ },
+ {
+  "isco": "5321",
+  "feor": "5222",
+  "isco_nev": "Kisegítő gondozó személyzet",
+  "feor_nev": "Segédápoló, műtőssegéd"
+ },
+ {
+  "isco": "5322",
+  "feor": "5223",
+  "isco_nev": "Otthoni személygondozási foglalkozásúak",
+  "feor_nev": "Házi gondozó"
+ },
+ {
+  "isco": "5329",
+  "feor": "5229",
+  "isco_nev": "Máshová nem sorolható személygondozási",
+  "feor_nev": "Egyéb személygondozási foglalkozású"
+ },
+ {
+  "isco": "5411",
+  "feor": "5252",
+  "isco_nev": "Tűzoltók",
+  "feor_nev": "Tűzoltó"
+ },
+ {
+  "isco": "5412",
+  "feor": "5251",
+  "isco_nev": "Rendőrök",
+  "feor_nev": "Rendőr"
+ },
+ {
+  "isco": "5413",
+  "feor": "5253",
+  "isco_nev": "Börtönőrök",
+  "feor_nev": "Büntetés-végrehajtási őr"
+ },
+ {
+  "isco": "5414",
+  "feor": "5254",
+  "isco_nev": "Biztonsági őrök",
+  "feor_nev": "Vagyonőr, testőr"
+ },
+ {
+  "isco": "5414",
+  "feor": "9231",
+  "isco_nev": "Biztonsági őrök",
+  "feor_nev": "Portás, telepőr, egyszerű őr"
+ },
+ {
+  "isco": "5419",
+  "feor": "5255",
+  "isco_nev": "Máshová nem sorolható védelmi foglalkozások",
+  "feor_nev": "Természetvédelmi őr"
+ },
+ {
+  "isco": "5419",
+  "feor": "5256",
+  "isco_nev": "Máshová nem sorolható védelmi foglalkozások",
+  "feor_nev": "Közterület-felügyelő"
+ },
+ {
+  "isco": "5419",
+  "feor": "5259",
+  "isco_nev": "Máshová nem sorolható védelmi foglalkozások",
+  "feor_nev": "Egyéb személy- és vagyonvédelmi foglalkozású"
+ },
+ {
+  "isco": "6111",
+  "feor": "6111",
+  "isco_nev": "Szántóföldi növény- és zöldségtermesztők",
+  "feor_nev": "Szántóföldinövény-termesztő"
+ },
+ {
+  "isco": "6111",
+  "feor": "6112",
+  "isco_nev": "Szántóföldi növény- és zöldségtermesztők",
+  "feor_nev": "Bionövény-termesztő"
+ },
+ {
+  "isco": "6111",
+  "feor": "6113",
+  "isco_nev": "Szántóföldi növény- és zöldségtermesztők",
+  "feor_nev": "Zöldségtermesztő"
+ },
+ {
+  "isco": "6111",
+  "feor": "6114",
+  "isco_nev": "Szántóföldi növény- és zöldségtermesztők",
+  "feor_nev": "Szőlő-, gyümölcstermesztő"
+ },
+ {
+  "isco": "6111",
+  "feor": "6116",
+  "isco_nev": "Szántóföldi növény- és zöldségtermesztők",
+  "feor_nev": "Gyógynövénytermesztő"
+ },
+ {
+  "isco": "6112",
+  "feor": "6114",
+  "isco_nev": "Csemete- és cserjegondozók",
+  "feor_nev": "Szőlő-, gyümölcstermesztő"
+ },
+ {
+  "isco": "6113",
+  "feor": "6113",
+  "isco_nev": "Kertészek, kertészeti és faiskolai kertészek",
+  "feor_nev": "Zöldségtermesztő"
+ },
+ {
+  "isco": "6113",
+  "feor": "6115",
+  "isco_nev": "Kertészek, kertészeti és faiskolai kertészek",
+  "feor_nev": "Dísznövény-, virág- és faiskolai kertész, csemetenevelő"
+ },
+ {
+  "isco": "6114",
+  "feor": "6119",
+  "isco_nev": "Vegyes növénytermesztők",
+  "feor_nev": "Egyéb növénytermesztési foglalkozású"
+ },
+ {
+  "isco": "6121",
+  "feor": "6121",
+  "isco_nev": "Haszonállat-tenyésztők (kivéve a baromfitenyésztőket)",
+  "feor_nev": "Szarvasmarha-, ló-, sertés-, juhtartó és -tenyésztő"
+ },
+ {
+  "isco": "6122",
+  "feor": "6122",
+  "isco_nev": "Baromfitenyésztők",
+  "feor_nev": "Baromfitartó és -tenyésztő"
+ },
+ {
+  "isco": "6123",
+  "feor": "6123",
+  "isco_nev": "Méhészek és selyemhernyó-tenyésztők",
+  "feor_nev": "Méhész"
+ },
+ {
+  "isco": "6123",
+  "feor": "6124",
+  "isco_nev": "Méhészek és selyemhernyó-tenyésztők",
+  "feor_nev": "Kisállattartó és -tenyésztő"
+ },
+ {
+  "isco": "6129",
+  "feor": "6124",
+  "isco_nev": "Máshová nem sorolható állattenyésztők",
+  "feor_nev": "Kisállattartó és -tenyésztő"
+ },
+ {
+  "isco": "6130",
+  "feor": "6130",
+  "isco_nev": "Vegyes gazdálkodók",
+  "feor_nev": "Vegyes profilú gazdálkodó"
+ },
+ {
+  "isco": "6210",
+  "feor": "6211",
+  "isco_nev": "Erdészeti és hasonló foglalkozásúak",
+  "feor_nev": "Erdészeti foglalkozású"
+ },
+ {
+  "isco": "6210",
+  "feor": "6212",
+  "isco_nev": "Erdészeti és hasonló foglalkozásúak",
+  "feor_nev": "Fakitermelő (favágó)"
+ },
+ {
+  "isco": "6221",
+  "feor": "6230",
+  "isco_nev": "Halgazdálkodók",
+  "feor_nev": "Halászati foglalkozású"
+ },
+ {
+  "isco": "6222",
+  "feor": "6230",
+  "isco_nev": "Belvízi és part menti halászok",
+  "feor_nev": "Halászati foglalkozású"
+ },
+ {
+  "isco": "6223",
+  "feor": "6230",
+  "isco_nev": "Mélytengeri halászok",
+  "feor_nev": "Halászati foglalkozású"
+ },
+ {
+  "isco": "6224",
+  "feor": "6220",
+  "isco_nev": "Vadászok és vadbefogók",
+  "feor_nev": "Vadgazdálkodási foglalkozású"
+ },
+ {
+  "isco": "7112",
+  "feor": "7511",
+  "isco_nev": "Falazókőművesek és hasonló foglalkozásúak",
+  "feor_nev": "Kőműves"
+ },
+ {
+  "isco": "7112",
+  "feor": "7537",
+  "isco_nev": "Falazókőművesek és hasonló foglalkozásúak",
+  "feor_nev": "Kályha- és kandallóépítő"
+ },
+ {
+  "isco": "7113",
+  "feor": "7536",
+  "isco_nev": "Kőfaragók, -vágók és -törők",
+  "feor_nev": "Kőfaragó, műköves"
+ },
+ {
+  "isco": "7114",
+  "feor": "7515",
+  "isco_nev": "Betonozók, vasbetonszerelők és hasonló foglalkozásúak",
+  "feor_nev": "Építményszerkezet-szerelő"
+ },
+ {
+  "isco": "7115",
+  "feor": "7513",
+  "isco_nev": "Ácsok és asztalosok",
+  "feor_nev": "Ács"
+ },
+ {
+  "isco": "7115",
+  "feor": "7514",
+  "isco_nev": "Ácsok és asztalosok",
+  "feor_nev": "Épületasztalos"
+ },
+ {
+  "isco": "7119",
+  "feor": "7515",
+  "isco_nev": "Máshová nem sorolható épületszerkezet-szerelők és",
+  "feor_nev": "Építményszerkezet-szerelő"
+ },
+ {
+  "isco": "7119",
+  "feor": "7519",
+  "isco_nev": "Máshová nem sorolható épületszerkezet-szerelők és",
+  "feor_nev": "Egyéb építőmesteri foglalkozású"
+ },
+ {
+  "isco": "7119",
+  "feor": "7529",
+  "isco_nev": "Máshová nem sorolható épületszerkezet-szerelők és",
+  "feor_nev": "Egyéb építési, szerelési foglalkozású"
+ },
+ {
+  "isco": "7119",
+  "feor": "7539",
+  "isco_nev": "Máshová nem sorolható épületszerkezet-szerelők és",
+  "feor_nev": "Egyéb építési szakipari foglalkozású"
+ },
+ {
+  "isco": "7119",
+  "feor": "7912",
+  "isco_nev": "Máshová nem sorolható épületszerkezet-szerelők és",
+  "feor_nev": "Ipari alpinista"
+ },
+ {
+  "isco": "7121",
+  "feor": "7532",
+  "isco_nev": "Tetőfedők",
+  "feor_nev": "Tetőfedő"
+ },
+ {
+  "isco": "7122",
+  "feor": "7534",
+  "isco_nev": "Burkolók",
+  "feor_nev": "Burkoló"
+ },
+ {
+  "isco": "7123",
+  "feor": "7512",
+  "isco_nev": "Stukkó készítők (épületszobrászok)",
+  "feor_nev": "Gipszkartonozó, stukkózó"
+ },
+ {
+  "isco": "7124",
+  "feor": "7531",
+  "isco_nev": "Szigetelők",
+  "feor_nev": "Szigetelő"
+ },
+ {
+  "isco": "7125",
+  "feor": "7538",
+  "isco_nev": "Üvegesek",
+  "feor_nev": "Üvegező"
+ },
+ {
+  "isco": "7126",
+  "feor": "7521",
+  "isco_nev": "Víz-, gáz- és csővezeték-szerelők",
+  "feor_nev": "Vezeték- és csőhálózat-szerelő (víz, gáz, fűtés)"
+ },
+ {
+  "isco": "7127",
+  "feor": "7522",
+  "isco_nev": "Légkondicionáló- és hűtőberendezés-szerelők",
+  "feor_nev": "Szellőző-, hűtő- és klimatizálóberendezés-szerelő"
+ },
+ {
+  "isco": "7131",
+  "feor": "7535",
+  "isco_nev": "Festők és hasonló foglalkozásúak",
+  "feor_nev": "Festő és mázoló"
+ },
+ {
+  "isco": "7132",
+  "feor": "7327",
+  "isco_nev": "Felületkezelők, fényezők",
+  "feor_nev": "Festékszóró, fényező"
+ },
+ {
+  "isco": "7133",
+  "feor": "7915",
+  "isco_nev": "Épületszerkezet-tisztítók",
+  "feor_nev": "Kéményseprő, épületszerkezet-tisztító"
+ },
+ {
+  "isco": "7211",
+  "feor": "7310",
+  "isco_nev": "Fém öntőminta- és magkészítők",
+  "feor_nev": "Fémöntőminta-készítő"
+ },
+ {
+  "isco": "7212",
+  "feor": "7325",
+  "isco_nev": "Hegesztők és lángvágók",
+  "feor_nev": "Hegesztő, lángvágó"
+ },
+ {
+  "isco": "7213",
+  "feor": "7533",
+  "isco_nev": "Fémlemez-megmunkálók",
+  "feor_nev": "Épület-, építménybádogos"
+ },
+ {
+  "isco": "7214",
+  "feor": "7321",
+  "isco_nev": "Fémszerkezet-készítők és -összeállítók",
+  "feor_nev": "Lakatos"
+ },
+ {
+  "isco": "7215",
+  "feor": "7328",
+  "isco_nev": "Állványozók, rakományrögzítők és tartószerkezetek",
+  "feor_nev": "Fém- és egyéb tartószerkezet-szerelő"
+ },
+ {
+  "isco": "7221",
+  "feor": "7326",
+  "isco_nev": "Kovácsok",
+  "feor_nev": "Kovács"
+ },
+ {
+  "isco": "7222",
+  "feor": "7321",
+  "isco_nev": "Szerszámkészítők és hasonló foglalkozásúak",
+  "feor_nev": "Lakatos"
+ },
+ {
+  "isco": "7222",
+  "feor": "7322",
+  "isco_nev": "Szerszámkészítők és hasonló foglalkozásúak",
+  "feor_nev": "Szerszámkészítő"
+ },
+ {
+  "isco": "7223",
+  "feor": "7323",
+  "isco_nev": "Fémmegmunkálógép-beállítók és -üzemeltetők",
+  "feor_nev": "Forgácsoló"
+ },
+ {
+  "isco": "7224",
+  "feor": "7324",
+  "isco_nev": "Fémcsiszolók, köszörűsök és szerszámköszörűsök",
+  "feor_nev": "Fémcsiszoló, köszörűs, szerszámköszörűs"
+ },
+ {
+  "isco": "7231",
+  "feor": "7331",
+  "isco_nev": "Gépjárműszerelők és -karbantartók",
+  "feor_nev": "Gépjármű- és motorkarbantartó, -javító"
+ },
+ {
+  "isco": "7232",
+  "feor": "7332",
+  "isco_nev": "Légijármű szerelők és -karbantartók",
+  "feor_nev": "Repülőgépmotor-karbantartó, -javító"
+ },
+ {
+  "isco": "7233",
+  "feor": "7333",
+  "isco_nev": "Mezőgazdasági és iparigép szerelők és -karbantartók",
+  "feor_nev": "Mezőgazdasági és ipari gép (motor) karbantartója,"
+ },
+ {
+  "isco": "7233",
+  "feor": "7334",
+  "isco_nev": "Mezőgazdasági és iparigép szerelők és -karbantartók",
+  "feor_nev": "Mechanikaigép-karbantartó, -javító (műszerész)"
+ },
+ {
+  "isco": "7234",
+  "feor": "7335",
+  "isco_nev": "Kerékpárszerelők és hasonló foglalkozásúak",
+  "feor_nev": "Kerékpár-karbantartó, -javító"
+ },
+ {
+  "isco": "7311",
+  "feor": "7420",
+  "isco_nev": "Precíziósműszer-gyártók és -javítók",
+  "feor_nev": "Finommechanikai műszerész"
+ },
+ {
+  "isco": "7312",
+  "feor": "7415",
+  "isco_nev": "Hangszergyártók és hangolók",
+  "feor_nev": "Hangszerkészítő"
+ },
+ {
+  "isco": "7313",
+  "feor": "7412",
+  "isco_nev": "Ékszerészek és nemesfém-megmunkálók",
+  "feor_nev": "Ékszerkészítő, ötvös, drágakőcsiszoló"
+ },
+ {
+  "isco": "7314",
+  "feor": "7413",
+  "isco_nev": "Fazekasok és hasonló kézművesek",
+  "feor_nev": "Keramikus"
+ },
+ {
+  "isco": "7315",
+  "feor": "7414",
+  "isco_nev": "Üvegfújók, -vágók, -csiszolók és -felületkezelők",
+  "feor_nev": "Üveggyártó"
+ },
+ {
+  "isco": "7316",
+  "feor": "7411",
+  "isco_nev": "Címfestők, díszítőfestők, üveg-, réz-, fametszők és -",
+  "feor_nev": "Címfestő"
+ },
+ {
+  "isco": "7317",
+  "feor": "7417",
+  "isco_nev": "Famegmunkálók, kosárfonók és hasonló foglalkozásúak",
+  "feor_nev": "Nád- és fűzfeldolgozó, seprű-, kefegyártó"
+ },
+ {
+  "isco": "7318",
+  "feor": "7216",
+  "isco_nev": "Textil-, bőrművesek és hasonló foglalkozásúak",
+  "feor_nev": "Bőrdíszműves, bőröndös, bőrtermékkészítő, -javító"
+ },
+ {
+  "isco": "7318",
+  "feor": "7416",
+  "isco_nev": "Textil-, bőrművesek és hasonló foglalkozásúak",
+  "feor_nev": "Szőr- és tollfeldolgozó"
+ },
+ {
+  "isco": "7319",
+  "feor": "7419",
+  "isco_nev": "Máshová nem sorolható kézműipari foglalkozásúak",
+  "feor_nev": "Egyéb kézműipari foglalkozású"
+ },
+ {
+  "isco": "7321",
+  "feor": "7231",
+  "isco_nev": "Nyomtatás-előkészítéssel foglalkozó technikusok",
+  "feor_nev": "Nyomdai előkészítő"
+ },
+ {
+  "isco": "7322",
+  "feor": "7232",
+  "isco_nev": "Nyomdászok",
+  "feor_nev": "Nyomdász, nyomdai gépmester"
+ },
+ {
+  "isco": "7323",
+  "feor": "7233",
+  "isco_nev": "Nyomdaipari befejező és könyvkötő foglalkozásúak",
+  "feor_nev": "Könyvkötő"
+ },
+ {
+  "isco": "7411",
+  "feor": "7524",
+  "isco_nev": "Építőipari villanyszerelők és hasonló foglalkozásúak",
+  "feor_nev": "Épületvillamossági szerelő, villanyszerelő"
+ },
+ {
+  "isco": "7412",
+  "feor": "7341",
+  "isco_nev": "Elektroműszerészek és szerelők",
+  "feor_nev": "Villamos gépek és készülékek műszerésze, javítója"
+ },
+ {
+  "isco": "7412",
+  "feor": "7523",
+  "isco_nev": "Elektroműszerészek és szerelők",
+  "feor_nev": "Felvonószerelő"
+ },
+ {
+  "isco": "7413",
+  "feor": "7343",
+  "isco_nev": "Elektromosvezeték szerelők és javítók",
+  "feor_nev": "Elektromoshálózat-szerelő, -javító"
+ },
+ {
+  "isco": "7421",
+  "feor": "7341",
+  "isco_nev": "Elektronikai műszerészek és karbantartók",
+  "feor_nev": "Villamos gépek és készülékek műszerésze, javítója"
+ },
+ {
+  "isco": "7422",
+  "feor": "7342",
+  "isco_nev": "Információs és kommunikációs technológiai",
+  "feor_nev": "Informatikai és telekommunikációs berendezések"
+ },
+ {
+  "isco": "7511",
+  "feor": "7111",
+  "isco_nev": "Hús, hal és hasonló élelmiszerek feldolgozói",
+  "feor_nev": "Húsfeldolgozó"
+ },
+ {
+  "isco": "7512",
+  "feor": "5135",
+  "isco_nev": "Pékek, cukrászok, édességgyártók",
+  "feor_nev": "Cukrász"
+ },
+ {
+  "isco": "7512",
+  "feor": "7114",
+  "isco_nev": "Pékek, cukrászok, édességgyártók",
+  "feor_nev": "Pék, édesiparitermék-gyártó"
+ },
+ {
+  "isco": "7513",
+  "feor": "7113",
+  "isco_nev": "Tejfeldolgozók",
+  "feor_nev": "Tejfeldolgozó, tejtermékgyártó"
+ },
+ {
+  "isco": "7514",
+  "feor": "7112",
+  "isco_nev": "Gyümölcs, zöldség és hasonló terméktartósítók",
+  "feor_nev": "Gyümölcs- és zöldségfeldolgozó, -tartósító"
+ },
+ {
+  "isco": "7515",
+  "feor": "3135",
+  "isco_nev": "Élelmiszer- és italkóstolók és -osztályozók",
+  "feor_nev": "Minőségbiztosítási technikus"
+ },
+ {
+  "isco": "7515",
+  "feor": "7919",
+  "isco_nev": "Élelmiszer- és italkóstolók és -osztályozók,",
+  "feor_nev": "Egyéb, máshova nem sorolható ipari és építőipari"
+ },
+ {
+  "isco": "7516",
+  "feor": "8112",
+  "isco_nev": "Dohány- és dohánytermék gyártók",
+  "feor_nev": "Dohánygyártó gép kezelője"
+ },
+ {
+  "isco": "7521",
+  "feor": "7221",
+  "isco_nev": "Famegmunkálók",
+  "feor_nev": "Famegmunkáló"
+ },
+ {
+  "isco": "7522",
+  "feor": "7223",
+  "isco_nev": "Műbútorasztalosok és hasonló foglalkozásúak",
+  "feor_nev": "Bútorasztalos"
+ },
+ {
+  "isco": "7522",
+  "feor": "7225",
+  "isco_nev": "Műbútorasztalosok és hasonló foglalkozásúak",
+  "feor_nev": "Kádár, bognár"
+ },
+ {
+  "isco": "7523",
+  "feor": "7222",
+  "isco_nev": "Famegmunkáló gépek beállítói és üzemeltetői",
+  "feor_nev": "Faesztergályos"
+ },
+ {
+  "isco": "7531",
+  "feor": "7212",
+  "isco_nev": "Szabók, szűcsök és kalaposok",
+  "feor_nev": "Szabó, varró"
+ },
+ {
+  "isco": "7531",
+  "feor": "7213",
+  "isco_nev": "Szabók, szűcsök és kalaposok",
+  "feor_nev": "Kalapos, kesztyűs"
+ },
+ {
+  "isco": "7532",
+  "feor": "7211",
+  "isco_nev": "Textilszabászok",
+  "feor_nev": "Szabásminta-készítő"
+ },
+ {
+  "isco": "7533",
+  "feor": "7418",
+  "isco_nev": "Varrók, hímzők és hasonló foglalkozásúak",
+  "feor_nev": "Textilműves, hímző, csipkeverő"
+ },
+ {
+  "isco": "7534",
+  "feor": "7224",
+  "isco_nev": "Kárpitosok és hasonló foglalkozásúak",
+  "feor_nev": "Kárpitos"
+ },
+ {
+  "isco": "7535",
+  "feor": "7214",
+  "isco_nev": "Szőrme- és bőr-megmunkálók",
+  "feor_nev": "Szűcs, szőrmefestő"
+ },
+ {
+  "isco": "7535",
+  "feor": "7215",
+  "isco_nev": "Szőrme- és bőr-megmunkálók",
+  "feor_nev": "Tímár"
+ },
+ {
+  "isco": "7536",
+  "feor": "7217",
+  "isco_nev": "Cipészek és hasonló foglalkozásúak",
+  "feor_nev": "Cipész, cipőkészítő, -javító"
+ },
+ {
+  "isco": "7541",
+  "feor": "7911",
+  "isco_nev": "Búvárok",
+  "feor_nev": "Ipari búvár"
+ },
+ {
+  "isco": "7542",
+  "feor": "7913",
+  "isco_nev": "Lő- és robbantómesterek",
+  "feor_nev": "Robbantómester"
+ },
+ {
+  "isco": "7543",
+  "feor": "3135",
+  "isco_nev": "Termékosztályozók és -vizsgálók (kivéve az",
+  "feor_nev": "Minőségbiztosítási technikus"
+ },
+ {
+  "isco": "7543",
+  "feor": "7919",
+  "isco_nev": "Termékosztályozók és -vizsgálók (kivéve az",
+  "feor_nev": "Egyéb, máshova nem sorolható ipari és építőipari"
+ },
+ {
+  "isco": "7544",
+  "feor": "7914",
+  "isco_nev": "Kártevőirtók",
+  "feor_nev": "Kártevőirtó, gyomirtó"
+ },
+ {
+  "isco": "7549",
+  "feor": "7919",
+  "isco_nev": "Máshová nem sorolható kézműipari és hasonló",
+  "feor_nev": "Egyéb, máshova nem sorolható ipari és építőipari"
+ },
+ {
+  "isco": "8111",
+  "feor": "8311",
+  "isco_nev": "Bányászok és kőfejtők",
+  "feor_nev": "Szilárdásvány-kitermelő gép kezelője (szén, kő)"
+ },
+ {
+  "isco": "8112",
+  "feor": "8311",
+  "isco_nev": "Szilárdásványfeldolgozó-gépek kezelői",
+  "feor_nev": "Szilárdásvány-kitermelő gép kezelője (szén, kő)"
+ },
+ {
+  "isco": "8113",
+  "feor": "8312",
+  "isco_nev": "Kútfúrók és hasonló foglalkozásúak",
+  "feor_nev": "Kútfúró, mélyfúró gép kezelője (kőolaj, földgáz, víz)"
+ },
+ {
+  "isco": "8114",
+  "feor": "8143",
+  "isco_nev": "Cement- és más ásványitermék-gyártó gépek kezelői",
+  "feor_nev": "Cement-, kő- és egyéb ásványianyag-feldolgozó gép"
+ },
+ {
+  "isco": "8121",
+  "feor": "8151",
+  "isco_nev": "Fémfeldolgozó berendezések kezelői",
+  "feor_nev": "Fémfeldolgozó gép kezelője"
+ },
+ {
+  "isco": "8122",
+  "feor": "8152",
+  "isco_nev": "Fémmegmunkáló, fémbevonó és felületkezelő gépek",
+  "feor_nev": "Fémmegmunkáló, felületkezelő gép kezelője"
+ },
+ {
+  "isco": "8131",
+  "feor": "8131",
+  "isco_nev": "Vegyipari termékeket gyártó berendezések és gépek",
+  "feor_nev": "Kőolaj- és földgázfeldolgozó gép kezelője"
+ },
+ {
+  "isco": "8131",
+  "feor": "8132",
+  "isco_nev": "Vegyipari termékeket gyártó berendezések és gépek",
+  "feor_nev": "Vegyi alapanyagot és terméket gyártó gép kezelője"
+ },
+ {
+  "isco": "8131",
+  "feor": "8133",
+  "isco_nev": "Vegyipari termékeket gyártó berendezések és gépek",
+  "feor_nev": "Gyógyszergyártó gép kezelője"
+ },
+ {
+  "isco": "8131",
+  "feor": "8134",
+  "isco_nev": "Vegyipari termékeket gyártó berendezések és gépek",
+  "feor_nev": "Műtrágya- és növényvédőszer-gyártó gép kezelője"
+ },
+ {
+  "isco": "8132",
+  "feor": "8137",
+  "isco_nev": "Fényképészeti termékeket gyártó gépek kezelői",
+  "feor_nev": "Fotó- és mozgófilmlaboráns"
+ },
+ {
+  "isco": "8141",
+  "feor": "8136",
+  "isco_nev": "Gumiterméket gyártó gépek kezelői",
+  "feor_nev": "Gumitermékgyártó gép kezelője"
+ },
+ {
+  "isco": "8142",
+  "feor": "8135",
+  "isco_nev": "Műanyagterméket gyártó gépek kezelői",
+  "feor_nev": "Műanyagtermék-gyártó gép kezelője"
+ },
+ {
+  "isco": "8143",
+  "feor": "8126",
+  "isco_nev": "Papírterméket gyártó gépek kezelői",
+  "feor_nev": "Papír- és cellulóztermék-gyártó gép kezelője és"
+ },
+ {
+  "isco": "8151",
+  "feor": "8121",
+  "isco_nev": "Fonalelőkészítő, -fonó és -sodró gépek kezelői",
+  "feor_nev": "Textilipari gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "isco": "8152",
+  "feor": "8121",
+  "isco_nev": "Szövő- és kötőgépkezelők",
+  "feor_nev": "Textilipari gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "isco": "8153",
+  "feor": "8122",
+  "isco_nev": "Varrógépkezelők",
+  "feor_nev": "Ruházati gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "isco": "8154",
+  "feor": "8121",
+  "isco_nev": "Fehérítő-, ruhafestő- és tisztítógép-kezelők",
+  "feor_nev": "Textilipari gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "isco": "8155",
+  "feor": "8123",
+  "isco_nev": "Szőrme- és bőr-kikészítőgépek kezelői",
+  "feor_nev": "Bőrkikészítő és -feldolgozó gép kezelője és gyártósor"
+ },
+ {
+  "isco": "8156",
+  "feor": "8124",
+  "isco_nev": "Cipőgyártó és hasonló gépek kezelői",
+  "feor_nev": "Cipőgyártó gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "isco": "8157",
+  "feor": "8327",
+  "isco_nev": "Mosodai gépek kezelői",
+  "feor_nev": "Mosodai gép kezelője"
+ },
+ {
+  "isco": "8160",
+  "feor": "7115",
+  "isco_nev": "Élelmiszert és hasonló terméket gyártó gépek kezelői",
+  "feor_nev": "Borász és egyéb szeszesital-gyártó, szikvízkészítő"
+ },
+ {
+  "isco": "8160",
+  "feor": "8111",
+  "isco_nev": "Élelmiszert és hasonló terméket gyártó gépek kezelői",
+  "feor_nev": "Élelmiszer-, italgyártó gép kezelője"
+ },
+ {
+  "isco": "8171",
+  "feor": "8144",
+  "isco_nev": "Papírmassza- és papírgyártó berendezések kezelői",
+  "feor_nev": "Papíripari alapanyagot gyártó gép kezelője"
+ },
+ {
+  "isco": "8172",
+  "feor": "8125",
+  "isco_nev": "Fafeldolgozó berendezések kezelői",
+  "feor_nev": "Fafeldolgozó gép kezelője és gyártósor mellett dolgozó"
+ },
+ {
+  "isco": "8181",
+  "feor": "8141",
+  "isco_nev": "Üveg- és kerámiagyártó berendezések kezelői",
+  "feor_nev": "Kerámiaipari terméket gyártó gép kezelője"
+ },
+ {
+  "isco": "8181",
+  "feor": "8142",
+  "isco_nev": "Üveg- és kerámiagyártó berendezések kezelői",
+  "feor_nev": "Üveget és üvegterméket gyártó gép kezelője"
+ },
+ {
+  "isco": "8182",
+  "feor": "8323",
+  "isco_nev": "Gőzgép- és kazánkezelők",
+  "feor_nev": "Kazángépkezelő"
+ },
+ {
+  "isco": "8183",
+  "feor": "8325",
+  "isco_nev": "Csomagoló, palackozó és címkéző gépek kezelői",
+  "feor_nev": "Csomagoló-, palackozó- és címkézőgép kezelője"
+ },
+ {
+  "isco": "8189",
+  "feor": "8190",
+  "isco_nev": "Máshová nem sorolható helyhez kötött berendezések és",
+  "feor_nev": "Egyéb, máshova nem sorolható feldolgozóipari gép"
+ },
+ {
+  "isco": "8189",
+  "feor": "8321",
+  "isco_nev": "Máshová nem sorolható helyhez kötött berendezések és",
+  "feor_nev": "Energetikai gép kezelője"
+ },
+ {
+  "isco": "8189",
+  "feor": "8322",
+  "isco_nev": "Máshová nem sorolható helyhez kötött berendezések és",
+  "feor_nev": "Vízgazdálkodási gép kezelője"
+ },
+ {
+  "isco": "8189",
+  "feor": "8324",
+  "isco_nev": "Máshová nem sorolható helyhez kötött berendezések és",
+  "feor_nev": "Sugármentesítő gép, berendezés kezelője"
+ },
+ {
+  "isco": "8189",
+  "feor": "8326",
+  "isco_nev": "Máshová nem sorolható helyhez kötött berendezések és",
+  "feor_nev": "Mozigépész, vetítőgépész"
+ },
+ {
+  "isco": "8189",
+  "feor": "8329",
+  "isco_nev": "Máshová nem sorolható helyhez kötött berendezések és",
+  "feor_nev": "Egyéb, máshova nem sorolható, helyhez kötött gép"
+ },
+ {
+  "isco": "8211",
+  "feor": "8211",
+  "isco_nev": "Mechanikai gépek összeszerelői",
+  "feor_nev": "Mechanikaigép-összeszerelő"
+ },
+ {
+  "isco": "8212",
+  "feor": "8212",
+  "isco_nev": "Erős- és gyengeáramú berendezések összeszerelői",
+  "feor_nev": "Villamosberendezés-összeszerelő"
+ },
+ {
+  "isco": "8219",
+  "feor": "8219",
+  "isco_nev": "Máshová nem sorolható összeszerelők",
+  "feor_nev": "Egyéb termék-összeszerelő"
+ },
+ {
+  "isco": "8311",
+  "feor": "8411",
+  "isco_nev": "Mozdonyvezetők",
+  "feor_nev": "Mozdonyvezető"
+ },
+ {
+  "isco": "8311",
+  "feor": "8414",
+  "isco_nev": "Mozdonyvezetők",
+  "feor_nev": "Metróvezető"
+ },
+ {
+  "isco": "8312",
+  "feor": "8412",
+  "isco_nev": "Vasúti fékezők, jelzőberendezés- és váltókezelők",
+  "feor_nev": "Vasútijármű-vezetéshez kapcsolódó foglalkozású"
+ },
+ {
+  "isco": "8321",
+  "feor": "8419",
+  "isco_nev": "Motorkerékpár-vezetők",
+  "feor_nev": "Egyéb járművezető és kapcsolódó foglalkozású"
+ },
+ {
+  "isco": "8322",
+  "feor": "8416",
+  "isco_nev": "Személy- és tehergépkocsi-vezetők, taxisofőrök",
+  "feor_nev": "Személygépkocsi-vezető"
+ },
+ {
+  "isco": "8331",
+  "feor": "8413",
+  "isco_nev": "Autóbusz- és villamosvezetők",
+  "feor_nev": "Villamosvezető"
+ },
+ {
+  "isco": "8331",
+  "feor": "8415",
+  "isco_nev": "Autóbusz- és villamosvezetők",
+  "feor_nev": "Trolibuszvezető"
+ },
+ {
+  "isco": "8331",
+  "feor": "8418",
+  "isco_nev": "Autóbusz- és villamosvezetők",
+  "feor_nev": "Autóbuszvezető"
+ },
+ {
+  "isco": "8332",
+  "feor": "8417",
+  "isco_nev": "Kamion- és teherautósofőrök",
+  "feor_nev": "Tehergépkocsi-vezető, kamionsofőr"
+ },
+ {
+  "isco": "8332",
+  "feor": "8423",
+  "isco_nev": "Kamion- és teherautósofőrök",
+  "feor_nev": "Köztisztasági, településtisztasági gép kezelője"
+ },
+ {
+  "isco": "8341",
+  "feor": "8421",
+  "isco_nev": "Mezőgazdasági és erdészeti mobilgépek kezelői",
+  "feor_nev": "Mezőgazdasági, erdőgazdasági, növényvédő gép"
+ },
+ {
+  "isco": "8342",
+  "feor": "8422",
+  "isco_nev": "Földmozgató és hasonló gépek kezelői",
+  "feor_nev": "Földmunkagép és hasonló könnyű- és nehézgép"
+ },
+ {
+  "isco": "8343",
+  "feor": "8424",
+  "isco_nev": "Daruk, emelők és hasonló gépek kezelői",
+  "feor_nev": "Daru, felvonó és hasonló anyagmozgató gép kezelője"
+ },
+ {
+  "isco": "8344",
+  "feor": "8425",
+  "isco_nev": "Emelőtargonca-kezelők",
+  "feor_nev": "Targoncavezető"
+ },
+ {
+  "isco": "8350",
+  "feor": "8430",
+  "isco_nev": "Hajók fedélzeti személyzete és hasonló foglalkozásúak",
+  "feor_nev": "Hajószemélyzet, kormányos, matróz"
+ },
+ {
+  "isco": "9111",
+  "feor": "9111",
+  "isco_nev": "Háztartási takarítók és kisegítők",
+  "feor_nev": "Háztartási takarító és kisegítő"
+ },
+ {
+  "isco": "9112",
+  "feor": "9112",
+  "isco_nev": "Irodai, szállodai és egyéb intézményi takarítók és",
+  "feor_nev": "Intézményi takarító és kisegítő"
+ },
+ {
+  "isco": "9121",
+  "feor": "9113",
+  "isco_nev": "Mosónők és vasalónők",
+  "feor_nev": "Kézi mosó, vasaló"
+ },
+ {
+  "isco": "9122",
+  "feor": "9114",
+  "isco_nev": "Járműtakarítók",
+  "feor_nev": "Járműtakarító"
+ },
+ {
+  "isco": "9123",
+  "feor": "9115",
+  "isco_nev": "Ablaktisztítók",
+  "feor_nev": "Ablaktisztító"
+ },
+ {
+  "isco": "9129",
+  "feor": "9119",
+  "isco_nev": "Egyéb takarító foglalkozásúak",
+  "feor_nev": "Egyéb takarító és kisegítő"
+ },
+ {
+  "isco": "9211",
+  "feor": "9331",
+  "isco_nev": "Képesítést nem igénylő növénytermesztési",
+  "feor_nev": "Egyszerű mezőgazdasági foglalkozású"
+ },
+ {
+  "isco": "9212",
+  "feor": "9331",
+  "isco_nev": "Képesítést nem igénylő állattenyésztési foglalkozásúak",
+  "feor_nev": "Egyszerű mezőgazdasági foglalkozású"
+ },
+ {
+  "isco": "9213",
+  "feor": "9331",
+  "isco_nev": "Képesítést nem igénylő mezőgazdasági foglalkozásúak",
+  "feor_nev": "Egyszerű mezőgazdasági foglalkozású"
+ },
+ {
+  "isco": "9214",
+  "feor": "9331",
+  "isco_nev": "Képesítést nem igénylő kertészeti foglalkozásúak",
+  "feor_nev": "Egyszerű mezőgazdasági foglalkozású"
+ },
+ {
+  "isco": "9215",
+  "feor": "9332",
+  "isco_nev": "Képesítést nem igénylő erdészeti foglalkozásúak",
+  "feor_nev": "Egyszerű erdészeti, vadászati és halászati foglalkozású"
+ },
+ {
+  "isco": "9216",
+  "feor": "9332",
+  "isco_nev": "Képesítést nem igénylő halászati és halgazdálkodási",
+  "feor_nev": "Egyszerű erdészeti, vadászati és halászati foglalkozású"
+ },
+ {
+  "isco": "9311",
+  "feor": "9310",
+  "isco_nev": "Bányászati és kőfejtő segédmunkások",
+  "feor_nev": "Egyszerű ipari foglalkozású"
+ },
+ {
+  "isco": "9312",
+  "feor": "9321",
+  "isco_nev": "Mélyépítő segédmunkások",
+  "feor_nev": "Kubikos"
+ },
+ {
+  "isco": "9313",
+  "feor": "9329",
+  "isco_nev": "Magasépítő segédmunkások",
+  "feor_nev": "Egyéb egyszerű építőipari foglalkozású"
+ },
+ {
+  "isco": "9321",
+  "feor": "9225",
+  "isco_nev": "Kézi csomagolók",
+  "feor_nev": "Kézi csomagoló"
+ },
+ {
+  "isco": "9329",
+  "feor": "9310",
+  "isco_nev": "Máshová nem sorolható képesítést nem igénylő ipari",
+  "feor_nev": "Egyszerű ipari foglalkozású"
+ },
+ {
+  "isco": "9331",
+  "feor": "9221",
+  "isco_nev": "Kézi és lábbal hajtott járművek vezetői",
+  "feor_nev": "Pedálos vagy kézi hajtású gépek vezetője"
+ },
+ {
+  "isco": "9332",
+  "feor": "9222",
+  "isco_nev": "Állati erővel vont járművek és gépek hajtói",
+  "feor_nev": "Állati erővel vont jármű hajtója"
+ },
+ {
+  "isco": "9333",
+  "feor": "9223",
+  "isco_nev": "Rakodómunkások",
+  "feor_nev": "Rakodómunkás"
+ },
+ {
+  "isco": "9334",
+  "feor": "9224",
+  "isco_nev": "Árufeltöltők",
+  "feor_nev": "Pultfeltöltő, árufeltöltő"
+ },
+ {
+  "isco": "9411",
+  "feor": "9235",
+  "isco_nev": "Gyorsételek készítői",
+  "feor_nev": "Gyorséttermi eladó"
+ },
+ {
+  "isco": "9412",
+  "feor": "9236",
+  "isco_nev": "Konyhai kisegítők",
+  "feor_nev": "Konyhai kisegítő"
+ },
+ {
+  "isco": "9510",
+  "feor": "9238",
+  "isco_nev": "Utcai és hasonló szolgáltatók",
+  "feor_nev": "Parkolóőr"
+ },
+ {
+  "isco": "9520",
+  "feor": "5115",
+  "isco_nev": "Utcai árusok (kivéve az élelmiszerárusokat)",
+  "feor_nev": "Piaci, utcai árus"
+ },
+ {
+  "isco": "9611",
+  "feor": "9211",
+  "isco_nev": "Hulladékgyűjtők",
+  "feor_nev": "Szemétgyűjtő, utcaseprő"
+ },
+ {
+  "isco": "9612",
+  "feor": "9212",
+  "isco_nev": "Hulladékválogatók",
+  "feor_nev": "Hulladékosztályozó"
+ },
+ {
+  "isco": "9613",
+  "feor": "9211",
+  "isco_nev": "Utcaseprők és hasonló foglalkozásúak",
+  "feor_nev": "Szemétgyűjtő, utcaseprő"
+ },
+ {
+  "isco": "9621",
+  "feor": "9233",
+  "isco_nev": "Kézbesítők, csomagkihordók és hordárok",
+  "feor_nev": "Hivatalsegéd, kézbesítő"
+ },
+ {
+  "isco": "9621",
+  "feor": "9234",
+  "isco_nev": "Kézbesítők, csomagkihordók és hordárok",
+  "feor_nev": "Hordár, csomagkihordó"
+ },
+ {
+  "isco": "9623",
+  "feor": "9232",
+  "isco_nev": "Mérőóra-leolvasók és árusító automaták pénzbegyűjtői",
+  "feor_nev": "Mérőóra-leolvasó és hasonló egyszerű foglalkozású"
+ },
+ {
+  "isco": "9629",
+  "feor": "9237",
+  "isco_nev": "Máshová nem sorolható képesítést nem igénylő",
+  "feor_nev": "Háztartási alkalmazott"
+ },
+ {
+  "isco": "9629",
+  "feor": "9239",
+  "isco_nev": "Máshová nem sorolható képesítést nem igénylő",
+  "feor_nev": "Egyéb, máshova nem sorolható egyszerű szolgáltatási"
+ },
+ {
+  "isco": "0110",
+  "feor": "0110",
+  "isco_nev": "Fegyveres erők tisztjei",
+  "feor_nev": "Fegyveres szervek felsőfokú képesítést igénylő"
+ },
+ {
+  "isco": "0210",
+  "feor": "0210",
+  "isco_nev": "Fegyveres erők tiszthelyettesei",
+  "feor_nev": "Fegyveres szervek középfokú képesítést igénylő"
+ },
+ {
+  "isco": "0310",
+  "feor": "0310",
+  "isco_nev": "Fegyveres erők egyéb rangú állománya",
+  "feor_nev": "Fegyveres szervek középfokú képesítést nem igénylő"
+ }
+]
