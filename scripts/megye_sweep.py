@@ -189,6 +189,17 @@ def main() -> int:
         except Exception as e:
             print(f"Mentési hiba ({szakma}): {e}")
     print(f"\nMentve: {mentve} új hirdetés.")
+
+    # A most felfedezett szakmáknak még nincs ESCO-kapcsolatuk, pedig épp
+    # az ESCO nevéről kapták a nevüket. Enélkül lenne hirdetésük, de nem
+    # tudnánk semmit mondani arról, mi tartozik a szakmához.
+    try:
+        valasz = db.rpc("szakma_esco_parositas").execute()
+        print(f"Új ESCO-kapcsolat: {valasz.data}")
+    except Exception as e:
+        print(f"ESCO-párosítás hiba: {e}")
+
+    print("A tételek kinyerése külön lépés: scripts/hirdetes_tetel_feltolto.py")
     return 0
 
 

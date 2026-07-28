@@ -18,13 +18,22 @@ jobs:
       - name: Csomagok telepitese
         run: pip install requests supabase python-dotenv
 
-      - name: Gyujtes futtatasa
+      # Megyenkenti sopres, kulcsszo NELKUL.
+      #
+      # A regi jooble_gyujto.py 96 kulcsszora kerdezett ra, tehat csak azt
+      # talalta meg, amire rakerdeztunk -- piaci korkepnek ez szerkezetileg
+      # alkalmatlan. Merve: Zala megyeben a soprés 233 hirdetest talalt,
+      # ebbol 114 (49%) nem volt az adatbazisban.
+      #
+      # A szakmat utolag allapitja meg a besorolo az ESCO-nevekbol, es a
+      # sopres a vegen be is koti az uj szakmakat (szakma_esco_parositas).
+      # A szakmak szama igy nem dontes tobbe, hanem eredmeny: 96 -> 555.
+      - name: Megyenkenti sopres
         env:
           JOOBLE_API_KEY: ${{ secrets.JOOBLE_API_KEY }}
-          GEMINI_KINYERES_GYUJTESKOR: "0"
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: python scripts/jooble_gyujto.py
+        run: python scripts/megye_sweep.py --ir
 
       # EURES (NFSZ-forras) - a Jooble-tol fuggetlen, ingyenes forras
       - name: EURES-HU gyujtes futtatasa
