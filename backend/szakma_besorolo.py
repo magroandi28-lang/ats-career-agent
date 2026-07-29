@@ -110,6 +110,15 @@ def _feltetelek(cimke: str) -> list[tuple[str, bool]]:
     return ki
 
 
+def _egyszeru(szoveg: str) -> str:
+    """Normalizált alak egyetlen szóközzel — a pontos egyezés méréséhez.
+
+    A „Villanyszerelő" és a „villanyszerelő" ugyanaz a cím; a
+    „villanyóra-szerelő" nem.
+    """
+    return " ".join(normalizal(szoveg).split())
+
+
 def _suly(cimke: str) -> int:
     """A címke ereje: a jelentést hordozó szavainak együttes hossza.
 
@@ -163,8 +172,10 @@ class Besorolo:
             f["uri"]: f["nev"] for f in foglalkozasok if f.get("nev")
         }
 
-        # (előtaglista, súly, uri, isco, megjelenített név)
-        self.cimkek: list[tuple[list[str], int, str | None, str | None, str]] = []
+        # (előtaglista, súly, uri, isco, megjelenített név, normalizált név)
+        self.cimkek: list[
+            tuple[list[tuple[str, bool]], int, str | None, str | None, str, str]
+        ] = []
 
         # A hivatalos (preferált) nevek erősebbek az alternatíváknál. A
         # "carpenter" az "ács" ANGOL HIVATALOS neve, ugyanakkor a
@@ -178,12 +189,13 @@ class Besorolo:
                 if elo:
                     self.cimkek.append(
                         (elo, _suly(nev) + PREFERALT_TOBBLET,
-                         f["uri"], f.get("isco_kod"), nev))
+                         f["uri"], f.get("isco_kod"), nev, _egyszeru(nev)))
             for nev in list(f.get("alt_nevek") or []):
                 elo = _feltetelek(nev)
                 if elo:
                     self.cimkek.append(
-                        (elo, _suly(nev), f["uri"], f.get("isco_kod"), nev))
+                        (elo, _suly(nev), f["uri"], f.get("isco_kod"), nev,
+                         _egyszeru(nev)))
 
         # A saját szakmaneveink is címkék. Ezek a kézzel gondozott nevek,
         # ezért azonos súlynál ezek nyernek -- a +1 ezt fejezi ki.
@@ -191,7 +203,8 @@ class Besorolo:
             elo = _feltetelek(s["nev"])
             if elo:
                 self.cimkek.append(
-                    (elo, _suly(s["nev"]) + 1, None, None, s["nev"]))
+                    (elo, _suly(s["nev"]) + 1, None, None, s["nev"],
+                     _egyszeru(s["nev"])))
         self.sajat: dict[str, int] = {s["nev"]: s["id"] for s in szakmak}
         self._index_epit()
 
@@ -208,24 +221,47 @@ class Besorolo:
         nem negyvennyolcezret.
         """
         gyakorisag: Counter = Counter()
-        for elo, _s, _u, _i, _n in self.cimkek:
+        for elo, _s, _u, _i, _n, _nn in self.cimkek:
             for e, _onallo in elo:
                 gyakorisag[e] += 1
 
         self.index: dict[str, list[int]] = defaultdict(list)
-        for i, (elo, _s, _u, _i2, _n) in enumerate(self.cimkek):
+        for i, (elo, _s, _u, _i2, _n, _nn) in enumerate(self.cimkek):
             if not elo:
                 continue
             ritka = min(elo, key=lambda p: gyakorisag[p[0]])
             self.index[ritka[0]].append(i)
 
     def besorol(self, cim: str) -> Talalat | None:
-        """A címre illeszkedő LEGERŐSEBB címke nyer.
+        """A címre illeszkedő LEGJOBBAN ILLESZKEDŐ címke nyer.
 
-        A legerősebb a legspecifikusabb: a "targoncavezető raktáros" címre
-        a "targoncavezető" pontosabb válasz, mint a "raktáros".
+        A rangsor három szintje, ebben a sorrendben:
+
+        1. PONTOS EGYEZÉS: a címke normalizált alakja azonos a címmel.
+        2. TELJES LEFEDÉS: a címke feltételei a cím MINDEN szavát megfogják.
+        3. Súly: a ténylegesen illesztett részek hossza.
+
+        MIÉRT NEM ELÉG A SÚLY ÖNMAGÁBAN (2026-07-29-én mérve): a súly azt
+        méri, mennyire specifikus a CÍMKE, de soha nem azt, hogy mennyit
+        magyaráz meg a CÍMBŐL. A "Villanyszerelő" címre így a
+        "villanyóra-szerelő" nyert a "villanyszerelő" ellen:
+
+            villanyszerelő      feltétel ['villanyszer']        súly 12
+            villanyóra-szerelő  feltétel ['villany', 'szerel']  súly 13
+
+        A "villanyóra" szóból a toldalékvágás "villany"-t csinál -- épp az
+        "óra" esik le, ami megkülönböztetné --, így egy órát nem is említő
+        címre illeszkedett, és mert hosszabb a neve, meg is nyerte. Ugyanígy
+        lett a "Takarító"-ból "takarítónő" (és azon át karbantartó).
+
+        A pontos egyezés ezt elvágja: ha a cím SZÓ SZERINT egy címke, akkor
+        semmilyen hosszabb, csak darabokban illeszkedő név nem előzheti meg.
+        A magyar összetett szavak viszont továbbra is működnek: a
+        "Targoncavezető" egyetlen szavát a "targonca vezetője" két feltétele
+        együtt fogja meg, tehát teljes lefedés -- csak a pontos egyezés áll
+        felette.
         """
-        norm = normalizal(cim)
+        norm = _egyszeru(cim)
         if not norm:
             return None
         szavak = set(norm.split())
@@ -249,13 +285,47 @@ class Besorolo:
                     jeloltek.update(self.index.get(sz[k:k + hossz], ()))
 
         legjobb = None
-        legjobb_suly = 0
+        legjobb_kulcs = (0, 0, 0, 0)
         for i in jeloltek:
-            elo, suly, uri, isco, nev = self.cimkek[i]
-            if suly <= legjobb_suly:
+            elo, suly, uri, isco, nev, norm_nev = self.cimkek[i]
+            if not all((e in szavak) if onallo else (e in norm)
+                       for e, onallo in elo):
                 continue
-            if all((e in szavak) if onallo else (e in norm) for e, onallo in elo):
-                legjobb, legjobb_suly = (elo, suly, uri, isco, nev), suly
+
+            # HORGONY: legalább egy feltételnek SZÓ ELEJÉN kell illeszkednie.
+            #
+            # Enélkül egy rövid, általános címke beleillik egy hosszú összetett
+            # szó közepébe: a "szerelő" benne van az "összeszerelő"-ben, és
+            # ezen át 21 összeszerelői hirdetés karbantartónak minősült. Az
+            # összeszerelő nem karbantartó.
+            #
+            # Szó elejére kötni MINDEN feltételt viszont túl szigorú lenne: a
+            # "targonca vezetője" címke "vezető" feltétele a "targoncavezető"
+            # szó KÖZEPÉN áll, és azt meg akarjuk fogni. Ezért elég, ha a
+            # címke valahol megkapaszkodik egy szó elején.
+            if not any(
+                (e == sz) if onallo else sz.startswith(e)
+                for e, onallo in elo for sz in szavak
+            ):
+                continue
+
+            pontos = 1 if norm_nev == norm else 0
+            # Teljes lefedés: a cím minden szavát megfogja valamelyik
+            # feltétel. Egy szót több feltétel is megfoghat -- így marad
+            # működőképes az összetett szó ("targoncavezető").
+            lefedes = 1 if all(
+                any((e == sz) if onallo else (e in sz) for e, onallo in elo)
+                for sz in szavak
+            ) else 0
+            # Holtversenyben a SAJÁT, kézzel gondozott szakmanevünk nyerjen az
+            # ESCO alternatív nevei előtt. A "takarítónő" az ESCO-ban a
+            # "takarító vidámparkban" alternatívája -- e nélkül a szabály nélkül
+            # minden takarítói hirdetés vidámparkba került volna.
+            sajat = 1 if uri is None else 0
+
+            kulcs = (pontos, lefedes, suly, sajat)
+            if kulcs > legjobb_kulcs:
+                legjobb, legjobb_kulcs = (elo, suly, uri, isco, nev), kulcs
 
         if legjobb is None:
             return None
