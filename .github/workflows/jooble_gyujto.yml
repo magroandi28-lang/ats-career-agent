@@ -58,6 +58,20 @@ jobs:
       #
       # A napi gyujtes ezzel egyetlen fillerbe sem kerul.
 
+      # A meglevo hirdetesek ujrabesorolasa a mai besorolóval.
+      #
+      # A 96 kulcsszavas korszakban a szakma a KERESES parametere volt, nem a
+      # hirdetes tulajdonsaga: egy "AI mernok" keresesre eljott konyhai
+      # kisegito hirdetes AI mernok cimket kapott. Ez idempotens, tehat a
+      # masodik naptol mar alig valtoztat valamit -- de ha a besorolo javul,
+      # a meglevo adat is vele javul, kezi beavatkozas nelkul.
+      - name: Ujrabesorolas
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/ujrabesorolas.py --ir
+
       # A hirdetesszoveg feldarabolasa a sajat szerkezete menten. Nulla
       # modellhivas. Csak az uj hirdeteseket dolgozza fel; teljes
       # ujraszamolashoz a --ujra kapcsolo kell, azt kezzel inditjuk.
