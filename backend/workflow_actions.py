@@ -475,7 +475,11 @@ def _cv_ellenorzes_inditasa(ctx: ActionContext) -> ActionOutcome:
         m.strip() for m in re.split(r"[\n•;]|(?<=[.!?])\s", cv_szoveg)
         if len(m.strip()) >= 8
     ][:60]
-    illesztes = cv_illesztes(szakma, mondatok)
+    # A 0,25-os küszöb kizárja az iparági különlegességeket. Mérve: a
+    # „raktáros" 133 ESCO-készségéből 101 olyan foglalkozásból jön, ami a
+    # szakmának csak egy szelete (bőrgyári, cipőgyári raktáros) -- egy
+    # általános raktárosnak a kéregbőr tulajdonságait felajánlani zaj.
+    illesztes = cv_illesztes(szakma, mondatok, min_mag=0.25)
 
     # Amire VAN bizonyíték a CV-ben: ezt csak jobban kell megfogalmazni.
     szokincs = [

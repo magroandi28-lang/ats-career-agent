@@ -479,7 +479,8 @@ def szakma_csomag(szakma_nev: str) -> dict:
         return {}
 
 
-def cv_illesztes(szakma_nev: str, cv_kifejezesek: list[str]) -> list:
+def cv_illesztes(szakma_nev: str, cv_kifejezesek: list[str],
+                 min_mag: float = 0.0) -> list:
     """A szakma ESCO-készséglistája, a CV-ből vett bizonyítékkal.
 
     KÉT DOLGOT AD EGYSZERRE:
@@ -508,6 +509,7 @@ def cv_illesztes(szakma_nev: str, cv_kifejezesek: list[str]) -> list:
         r = db.rpc("cv_illesztes", {
             "p_szakma_id": szakma_id,
             "p_cv_kifejezesek": tisztitott,
+            "p_min_mag": min_mag,
         }).execute()
         return r.data or []
     except Exception as e:
