@@ -169,8 +169,23 @@ const VENDEG_UZENET = {
 //    köszöntő, gépelve, ahogy eddig.
 function vendegKezdoUzenetek() {
   if (typeof window === "undefined") return [VENDEG_UZENET];
-  if (!window.sessionStorage.getItem("career_login_probalkozas")) {
+
+  // EGY LÁTOGATÁS ALATT ELÉG EGYSZER ELOLVASNI, KI FLOW.
+  //
+  // A gépelés elsőre figyelemfelkeltő, másodszorra idegesítő -- és ez hosszú
+  // szöveg. Aki kilép, belép, majd újra kilép, annak nem kell háromszor
+  // végignéznie.
+  //
+  // `sessionStorage`, tehát a böngésző bezárásával elmúlik: új látogatásnál
+  // megint legépeli, ahogy kell.
+  const marLatta = window.sessionStorage.getItem("career_bemutatkozas_latott");
+  if (!marLatta) {
+    window.sessionStorage.setItem("career_bemutatkozas_latott", "1");
     return [VENDEG_UZENET];
+  }
+
+  if (!window.sessionStorage.getItem("career_login_probalkozas")) {
+    return [{ ...VENDEG_UZENET, gepel: false }];
   }
   try {
     const nyers = window.localStorage.getItem("career_guest_chat");
@@ -379,6 +394,18 @@ export default function Home() {
   //
   // Most az előző munkamenetet is nézzük: takarítani csak akkor kell, ha
   // VOLT belépett munkamenet, és megszűnt.
+  // A kezdő üzeneteket oldalbetöltésenként EGYSZER döntjük el. A
+  // `vendegKezdoUzenetek` beállítja a „már látta" jelzőt, tehát ha többször
+  // hívnánk, a második hívás már gépelés nélkülit adna -- és az első
+  // látogatásnál elveszne az animáció.
+  const vendegKezdoRef = useRef(null);
+  const vendegKezdo = useCallback(() => {
+    if (!vendegKezdoRef.current) {
+      vendegKezdoRef.current = vendegKezdoUzenetek();
+    }
+    return vendegKezdoRef.current;
+  }, []);
+
   const elozoSessionRef = useRef(undefined);
   useEffect(() => {
     const elozoSession = elozoSessionRef.current;
@@ -409,7 +436,7 @@ export default function Home() {
     // feltételhez kötöttem, és emiatt kijelentkezés után a belépett
     // beszélgetés kint maradt a vendégfelületen.
     void elozoSession;
-    setUzenetek(vendegKezdoUzenetek());
+    setUzenetek(vendegKezdo());
   }, [session]);
 
   // A köszöntő a komponens kezdőértéke, azt a szerveroldali előrenderelés
@@ -418,13 +445,10 @@ export default function Home() {
   // vissza, ugyanaz a szöveg marad, csak gépelés nélkül.
   useEffect(() => {
     if (belepve) return;
-    if (!window.sessionStorage.getItem("career_login_probalkozas")) return;
     setUzenetek((elozo) =>
-      elozo.length === 1 && elozo[0] === VENDEG_UZENET
-        ? vendegKezdoUzenetek()
-        : elozo,
+      elozo.length === 1 && elozo[0] === VENDEG_UZENET ? vendegKezdo() : elozo,
     );
-  }, [belepve]);
+  }, [belepve, vendegKezdo]);
 
   // A belépés elnavigál a /login oldalra, ezért a React-állapot elveszne.
   // A vendégbeszélgetést a böngészőben őrizzük meg, hogy belépés után
