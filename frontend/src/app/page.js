@@ -124,10 +124,11 @@ const VENDEG_UZENET = {
   szerep: "flow",
   szoveg: [
     "Szia, Flow vagyok, a személyes MI-karrierasszisztensed.",
-    "Nem csak egy önéletrajzot készítek neked. Megmutatom, hol van rád kereslet, mely állások illenek hozzád, és hogyan növelheted az esélyedet a kiválasztásban.",
+    "Nem csak egy önéletrajzot készítek neked. Célzott kérdésekkel segítek felszínre hozni azokat a feladatokat és készségeket is, amelyeket nap mint nap használtál, mégis kimaradhattak a CV-dből. A tapasztalataidat világosan és szakmailag fogalmazom meg, hogy a munkáltatók felismerjék a valódi értéküket.",
+    "Megmutatom, hol van rád kereslet és milyen állások illenek hozzád. Ha pályaváltáson gondolkodsz, azt is, mely rokon szakmákba vihető át a tudásod, és hol nyílik rendszeresen több lehetőség – így azt is láthatod, merre van reális esélyed továbblépni.",
     // A rövidítés marad, de mellette ott a magyarázat: aki évek után lép
     // vissza a munkaerőpiacra, annak az „ATS" és a „robotszűrő" is új szó.
-    "Átvizsgálom és ATS-re (robotszűrőre) optimalizálom a CV-det — ez az, ami a cégeknél előbb olvassa az önéletrajzod, mint bármelyik ember. Célzott motivációs levelet készítek, felépítem a portfóliódat, piaci körképet adok, és valódi álláshirdetések alapján végigvezetlek a jelentkezésig.",
+    "Átvizsgálom és ATS-re (robotszűrőre) optimalizálom a CV-det – ez az a rendszer, amely a cégeknél gyakran előbb olvassa el az önéletrajzodat, mint egy ember. Célzott motivációs levelet készítek, felépítem a portfóliódat, piaci körképet adok, és valódi álláshirdetések alapján végigvezetlek a jelentkezésig.",
     "Mondd el, hol tartasz most, és hová szeretnél eljutni. Ha regisztrálsz, megőrzöm az előzményeidet, így mindig pontosan onnan folytatjuk, ahol abbahagytuk.",
   ].join("\n\n"),
   gepel: true,
@@ -333,6 +334,40 @@ export default function Home() {
     setSzoveg("");
     setHiba(null);
   }, [session]);
+
+  // FLOW NE MUTATKOZZON BE ÚJRA ÉS ÚJRA.
+  //
+  // A köszöntő a komponens állapotának kezdőértéke, ezért minden
+  // visszatéréskor újra kiíródott — betűnként. Aki a regisztrációs oldalra
+  // kattintott, majd visszalépett, harmadszor is végignézte, ki Flow.
+  //
+  // Az állapotot NEM a kezdőértékben olvassuk vissza: a szerveroldali
+  // előrenderelés nem látja a böngésző tárolóját, és az eltérés hidratálási
+  // hibát okozna. Ezért itt, beillesztés után igazítunk.
+  useEffect(() => {
+    if (belepve) return;
+    if (window.sessionStorage.getItem("career_flow_bemutatkozott")) {
+      // Ha beszélgettek is, azt folytatjuk; ha nem, a köszöntő marad, de
+      // gépelés nélkül, azonnal. Mindkét esetben: nincs újrabemutatkozás.
+      let korabbi = [];
+      try {
+        const nyers = window.localStorage.getItem("career_guest_chat");
+        const ertelmezett = nyers ? JSON.parse(nyers) : null;
+        if (Array.isArray(ertelmezett)) korabbi = ertelmezett;
+      } catch {
+        // Sérült tartalom: a köszöntővel indulunk.
+      }
+      setUzenetek((elozo) =>
+        elozo.length === 1 && elozo[0] === VENDEG_UZENET
+          ? (korabbi.length
+              ? korabbi.map((sor) => ({ ...sor, gepel: false }))
+              : [{ ...VENDEG_UZENET, gepel: false }])
+          : elozo,
+      );
+      return;
+    }
+    window.sessionStorage.setItem("career_flow_bemutatkozott", "1");
+  }, [belepve]);
 
   // A belépés elnavigál a /login oldalra, ezért a React-állapot elveszne.
   // A vendégbeszélgetést a böngészőben őrizzük meg, hogy belépés után
