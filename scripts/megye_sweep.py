@@ -239,9 +239,12 @@ def main() -> int:
 
     # A tudásanyag-címkézés és a nézetfrissítés NEM innen megy: a Supabase
     # REST-végpontja 8 másodpercnél elvágja, és csendben kimaradna. Azokat a
-    # `napi_karbantartas()` végzi, amit a pg_cron futtat 05:30 UTC-kor --
+    # `napi_karbantartas()` végzi, amit a pg_cron futtat 08:00 UTC-kor --
     # az adatbázison belül, időkorlát nélkül, a gyűjtéstől függetlenül.
-    print("A nézetfrissítést a pg_cron végzi (napi-karbantartas, 05:30 UTC).")
+    # A 08:00 azért van a 04:00-s gyűjtés MÖGÖTT, hogy a nézetek a mai
+    # hirdetésekből számoljanak; a GitHub ütemezője rendszeresen csúszik
+    # (2026-07-29-en 04:00 helyett 06:25-kor indult).
+    print("A nézetfrissítést a pg_cron végzi (napi-karbantartas, 08:00 UTC).")
 
     print("A tételek kinyerése külön lépés: scripts/hirdetes_tetel_feltolto.py")
     return 0
