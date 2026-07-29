@@ -137,6 +137,22 @@ const VENDEG_UZENET = {
   gepelSebesseg: 60,
 };
 
+// EGYETLEN eset, amikor Flow nem mutatkozik be újra: a látogató elolvasta a
+// köszöntőt, elindult regisztrálni vagy belépni, de nem fejezte be, és
+// visszajött. Ilyenkor ugyanaz a szöveg jelenik meg, csak azonnal.
+//
+// Minden más eset marad a régiben: friss látogató végignézi a bemutatkozást.
+// A jelző `sessionStorage`-ban van, tehát a böngésző bezárásával elmúlik.
+function vendegKoszonto() {
+  if (
+    typeof window !== "undefined" &&
+    window.sessionStorage.getItem("career_login_probalkozas")
+  ) {
+    return { ...VENDEG_UZENET, gepel: false };
+  }
+  return VENDEG_UZENET;
+}
+
 /** Betűnként jeleníti meg a szöveget, mintha Flow épp írná. Kattintásra
  *  azonnal kiírja a többit; csökkentett animációt kérő beállításnál
  *  eleve nem animál. */
@@ -358,41 +374,25 @@ export default function Home() {
     // Az ÜZENETEKET viszont csak akkor írjuk vissza a köszöntőre, ha valóban
     // belépett beszélgetés volt. Így a takarítás nem hozza vissza az újra
     // meg újra legépelt bemutatkozást.
-    if (elozoSession) setUzenetek([VENDEG_UZENET]);
+    // Az üzenetek vendégként MINDIG a köszöntőre állnak vissza. Korábban ezt
+    // feltételhez kötöttem, és emiatt kijelentkezés után a belépett
+    // beszélgetés kint maradt a vendégfelületen.
+    void elozoSession;
+    setUzenetek([vendegKoszonto()]);
   }, [session]);
 
-  // FLOW NE MUTATKOZZON BE ÚJRA ÉS ÚJRA.
-  //
-  // A köszöntő a komponens állapotának kezdőértéke, ezért minden
-  // visszatéréskor újra kiíródott — betűnként. Aki a regisztrációs oldalra
-  // kattintott, majd visszalépett, harmadszor is végignézte, ki Flow.
-  //
-  // Az állapotot NEM a kezdőértékben olvassuk vissza: a szerveroldali
-  // előrenderelés nem látja a böngésző tárolóját, és az eltérés hidratálási
-  // hibát okozna. Ezért itt, beillesztés után igazítunk.
+  // A köszöntő a komponens kezdőértéke, azt a szerveroldali előrenderelés
+  // miatt nem olvashatjuk a böngésző tárolójából (hidratálási hiba lenne).
+  // Ezért beillesztés után igazítunk: ha a látogató a belépő oldalról jött
+  // vissza, ugyanaz a szöveg marad, csak gépelés nélkül.
   useEffect(() => {
     if (belepve) return;
-    if (window.sessionStorage.getItem("career_flow_bemutatkozott")) {
-      // Ha beszélgettek is, azt folytatjuk; ha nem, a köszöntő marad, de
-      // gépelés nélkül, azonnal. Mindkét esetben: nincs újrabemutatkozás.
-      let korabbi = [];
-      try {
-        const nyers = window.localStorage.getItem("career_guest_chat");
-        const ertelmezett = nyers ? JSON.parse(nyers) : null;
-        if (Array.isArray(ertelmezett)) korabbi = ertelmezett;
-      } catch {
-        // Sérült tartalom: a köszöntővel indulunk.
-      }
-      setUzenetek((elozo) =>
-        elozo.length === 1 && elozo[0] === VENDEG_UZENET
-          ? (korabbi.length
-              ? korabbi.map((sor) => ({ ...sor, gepel: false }))
-              : [{ ...VENDEG_UZENET, gepel: false }])
-          : elozo,
-      );
-      return;
-    }
-    window.sessionStorage.setItem("career_flow_bemutatkozott", "1");
+    if (!window.sessionStorage.getItem("career_login_probalkozas")) return;
+    setUzenetek((elozo) =>
+      elozo.length === 1 && elozo[0] === VENDEG_UZENET
+        ? [{ ...VENDEG_UZENET, gepel: false }]
+        : elozo,
+    );
   }, [belepve]);
 
   // A belépés elnavigál a /login oldalra, ezért a React-állapot elveszne.
@@ -419,6 +419,9 @@ export default function Home() {
     if (!session) return;
     const nyers = window.localStorage.getItem("career_guest_chat");
     window.localStorage.removeItem("career_guest_chat");
+    // A belépés sikerült, tehát a „félbehagyta a regisztrációt" jelző
+    // elévült. Ha később kijelentkezik, friss bemutatkozás fogadja.
+    window.sessionStorage.removeItem("career_login_probalkozas");
     let vendegSorok = [];
     try {
       const ertelmezett = nyers ? JSON.parse(nyers) : null;
@@ -586,13 +589,25 @@ export default function Home() {
     return keszSzazalek > 0 ? `${keszSzazalek}% kész` : "Profilindításra kész";
   }, [belepve, keszSzazalek]);
 
+  // A belépő/regisztrációs oldalra indulás EGYETLEN útja. A jelzőt itt
+  // tesszük le, mert pontosan egy esetben nem szabad Flow-nak újra
+  // bemutatkoznia: ha a látogató elolvasta a köszöntőt, elindult
+  // regisztrálni vagy belépni, de nem fejezte be, és visszajött.
+  //
+  // Minden más eset marad a régiben: friss látogató végignézi a
+  // bemutatkozást, ahogy eddig.
+  function loginraNavigalas(url = "/login?next=%2F") {
+    window.sessionStorage.setItem("career_login_probalkozas", "1");
+    router.push(url);
+  }
+
   // Vendégként a saját belépőoldalra visszük. A választás a böngészőben
   // marad, és belépés után onnan folytatjuk.
   function belepesreKuldes(megorzendo) {
     for (const [kulcs, ertek] of Object.entries(megorzendo)) {
       window.localStorage.setItem(kulcs, ertek);
     }
-    router.push("/login?next=%2F");
+    loginraNavigalas();
   }
 
   function kezdoLepesValasztasa(lepes) {
@@ -1054,7 +1069,7 @@ export default function Home() {
                           <span className="mt-3 flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => router.push("/login?next=%2F")}
+                              onClick={() => loginraNavigalas()}
                               className="rounded-full border border-amber-300/50 px-4 py-1.5 text-xs font-semibold text-amber-100 hover:border-amber-200 hover:bg-amber-300/10"
                             >
                               Belépés
@@ -1062,7 +1077,7 @@ export default function Home() {
                             <button
                               type="button"
                               onClick={() =>
-                                router.push("/login?next=%2F&mod=regisztracio")
+                                loginraNavigalas("/login?next=%2F&mod=regisztracio")
                               }
                               className="rounded-full bg-amber-300 px-4 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-200"
                             >
