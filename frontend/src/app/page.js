@@ -337,7 +337,14 @@ export default function Home() {
     const elozoSession = elozoSessionRef.current;
     elozoSessionRef.current = session;
     if (session !== null) return;
-    if (!elozoSession) return; // vendég volt és az is maradt -- nincs mit takarítani
+
+    // A BELÉPETT ÁLLAPOT MARADVÁNYAIT MINDIG TAKARÍTJUK.
+    //
+    // Ezt korábban a „volt-e előző munkamenet" feltételhez kötöttem, hogy a
+    // köszöntő ne íródjon újra. Csakhogy kijelentkezéskor az oldal
+    // újratöltődik, és ilyenkor az előző munkamenet üres -- a takarítás
+    // kimaradt, és a belépett felület (GPS-panel, lépésgombok) ott ragadt
+    // vendégmódban. Éles adat látszott olyannak, aki már nincs bejelentkezve.
     folytatasRef.current = false;
     kezdoValasztasRef.current = null;
     setKezdoValasztas(null);
@@ -345,9 +352,13 @@ export default function Home() {
     setWorkflowState(null);
     setGpsTeruletek({});
     setValaszthatoLepesek([]);
-    setUzenetek([VENDEG_UZENET]);
     setSzoveg("");
     setHiba(null);
+
+    // Az ÜZENETEKET viszont csak akkor írjuk vissza a köszöntőre, ha valóban
+    // belépett beszélgetés volt. Így a takarítás nem hozza vissza az újra
+    // meg újra legépelt bemutatkozást.
+    if (elozoSession) setUzenetek([VENDEG_UZENET]);
   }, [session]);
 
   // FLOW NE MUTATKOZZON BE ÚJRA ÉS ÚJRA.
