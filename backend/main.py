@@ -842,6 +842,10 @@ def flow_uzenet_vegpont(
         "proposed_action": proposed_action.value if proposed_action else None,
         "accepted_action": accepted_action.value if accepted_action else None,
         "required_fields": kerendo_mezok,
+        # Flow saját kérdéséhez tartozó válaszgombok. A felületen nincs
+        # állandó kártyarács: ha választani kell, Flow kérdez, és ezek
+        # jelennek meg az üzenete alatt.
+        "valaszlehetosegek": list(dontes.valaszlehetosegek),
         "specialist_request": dontes.specialist_request,
         "confidence": dontes.confidence,
         "szakma": dontes.szakma,

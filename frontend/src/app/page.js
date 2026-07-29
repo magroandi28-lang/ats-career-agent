@@ -921,6 +921,9 @@ export default function Home() {
           // A karriercél rögzítése a te döntésed, nem Flow-é: ő csak
           // visszakérdez, a pipa a rábólintásod után kerül ki.
           megerositendoIntent: dontes.megerositendo_intent || null,
+          // Flow saját kérdéséhez tartozó válaszgombok. Ezek helyettesítik
+          // az állandó kártyarácsot: nem menü, hanem egy kérdés válaszai.
+          valaszlehetosegek: dontes.valaszlehetosegek || [],
         },
       ]);
       setValaszthatoLepesek(dontes.available_actions || []);
@@ -1169,6 +1172,30 @@ export default function Home() {
                           {uzenet.muveletHiba}
                         </p>
                       )}
+
+                      {/* FLOW KÉRDEZ, ÉS ITT VANNAK A VÁLASZOK.
+                          Ez helyettesíti az állandó kártyarácsot: nem menü,
+                          hanem egy kérdés lehetséges válaszai. Csak a LEGUTOLSÓ
+                          üzenetnél jelennek meg -- a korábbi kérdésekre már
+                          válaszoltál, azok gombjai csak zavarnának.
+                          A gomb ugyanaz, mintha beírtad volna: nem indít
+                          műveletet, csak válaszol. A szabad szöveg is marad. */}
+                      {(uzenet.valaszlehetosegek || []).length > 0 &&
+                        index === uzenetek.length - 1 &&
+                        !kuldesFolyamatban && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {uzenet.valaszlehetosegek.map((valasz) => (
+                              <button
+                                key={valasz}
+                                type="button"
+                                onClick={() => uzenetKuldese(valasz)}
+                                className="rounded-full border border-amber-300/30 bg-amber-300/[0.07] px-4 py-1.5 text-xs font-semibold text-amber-100 hover:border-amber-300/60 hover:bg-amber-300/15"
+                              >
+                                {valasz}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       {belepve &&
                         uzenet.nevetKer &&
                         index === uzenetek.length - 1 && (

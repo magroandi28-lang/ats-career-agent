@@ -49,6 +49,22 @@ class FlowDecision(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, default=0.5)
     szakma: str = Field(default="", max_length=200)
 
+    # VÁLASZLEHETŐSÉGEK: Flow kérdezhet gombokkal.
+    #
+    # Eddig a felületen állandó kártyarács állt, amiből a felhasználónak
+    # kellett kiválasztania, melyik folyamatban van. Ez menü, nem
+    # beszélgetés -- és mérve zavaró volt: a CV-átvizsgálás közben három
+    # további kártya jelent meg.
+    #
+    # Ezzel Flow maga tesz fel kérdést, és MELLÉ adja a lehetséges
+    # válaszokat. A gombra kattintás ugyanaz, mintha a felhasználó beírta
+    # volna: nem indít műveletet, csak választ. A művelet továbbra is az
+    # állapotgép kapuján megy át.
+    #
+    # Legfeljebb három, mert egy kérdésre ennél több választ senki nem
+    # olvas el. A szabad szöveges válasz mindig marad.
+    valaszlehetosegek: list[str] = Field(default_factory=list, max_length=3)
+
 
 def biztonsagos_alapertelmezes(uzenet: str) -> FlowDecision:
     """Fallback, ha a modell nem adott séma szerinti választ (két kísérlet
