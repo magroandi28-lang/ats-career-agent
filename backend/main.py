@@ -673,6 +673,13 @@ def flow_belepes_utan_vegpont(
     profile = profile_get_or_create(user_id) or {}
     server_profile = dict(profile.get("confirmed_data") or {})
 
+    # AMIT MÁR TÁROLUNK RÓLA, AZT NE KÉRDEZZÜK MEG ÚJRA.
+    #
+    # A köszöntés eddig csak a nevet és a GPS-területeket kapta meg, ezért egy
+    # visszatérő felhasználót is úgy fogadott, mintha most találkoznának:
+    # „mi hozott ide?" -- pedig a folyamat állapota, a célmunkaköre és a
+    # korábbi beszélgetése is ott van az adatbázisban.
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
     uzenet = flow_belepes_utan(
         nev=_megszolitas(felhasznalo, server_profile),
         vendeg_elozmeny=[
@@ -680,6 +687,9 @@ def flow_belepes_utan_vegpont(
             for sor in bemenet.vendeg_elozmeny
         ],
         gps_osszefoglalo=gps_projekcio(user_id),
+        korabbi_allapot=(workflow or {}).get("current_state") or "",
+        celmunkakor=str(server_profile.get("target_role") or ""),
+        utolso_uzenetek=elozmenyek_lekerese(user_id, session_id),
     )
     if uzenet:
         uzenet_mentese(user_id, session_id, "flow", uzenet)
