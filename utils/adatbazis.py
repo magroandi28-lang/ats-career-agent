@@ -479,6 +479,42 @@ def szakma_csomag(szakma_nev: str) -> dict:
         return {}
 
 
+def cv_illesztes(szakma_nev: str, cv_kifejezesek: list[str]) -> list:
+    """A szakma ESCO-készséglistája, a CV-ből vett bizonyítékkal.
+
+    KÉT DOLGOT AD EGYSZERRE:
+
+    1. SZÓKINCS. A gyenge CV-k többsége nem attól gyenge, hogy hiányzik
+       belőle valami, hanem hogy rosszul van megfogalmazva. Aki azt írja,
+       „raktárban dolgoztam", annak az ESCO megadja a szakmai alakot:
+       „raktári nyilvántartási rendszereket működtet", „gondoskodik a
+       raktárterület hatékony kihasználásáról". Ugyanaz a munka,
+       felismerhető nyelven.
+    2. EMLÉKEZTETŐ. A visszaadott lista végigkérdezhető: nem „ez hiányzik
+       belőled", hanem „ezt is csináltad?". A legtöbb ember kihagy a
+       CV-jéből olyat, amit évekig végzett, mert magától értetődőnek tartja.
+
+    A `cv_bizonyitek` mező mondja meg, a CV MELYIK kifejezése hozta elő az
+    adott készséget. Ahol üres, ott a készség csak javaslat -- az ESCO
+    készségneveit szövegre illeszteni nem lehet megbízhatóan (mérve: CV-re
+    szigorúan 0 találat), ezért a `cv_illesztes` JAVASOL, nem ÁLLÍT.
+    """
+    db = kliens()
+    szakma_id = szakma_id_nevbol(szakma_nev)
+    if not db or szakma_id is None:
+        return []
+    tisztitott = [k.strip() for k in (cv_kifejezesek or []) if k and k.strip()]
+    try:
+        r = db.rpc("cv_illesztes", {
+            "p_szakma_id": szakma_id,
+            "p_cv_kifejezesek": tisztitott,
+        }).execute()
+        return r.data or []
+    except Exception as e:
+        print(f"[adatbazis] CV-illesztes hiba: {e}")
+        return []
+
+
 def szakma_statisztika(szakma_nev: str) -> dict:
     """Egy szakma piaci képe a saját adatainkból: hirdetésszám,
     leggyakoribb elvárások (százalékkal), bérinfók.

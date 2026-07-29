@@ -28,6 +28,7 @@ from backend.profile_service import confirmed_values
 from utils.adatbazis import (
     kereslet_korkep,
     kliens,
+    cv_illesztes,
     szakma_csomag,
 )
 
@@ -463,6 +464,32 @@ def _cv_ellenorzes_inditasa(ctx: ActionContext) -> ActionOutcome:
     diagnozis = ats_diagnozis(cv_szoveg, szakma)
     hianyzo = diagnozis.get("hianyzo_kulcsszavak") or []
 
+    # SZÓKINCS + EMLÉKEZTETŐ. A CV mondatait odaadjuk az ESCO-nak, és
+    # visszakapjuk, hogy amit a felhasználó a maga szavaival leírt, annak mi a
+    # szakmai megfogalmazása -- plusz a szakma teljes készséglistáját, amit
+    # végig lehet kérdezni.
+    #
+    # Nulla modellhívás. Az átfogalmazás maga később modellel megy, de az
+    # ALAP itt determinisztikus: az ESCO adja a szavakat, nem a modell.
+    mondatok = [
+        m.strip() for m in re.split(r"[\n•;]|(?<=[.!?])\s", cv_szoveg)
+        if len(m.strip()) >= 8
+    ][:60]
+    illesztes = cv_illesztes(szakma, mondatok)
+
+    # Amire VAN bizonyíték a CV-ben: ezt csak jobban kell megfogalmazni.
+    szokincs = [
+        {"szakmai_megfogalmazas": s["keszseg"],
+         "a_cv_ben_igy_all": s["cv_bizonyitek"],
+         "kotelezo": s.get("kotelezo", False)}
+        for s in illesztes if s.get("cv_bizonyitek")
+    ]
+    # Amire NINCS: ezt nem hiányként, hanem kérdésként adjuk tovább.
+    emlekezteto = [
+        {"keszseg": s["keszseg"], "kotelezo": s.get("kotelezo", False)}
+        for s in illesztes if not s.get("cv_bizonyitek")
+    ]
+
     return ActionOutcome(
         result={
             "szakma": szakma,
@@ -471,6 +498,9 @@ def _cv_ellenorzes_inditasa(ctx: ActionContext) -> ActionOutcome:
             "hianyzo_elvarasok": hianyzo[:10],
             "meglevo_elvarasok": (diagnozis.get("meglevo_kulcsszavak") or [])[:10],
             "fo_problema": diagnozis.get("fo_problema", ""),
+            "szokincs": szokincs[:15],
+            "emlekezteto": emlekezteto[:20],
+            "emlekezteto_ossz": len(emlekezteto),
         },
         gps_terulet="felkeszultseg",
         gps_allapot="megfelelo" if not formai and not hianyzo else "hianyok",
