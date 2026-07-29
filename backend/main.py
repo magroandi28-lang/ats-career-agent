@@ -881,16 +881,19 @@ def _megszolitas(felhasznalo, megerositett_profil: dict) -> str:
     bejelentkezéskor kapott név (Google-fióknál a `full_name`). E-mail
     címet szándékosan nem használunk megszólításnak.
     """
+    # CSAK AMIT Ő MAGA ERŐSÍTETT MEG.
+    #
+    # A Google `given_name` mezője magyarul megbízhatatlan: a regisztrációs
+    # űrlapon sokan a VEZETÉKNEVET írják a „keresztnév" rovatba. Mérve
+    # 2026-07-29: Varga Andrea fiókjában a `given_name` = „Varga", és Flow
+    # így „Szia Varga!"-val köszönt.
+    #
+    # Ezért a Google nevét nem tényként vesszük, hanem JAVASLATKÉNT: a
+    # `_nev_javaslatok` felkínálja a teljes név szavait, és a felhasználó egy
+    # kattintással eldönti, hogyan szólítsuk. Egy kérdés egyszer, szemben
+    # azzal, hogy végig rossz néven szólítjuk.
     sajat = str(megerositett_profil.get("display_name") or "").strip()
-    if sajat:
-        return sajat
-
-    # Csak biztos forrásból veszünk nevet. A `full_name`-ből NEM tippelünk
-    # keresztnevet: magyarul a „Vezetéknév Keresztnév" és a „Keresztnév
-    # Vezetéknév" sorrend is előfordul, így a tippelés kb. felében rossz
-    # néven szólítaná a felhasználót -- ami rosszabb, mint a név hiánya.
-    metaadat = getattr(felhasznalo, "user_metadata", None) or {}
-    return str(metaadat.get("given_name") or "").strip()
+    return sajat
 
 
 def _nev_javaslatok(felhasznalo) -> list[str]:

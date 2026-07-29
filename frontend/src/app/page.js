@@ -148,15 +148,18 @@ const GPS_TERULETEK = [
 //
 // A keresztnév a munkamenetből jön -- azt belépés után biztosan tudjuk,
 // modellhívás nélkül is.
-function tartalekKoszontes(session) {
-  const nev =
-    session?.user?.user_metadata?.given_name ||
-    session?.user?.user_metadata?.full_name?.split(" ").pop() ||
-    "";
-  const megszolitas = nev ? `Szia ${nev}!` : "Szia!";
+function tartalekKoszontes() {
+  // NÉV NÉLKÜL köszönünk, ha a szerver köszöntése nem érkezett meg.
+  //
+  // A Google `given_name` mezője magyarul megbízhatatlan: sokan a
+  // vezetéknevüket írják a „keresztnév" rovatba. Mérve: Varga Andrea
+  // fiókjában a `given_name` = „Varga". Rossz néven szólítani rosszabb,
+  // mint név nélkül -- a nevet a megszólítás-mező kérdezi meg.
   return {
     szerep: "flow",
-    szoveg: `${megszolitas} Örülök, hogy itt vagy. Mesélj, mi hozott ide — hol tartasz most, és mi az, amiben a leginkább elakadtál?`,
+    szoveg:
+      "Szia! Örülök, hogy itt vagy. Mesélj, mi hozott ide — hol tartasz " +
+      "most, és mi az, amiben a leginkább elakadtál?",
   };
 }
 
@@ -606,13 +609,13 @@ export default function Home() {
         // A megszólítás ilyenkor a munkamenetből jön -- azt a belépés után
         // biztosan tudjuk, modellhívás nélkül is.
         if (!adat?.uzenet) {
-          setUzenetek([{ ...tartalekKoszontes(session), gepel: true }]);
+          setUzenetek([{ ...tartalekKoszontes(), gepel: true }]);
           return;
         }
         setUzenetek([koszontoUzenet(adat)]);
       })
       .catch(() => {
-        setUzenetek([{ ...tartalekKoszontes(session), gepel: true }]);
+        setUzenetek([{ ...tartalekKoszontes(), gepel: true }]);
       })
       .finally(() => setKuldesFolyamatban(false)),
     );
