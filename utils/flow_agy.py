@@ -340,6 +340,24 @@ Válaszolj a fenti szabályok szerint, a beszélgetés folytatásaként."""
         return ""
 
 
+def _belepes_tartalek(nev: str) -> str:
+    """Köszöntés modellhívás nélkül.
+
+    A belépés utáni üdvözlés eddig ÜRES STRINGGEL tért vissza, ha a modell
+    nem volt elérhető -- és az üres üzenetből semmi nem jelent meg. Flow
+    némán elmaradt, a felhasználó pedig azt hitte, nem működik az oldal.
+
+    Ehhez nem kell modell: a nevet a regisztrációból biztosan tudjuk, és a
+    következő lépést a felhasználó úgyis a kártyákról választja ki. Egy
+    kimaradt köszöntés rosszabb, mint egy egyszerűbb köszöntés.
+    """
+    megszolitas = f"Szia {nev}!" if nev else "Szia!"
+    return (
+        f"{megszolitas} Örülök, hogy itt vagy. Mondd el, mivel kezdjük — "
+        "vagy válassz az alábbi lehetőségek közül."
+    )
+
+
 def flow_belepes_utan(nev: str = "", vendeg_elozmeny: list | None = None,
                        gps_osszefoglalo: list | None = None) -> str:
     """Flow megszólal magától, közvetlenül a belépés után.
@@ -348,14 +366,14 @@ def flow_belepes_utan(nev: str = "", vendeg_elozmeny: list | None = None,
     és javaslatot tesz, mivel kezdjenek. Egyetlen, olcsó szöveges hívás --
     nincs séma, nincs állapotváltás, nem hajt végre semmit.
     """
-    if not GEMINI_KEY:
-        return ""
-
     elozmeny_sorok = "\n".join(
         f"{'Látogató' if e.get('szerep') == 'user' else 'Flow'}: "
         f"{str(e.get('szoveg', ''))[:600]}"
         for e in (vendeg_elozmeny or [])[-6:]
     )
+
+    if not GEMINI_KEY:
+        return _belepes_tartalek(nev)
     gps_sorok = "\n".join(
         f"- {sor.get('terulet')}: {sor.get('allapot')}"
         for sor in (gps_osszefoglalo or [])
@@ -376,10 +394,14 @@ HOL TART A FOLYAMATBAN:
 {FLOW_SZEMELYISEG}
 
 SZABÁLYOK:
-- Ismerd el, hogy belépett, de ne köszönj újra és ne mutatkozz be.
-- Ha ismered a nevét, szólítsd a nevén. Ha nem ismered, ne találgass.
-- Vedd fel a fonalat: utalj arra, amit belépés előtt mondott.
-- Javasolj EGY konkrét következő lépést, és kérdezz rá, mehet-e.
+- Szólítsd a NEVÉN és örülj, hogy belépett. Ne mutatkozz be újra: a
+  vendégoldalon már megtetted.
+- Ha van „AMIT BELÉPÉS ELŐTT MONDOTT", VEDD FEL A FONALAT: utalj rá
+  konkrétan, és ajánld fel, hogy azzal kezdjétek.
+- Ha NINCS ilyen előzmény, egyszerűen kérdezd meg, mi legyen az első lépés.
+  Ne találgass, és ne sorolj fel mindent, amit tudunk -- a lehetőségeket
+  a felhasználó a kártyákon látja.
+- Ha nem ismered a nevét, ne találgass: köszönj név nélkül.
 - Legfeljebb 3 mondat. Magyarul, tegezve.
 - Semmit ne találj ki a felhasználóról azon túl, ami fent szerepel."""
 
@@ -387,7 +409,9 @@ SZABÁLYOK:
         return _gemini_szoveg(prompt)
     except Exception as e:
         print(f"[flow] Belepes utani koszontes hiba: {e}")
-        return ""
+        # NEM üres string: az néma Flow-t jelentene, és a felhasználó azt
+        # hinné, elromlott az oldal. A nevét ismerjük, ennyi mindig futja.
+        return _belepes_tartalek(nev)
 
 
 def flow_dontes(kerdes: str, profil: dict, app_ismeret: str = "",
