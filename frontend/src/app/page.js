@@ -137,20 +137,33 @@ const VENDEG_UZENET = {
   gepelSebesseg: 60,
 };
 
-// EGYETLEN eset, amikor Flow nem mutatkozik be újra: a látogató elolvasta a
-// köszöntőt, elindult regisztrálni vagy belépni, de nem fejezte be, és
-// visszajött. Ilyenkor ugyanaz a szöveg jelenik meg, csak azonnal.
+// Mi legyen a vendégfelületen. Három eset, ebben a sorrendben.
 //
-// Minden más eset marad a régiben: friss látogató végignézi a bemutatkozást.
-// A jelző `sessionStorage`-ban van, tehát a böngésző bezárásával elmúlik.
-function vendegKoszonto() {
-  if (
-    typeof window !== "undefined" &&
-    window.sessionStorage.getItem("career_login_probalkozas")
-  ) {
-    return { ...VENDEG_UZENET, gepel: false };
+// A jelzőt a belépő oldalra navigálás teszi le, a sikeres belépés törli, és
+// a böngésző bezárásával is elmúlik (sessionStorage).
+//
+// 1. Félbehagyta a belépést ÉS beszélgettek: a beszélgetés folytatódik.
+//    Amit a látogató írt, az nem tűnhet el csak azért, mert megnézte a
+//    regisztrációs oldalt.
+// 2. Félbehagyta a belépést, de nem beszélgettek: ugyanaz a köszöntő,
+//    gépelés nélkül.
+// 3. Minden más (friss látogató, kijelentkezés utáni tiszta lap): a
+//    köszöntő, gépelve, ahogy eddig.
+function vendegKezdoUzenetek() {
+  if (typeof window === "undefined") return [VENDEG_UZENET];
+  if (!window.sessionStorage.getItem("career_login_probalkozas")) {
+    return [VENDEG_UZENET];
   }
-  return VENDEG_UZENET;
+  try {
+    const nyers = window.localStorage.getItem("career_guest_chat");
+    const korabbi = nyers ? JSON.parse(nyers) : null;
+    if (Array.isArray(korabbi) && korabbi.length) {
+      return korabbi.map((sor) => ({ ...sor, gepel: false }));
+    }
+  } catch {
+    // Sérült tartalom: a köszöntővel indulunk.
+  }
+  return [{ ...VENDEG_UZENET, gepel: false }];
 }
 
 /** Betűnként jeleníti meg a szöveget, mintha Flow épp írná. Kattintásra
@@ -378,7 +391,7 @@ export default function Home() {
     // feltételhez kötöttem, és emiatt kijelentkezés után a belépett
     // beszélgetés kint maradt a vendégfelületen.
     void elozoSession;
-    setUzenetek([vendegKoszonto()]);
+    setUzenetek(vendegKezdoUzenetek());
   }, [session]);
 
   // A köszöntő a komponens kezdőértéke, azt a szerveroldali előrenderelés
@@ -390,7 +403,7 @@ export default function Home() {
     if (!window.sessionStorage.getItem("career_login_probalkozas")) return;
     setUzenetek((elozo) =>
       elozo.length === 1 && elozo[0] === VENDEG_UZENET
-        ? [{ ...VENDEG_UZENET, gepel: false }]
+        ? vendegKezdoUzenetek()
         : elozo,
     );
   }, [belepve]);
