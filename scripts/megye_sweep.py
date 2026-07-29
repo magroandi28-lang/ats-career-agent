@@ -164,19 +164,24 @@ def main() -> int:
     ujak = [a for a in egyedi.values() if a["link"] not in megvan]
     print(f"Ebből még nincs az adatbázisban: {len(ujak)}")
 
-    # Láttamozás: amit most is látunk, az él. Enélkül nem tudnánk
-    # megkülönböztetni a nyitott állást a betöltöttől -- fél év múlva a
-    # piaci körkép halott hirdetésekből számolna.
-    if ir and megvan:
-        latott, linkek = 0, list(megvan)
-        for i in range(0, len(linkek), 500):
+    # Láttamozás: amit most is látunk, az él.
+    #
+    # MINDEN söpört linket láttamozunk, nem csak azt, amit a `letezo_linkek`
+    # visszaadott. Korábban attól függött, és ha az elhasalt (túl nagy
+    # lekérdezés), akkor a láttamozás CSENDBEN elmaradt -- a lejáratozás
+    # pedig élő hirdetéseket jelölt volna eltűntnek. A `hirdetes_lattam`
+    # link szerint frissít, tehát az ismeretlen linkek egyszerűen nem
+    # találnak semmit; fölösleges munka, de nem árt.
+    if ir:
+        latott, linkek = 0, [a["link"] for a in egyedi.values() if a["link"]]
+        for i in range(0, len(linkek), 200):
             try:
                 v = db.rpc("hirdetes_lattam",
-                           {"linkek": linkek[i:i + 500]}).execute()
+                           {"linkek": linkek[i:i + 200]}).execute()
                 latott += v.data or 0
             except Exception as e:
-                print(f"Láttamozási hiba: {e}")
-        print(f"Láttamozva (még él): {latott}")
+                print(f"Láttamozási hiba ({i}-től): {e}")
+        print(f"Láttamozva (még él): {latott} / {len(linkek)}")
 
     # Besorolás
     csoport: dict[tuple[str, str], list[dict]] = defaultdict(list)

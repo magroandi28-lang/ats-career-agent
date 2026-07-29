@@ -576,12 +576,32 @@ def letezo_linkek(linkek: list) -> set:
     linkek = [l for l in (linkek or []) if l]
     if not db or not linkek:
         return set()
-    try:
-        r = db.table("hirdetesek").select("link").in_("link", linkek).execute()
-        return {s["link"] for s in (r.data or [])}
-    except Exception as e:
-        print(f"[adatbazis] Link-ellenorzes hiba: {e}")
-        return set()
+
+    # ADAGOLVA, és nem egyetlen hívásban.
+    #
+    # A régi változat az összes linket egy `in_()`-be tette. A szakmánkénti
+    # gyűjtésnél ez pár tucat link volt, a megyénkénti söprésnél viszont
+    # ~15 ezer -- több száz kilobájtos query string, amit a kiszolgáló
+    # elutasít. A hibát az `except` lenyelte, üres halmazt adott vissza, és
+    # ettől a hívó úgy látta, hogy EGYETLEN hirdetés sincs az adatbázisban:
+    # a láttamozás elmaradt, a lejáratozás pedig élő hirdetéseket jelölt
+    # volna eltűntnek.
+    #
+    # Egy elnyelt hiba itt nem "kimaradt lépés", hanem hamis adat.
+    megvan: set = set()
+    hiba = 0
+    for i in range(0, len(linkek), 200):
+        adag = linkek[i:i + 200]
+        try:
+            r = db.table("hirdetesek").select("link").in_("link", adag).execute()
+            megvan.update(s["link"] for s in (r.data or []))
+        except Exception as e:
+            hiba += 1
+            print(f"[adatbazis] Link-ellenorzes hiba ({i}-tol): {e}")
+    if hiba:
+        print(f"[adatbazis] FIGYELEM: {hiba} adag elhasalt a link-ellenorzesben, "
+              f"a duplikatum-szures es a lattamozas hianyos lehet.")
+    return megvan
 
 
 # ── HIRDETÉSEK + KÉSZSÉGEK MENTÉSE ───────────────────────────
