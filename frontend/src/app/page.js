@@ -106,6 +106,24 @@ const GPS_TERULETEK = [
   },
 ];
 
+// Ha a szerver köszöntése nem érkezik meg (hálózati hiba, üres válasz,
+// Google-átirányítás utáni furcsaság), Flow akkor sem maradhat néma: a
+// belépett felhasználó azt hinné, elromlott az oldal.
+//
+// A keresztnév a munkamenetből jön -- azt belépés után biztosan tudjuk,
+// modellhívás nélkül is.
+function tartalekKoszontes(session) {
+  const nev =
+    session?.user?.user_metadata?.given_name ||
+    session?.user?.user_metadata?.full_name?.split(" ").pop() ||
+    "";
+  const megszolitas = nev ? `Szia ${nev}!` : "Szia!";
+  return {
+    szerep: "flow",
+    szoveg: `${megszolitas} Örülök, hogy itt vagy. Mesélj, mi hozott ide — hol tartasz most, és mi az, amiben a leginkább elakadtál?`,
+  };
+}
+
 // Belépés után nincs beégetett kezdőszöveg: Flow köszöntése a szerverről
 // jön, néven szólítva. Ez formálja üzenetté a válaszát.
 function koszontoUzenet(adat) {
@@ -518,10 +536,24 @@ export default function Home() {
     })
       .then((valasz) => (valasz.ok ? valasz.json() : null))
       .then((adat) => {
-        if (!adat?.uzenet) return;
+        // FLOW SOSEM MARADHAT NÉMA BELÉPÉS UTÁN.
+        //
+        // Korábban az üres válasz és a hiba is csendet jelentett: a
+        // felhasználó belépett, és nem történt semmi. Google-belépésnél ez
+        // ténylegesen előfordult. A szerveroldali tartalék nem segít, ha a
+        // kérés el sem jut odáig, ezért itt is kell egy.
+        //
+        // A megszólítás ilyenkor a munkamenetből jön -- azt a belépés után
+        // biztosan tudjuk, modellhívás nélkül is.
+        if (!adat?.uzenet) {
+          setUzenetek([{ ...tartalekKoszontes(session), gepel: true }]);
+          return;
+        }
         setUzenetek([koszontoUzenet(adat)]);
       })
-      .catch(() => {})
+      .catch(() => {
+        setUzenetek([{ ...tartalekKoszontes(session), gepel: true }]);
+      })
       .finally(() => setKuldesFolyamatban(false)),
     );
   }, [session]);
