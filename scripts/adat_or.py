@@ -21,6 +21,18 @@ HIBA = []      # súlyos: felhasználó is észreveheti
 FIGYELEM = []  # érdemes rendezni, de nem éget
 
 
+def _rovid(elemek, darab: int = 8) -> str:
+    """Egy napi jelentés, amit nem lehet elolvasni, nem jelentés.
+
+    A régi változat több száz elemet öntött egyetlen sorba -- a lényeg
+    elveszett a felsorolásban.
+    """
+    elemek = list(elemek)
+    if len(elemek) <= darab:
+        return str(elemek)
+    return f"{elemek[:darab]} … és még {len(elemek) - darab}"
+
+
 def lapozva(db, tabla, mezok):
     sorok, start = [], 0
     while True:
@@ -198,13 +210,101 @@ def main():
     if lyukas_szakmak:
         FIGYELEM.append(
             f"{len(lyukas_szakmak)} szakmánál 7 napja nincs új hirdetés "
-            f"(gyűjtés-lyuk): {lyukas_szakmak}"
+            f"(gyűjtés-lyuk): {_rovid(lyukas_szakmak)}"
         )
+    # A címkézettség a `hirdetes_keszseg` táblából számol, amit a
+    # `hirdetes_tetel` leváltott, és a napi karbantartása 2026-07-29-én
+    # megszűnt. Az arány innentől szükségszerűen romlik, tehát figyelmeztetni
+    # rá félrevezető: nem a gyűjtés hibája, hanem egy szándékos leállítás
+    # következménye. A jelentésben marad, de tényként, nem riasztásként.
     if torz_szakmak:
-        FIGYELEM.append(
-            f"{len(torz_szakmak)} szakmánál alacsony a címkézettség "
-            f"(rangsor-torzulás veszélye): {torz_szakmak}"
+        print(f"\n    (Tájékoztató: {len(torz_szakmak)} szakmánál alacsony a "
+              f"régi készség-címkézettség. Ez a leállított `hirdetes_keszseg` "
+              f"tábla maradványa, nem gyűjtési hiba.)")
+
+    # ── BESOROLÁS-MINŐSÉG ────────────────────────────────────
+    #
+    # MIÉRT VAN EZ ITT: 2026-07-29-én 174 teszt volt zöld, miközben az „AI
+    # mérnök" szakma leggyakoribb hirdetése „Konyhai kisegítő" volt, a
+    # „szoftvertesztelő" 517 hirdetéséből pedig 61 szólt tesztelésről. Ezt
+    # semmi nem jelezte -- kézzel kellett észrevenni, napok múlva.
+    #
+    # Két mérce, mindkettő kézi címkézés nélkül:
+    #
+    # 1. ÖNKONZISZTENCIA: ha a cím egy szakma NEVE, annak a szakmának kell
+    #    kijönnie. A szakmanevek maguk adják az elvárt eredményt.
+    # 2. CÍMILLESZKEDÉS: a nagy szakmákban a tárolt hirdetéscímek hány
+    #    százaléka sorolódna ma ugyanabba a szakmába. Ha egy szakma tele van
+    #    olyan hirdetéssel, aminek a címe máshová vezet, akkor a szakma
+    #    gyűjtőhellyé vált -- és a piaci körkép róla hamis bért mutat.
+    print("\n--- BESOROLÁS-MINŐSÉG ---")
+    from backend.szakma_besorolo import Besorolo  # noqa: E402
+
+    foglalkozasok = lapozva(
+        db, "esco_foglalkozas",
+        "uri, nev, isco_kod, alt_nevek, nev_en, alt_nevek_en")
+    for f in foglalkozasok:
+        f["alt_nevek"] = (list(f.get("alt_nevek") or [])
+                          + list(f.get("alt_nevek_en") or []))
+    szakma_sorok = lapozva(db, "szakmak", "id, nev")
+    besorolo = Besorolo(
+        foglalkozasok, szakma_sorok,
+        lapozva(db, "szakma_esco", "szakma_id, foglalkozas_uri"))
+
+    ONKONZISZTENCIA_KUSZOB = 95.0
+    talalt = 0
+    eltero = []
+    for s in szakma_sorok:
+        t = besorolo.besorol(s["nev"])
+        if t is not None and t.szakma_id == s["id"]:
+            talalt += 1
+        else:
+            eltero.append(f"{s['nev']} -> {t.szakma_nev if t else '(nincs)'}")
+    arany = 100.0 * talalt / max(len(szakma_sorok), 1)
+    print(f"Önkonzisztencia: {talalt}/{len(szakma_sorok)} ({arany:.1f}%)")
+    if arany < ONKONZISZTENCIA_KUSZOB:
+        HIBA.append(
+            f"A besoroló önkonzisztenciája {arany:.1f}% "
+            f"(küszöb {ONKONZISZTENCIA_KUSZOB}%). Példák: {eltero[:5]}"
         )
+
+    # Címilleszkedés csak ott értelmes, ahol van elég hirdetés.
+    CIMILLESZKEDES_KUSZOB = 50.0
+    MIN_HIRDETES = 50
+    cimek_szakmankent = defaultdict(list)
+    for h in lapozva(db, "hirdetesek", "cim, szakma_id"):
+        if h.get("szakma_id"):
+            cimek_szakmankent[h["szakma_id"]].append(h.get("cim") or "")
+
+    szakma_nev = {s["id"]: s["nev"] for s in szakma_sorok}
+    gyujtohelyek = []
+    for sz_id, cimek in cimek_szakmankent.items():
+        if len(cimek) < MIN_HIRDETES:
+            continue
+        egyezo = sum(
+            1 for c in cimek
+            if (lambda t: t is not None and t.szakma_id == sz_id)(
+                besorolo.besorol(c))
+        )
+        szazalek = 100.0 * egyezo / len(cimek)
+        if szazalek < CIMILLESZKEDES_KUSZOB:
+            gyujtohelyek.append(
+                (szazalek, f"{szakma_nev.get(sz_id, sz_id)} "
+                           f"({egyezo}/{len(cimek)} = {szazalek:.0f}%)"))
+
+    gyujtohelyek.sort()
+    if gyujtohelyek:
+        print(f"Gyűjtőhellyé vált szakma: {len(gyujtohelyek)}")
+        for _sz, leiras in gyujtohelyek[:10]:
+            print(f"   {leiras}")
+        HIBA.append(
+            f"{len(gyujtohelyek)} szakmánál a hirdetéscímek kevesebb mint "
+            f"{CIMILLESZKEDES_KUSZOB:.0f}%-a vezet ugyanoda -- a piaci körkép "
+            f"róluk téves bért és elvárást mutat. "
+            f"Legrosszabbak: {_rovid([l for _s, l in gyujtohelyek], 5)}"
+        )
+    else:
+        print("Nincs gyűjtőhellyé vált szakma.")
 
     # ── ÖSSZEGZÉS ────────────────────────────────────────────
     print("\n" + "=" * 60)
@@ -221,6 +321,15 @@ def main():
         for f in FIGYELEM:
             print(f"   - {f}")
 
+    # HIBÁS KILÉPÉSI KÓD SÚLYOS TALÁLATNÁL.
+    #
+    # Enélkül az adatőr csak beszél: a napi futás zölden zárul, a jelentést
+    # senki nem olvassa el, és a hiba hetekig bent marad. Pontosan ez történt
+    # a besorolással -- kézzel kellett észrevenni.
+    #
+    # A FIGYELEM nem állít meg semmit: az rendezendő, nem éget.
+    return 1 if HIBA else 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
