@@ -9,7 +9,9 @@ import { apiFetch } from "../lib/api";
 const AKCIO_FELIRATOK = {
   piaci_korkep_inditasa: {
     cim: "Piaci körkép",
-    leiras: "Hirdetésszám, elvárt készségek és bérsávok a saját adatainkból.",
+    leiras:
+      "Kereslet, bér és átjárhatóság a saját adatainkból — kérdésenként " +
+      "megjelölve, mennyire megbízható.",
   },
   allaskereses_inditasa: {
     cim: "Álláskeresés indítása",
@@ -38,17 +40,36 @@ const AKCIO_FELIRATOK = {
   },
 };
 
-function Bersav({ ertekek }) {
-  if (!ertekek?.length) return null;
+// A bizalmi szint KÉRDÉSENKÉNT külön jár. Egy szakmáról tudhatjuk pontosan,
+// hány állás van, miközben a béréről semmit -- egyetlen közös jelző ezt
+// elmosná, és a felhasználó nem tudná, mire támaszkodhat.
+const BIZALOM_FELIRAT = {
+  eros: { szoveg: "erős adat", szin: "text-emerald-300" },
+  gyenge: { szoveg: "kevés adat", szin: "text-amber-300" },
+  nincs: { szoveg: "nincs adat", szin: "text-slate-500" },
+};
+
+function Bizalom({ cimke, szint }) {
+  const jel = BIZALOM_FELIRAT[szint];
+  if (!jel) return null;
   return (
-    <p className="mt-3 text-xs leading-5 text-slate-400">
-      <span className="text-slate-500">Említett bérsávok: </span>
-      {ertekek.join(" · ")}
-    </p>
+    <span className="text-xs text-slate-400">
+      {cimke}: <span className={jel.szin}>{jel.szoveg}</span>
+    </span>
   );
 }
 
+function Forint({ ertek }) {
+  if (ertek == null) return null;
+  return <>{Number(ertek).toLocaleString("hu-HU")} Ft</>;
+}
+
 function PiaciKorkep({ adat }) {
+  const ber = adat.ber || {};
+  const bizalom = adat.bizalom || {};
+  const atjarhatosag = adat.atjarhatosag || [];
+  const leiras = adat.esco?.[0]?.leiras;
+
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -57,43 +78,81 @@ function PiaciKorkep({ adat }) {
           <span className="text-xs text-amber-200">{adat.kereslet.kategoria}</span>
         )}
       </div>
+
       <p className="mt-2 text-sm text-slate-300">
-        {adat.hirdetesek_szama.toLocaleString("hu-HU")} hirdetés az adatbázisunkban
+        {Number(adat.hirdetesek_szama).toLocaleString("hu-HU")} hirdetés
+        {adat.cegek_szama > 0 && <> · {adat.cegek_szama} cégtől</>}
         {adat.kereslet?.friss_30 != null && (
           <> · {adat.kereslet.friss_30} az elmúlt 30 napban</>
         )}
       </p>
 
-      {adat.keszsegek?.length > 0 && (
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        <Bizalom cimke="Kereslet" szint={bizalom.kereslet} />
+        <Bizalom cimke="Bér" szint={bizalom.ber} />
+        <Bizalom cimke="Elvárások" szint={bizalom.elvaras} />
+      </div>
+
+      {(ber.hirdetett_median != null || ber.ksh_atlagkereset != null) && (
         <div className="mt-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Leggyakrabban elvárt készségek
+            Bér
+          </p>
+          {ber.hirdetett_median != null && (
+            <p className="mt-1.5 text-sm text-slate-200">
+              Hirdetett medián: <Forint ertek={ber.hirdetett_median} />
+              {ber.hirdetett_mintaszam > 0 && (
+                <span className="text-xs text-slate-500">
+                  {" "}
+                  ({ber.hirdetett_mintaszam} hirdetésből)
+                </span>
+              )}
+            </p>
+          )}
+          {ber.ksh_atlagkereset != null && (
+            <p className="mt-1 text-sm text-slate-200">
+              KSH-átlagkereset: <Forint ertek={ber.ksh_atlagkereset} />
+              {ber.ksh_idoszak && (
+                <span className="text-xs text-slate-500"> ({ber.ksh_idoszak})</span>
+              )}
+            </p>
+          )}
+          {ber.figyelmeztetes && (
+            <p className="mt-1.5 text-xs leading-5 text-amber-200/80">
+              {ber.figyelmeztetes}
+            </p>
+          )}
+        </div>
+      )}
+
+      {atjarhatosag.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Ide vihető át a tudásod
           </p>
           <ul className="mt-2 space-y-1.5">
-            {adat.keszsegek.map((keszseg) => (
+            {atjarhatosag.map((szomszed) => (
               <li
-                key={keszseg.keszseg}
+                key={szomszed.szakma}
                 className="flex items-center justify-between gap-4 text-sm"
               >
-                <span className="text-slate-200">{keszseg.keszseg}</span>
+                <span className="text-slate-200">{szomszed.szakma}</span>
                 <span className="shrink-0 text-xs text-slate-500">
-                  a hirdetések {keszseg.hirdetesek_szazaleka}%-ában
+                  {szomszed.kozos_keszseg} közös készség
+                  {szomszed.allas > 0 && ` · ${szomszed.allas} állás`}
                 </span>
               </li>
             ))}
           </ul>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Közös készségek alapján, az ESCO szakmaleírásaiból. Lehetőség, nem
+            javaslat — te döntesz.
+          </p>
         </div>
       )}
 
-      <Bersav ertekek={adat.bersavok} />
-
-      {adat.ksh_atlagkereset && (
-        <p className="mt-2 text-xs leading-5 text-slate-400">
-          <span className="text-slate-500">KSH-átlagkereset: </span>
-          {adat.ksh_atlagkereset.megnevezes} —{" "}
-          {Number(adat.ksh_atlagkereset.ertek).toLocaleString("hu-HU")} Ft
-          {adat.ksh_atlagkereset.idoszak && ` (${adat.ksh_atlagkereset.idoszak})`}
-        </p>
+      {leiras && (
+        <p className="mt-4 text-xs leading-5 text-slate-400">{leiras}</p>
       )}
     </div>
   );

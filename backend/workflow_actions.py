@@ -28,8 +28,7 @@ from backend.profile_service import confirmed_values
 from utils.adatbazis import (
     kereslet_korkep,
     kliens,
-    ksh_kereset,
-    szakma_statisztika,
+    szakma_csomag,
 )
 
 
@@ -130,31 +129,61 @@ def _celmunkakor(ctx: ActionContext) -> str:
 def _piaci_korkep_inditasa(ctx: ActionContext) -> ActionOutcome:
     """Dátumozott, forrásolt piaci összevetés a saját adatbázisunkból.
 
-    Nulla modellhívás: a hirdetésszám, a készséggyakoriság és a bérsávok
-    mind mért adatok. A KSH-átlagkereset csak akkor kerül bele, ha a
-    foglalkozásnév ténylegesen illeszkedik -- becslést nem gyártunk.
+    Nulla modellhívás: minden szám mért adat.
+
+    A `szakma_csomag` RPC-ből dolgozik, nem a régi `szakma_statisztika`-ból.
+    Ez három dolgot változtat:
+
+    1. Nem a leállított `hirdetes_keszseg` táblából veszi az elvárásokat.
+    2. Kérdésenként külön bizalmi szintet mutat (kereslet / bér / elvárás).
+       Egyetlen közös jelző félrevezetne: egy szakmáról tudhatjuk pontosan,
+       mennyi állás van, miközben a béréről semmit.
+    3. Az átjárhatóság ingyen jön: a csomag `szomszedok` mezője megmondja,
+       mely szakmákba vihető át a tudás. Ehhez eddig külön hívás kellett.
+
+    A kereslet-trendet (30 napos ablakpár) továbbra is a `kereslet_korkep()`
+    adja -- ez időbeli összehasonlítás, a csomag pedig pillanatkép.
     """
     szakma = _celmunkakor(ctx)
-    statisztika = szakma_statisztika(szakma)
+    csomag = szakma_csomag(szakma)
     korkep = kereslet_korkep()
     sajat_kereslet = next(
         (sor for sor in korkep if sor["szakma"].casefold() == szakma.casefold()),
         None,
     )
 
-    if not statisztika and sajat_kereslet is None:
+    if not csomag and sajat_kereslet is None:
         raise ActionError(
             f"A(z) „{szakma}” szakmáról még nincs elég saját piaci adatunk."
         )
 
+    lefedettseg = csomag.get("lefedettseg") or {}
+    ber = csomag.get("ber") or {}
+
     return ActionOutcome(
         result={
-            "szakma": szakma,
+            "szakma": csomag.get("szakma") or szakma,
+            # Kérdésenkénti bizalom -- a felület ezt írja ki az adat mellé,
+            # hogy a felhasználó lássa, mennyire állhat rajta.
+            "bizalom": {
+                "kereslet": lefedettseg.get("kereslet_bizalom"),
+                "ber": lefedettseg.get("ber_bizalom"),
+                "elvaras": lefedettseg.get("elvaras_bizalom"),
+            },
+            "hirdetesek_szama": lefedettseg.get("allas") or 0,
+            "cegek_szama": lefedettseg.get("ceg") or 0,
+            "teteles_hirdetes": lefedettseg.get("teteles") or 0,
             "kereslet": sajat_kereslet,
-            "hirdetesek_szama": statisztika.get("hirdetesek_szama", 0),
-            "keszsegek": (statisztika.get("keszsegek") or [])[:10],
-            "bersavok": (statisztika.get("bersavok") or [])[:5],
-            "ksh_atlagkereset": ksh_kereset(szakma),
+            "ber": {
+                "hirdetett_median": ber.get("hirdetett_median"),
+                "hirdetett_mintaszam": ber.get("hirdetett_mintaszam"),
+                "ksh_atlagkereset": ber.get("ksh_atlagkereset"),
+                "ksh_idoszak": ber.get("ksh_idoszak"),
+                "figyelmeztetes": ber.get("figyelmeztetes"),
+            },
+            "esco": csomag.get("esco") or [],
+            "atjarhatosag": (csomag.get("szomszedok") or [])[:5],
+            "frissesseg": csomag.get("frissesseg"),
             "osszehasonlitott_szakmak": len(korkep),
         },
         gps_esemeny="market_snapshot_ready",

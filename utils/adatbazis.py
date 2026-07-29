@@ -435,9 +435,58 @@ def kereslet_korkep() -> list:
         return []
 
 
+def szakma_id_nevbol(szakma_nev: str):
+    """Szakmanév -> id, kis-nagybetű érzéketlenül. None, ha nincs ilyen."""
+    db = kliens()
+    if not db or not (szakma_nev or "").strip():
+        return None
+    try:
+        r = (db.table("szakmak").select("id")
+               .ilike("nev", szakma_nev.strip()).limit(1).execute())
+        return r.data[0]["id"] if r.data else None
+    except Exception as e:
+        print(f"[adatbazis] Szakma-azonosito hiba: {e}")
+        return None
+
+
+def szakma_csomag(szakma_nev: str) -> dict:
+    """A szakma teljes piaci képe EGY hívásban, a `szakma_csomag` RPC-ből.
+
+    EZ AZ EGYETLEN FORRÁS, amit a piaci körkép használhat. A korábbi út
+    (`szakma_statisztika`) a `v_szakma_keszsegek` nézeten állt, az pedig a
+    `hirdetes_keszseg` + `keszsegek` táblapárosra épül -- azt a `hirdetes_tetel`
+    leváltotta, és a napi karbantartásuk 2026-07-29-én megszűnt. Onnan olvasva
+    a készséglista lassan elavul, és a 2026-07-29-én felfedezett 120 új
+    szakmáról soha nem tudna semmit.
+
+    Amit az RPC visszaad: `szakma`, `ber` (KSH + hirdetett medián +
+    időszak-figyelmeztetés), `esco` (leírás, kötelező készségszám),
+    `szomszedok` (átjárhatóság), `lefedettseg` (a három bizalmi szint
+    külön-külön), `frissesseg`.
+
+    Üres dict, ha a szakma ismeretlen vagy az RPC nem érhető el -- a hívó
+    dolga eldönteni, hogy ez hiba-e.
+    """
+    db = kliens()
+    szakma_id = szakma_id_nevbol(szakma_nev)
+    if not db or szakma_id is None:
+        return {}
+    try:
+        r = db.rpc("szakma_csomag", {"p_szakma_id": szakma_id}).execute()
+        return r.data or {}
+    except Exception as e:
+        print(f"[adatbazis] Szakma-csomag hiba: {e}")
+        return {}
+
+
 def szakma_statisztika(szakma_nev: str) -> dict:
     """Egy szakma piaci képe a saját adatainkból: hirdetésszám,
-    leggyakoribb elvárások (százalékkal), bérinfók."""
+    leggyakoribb elvárások (százalékkal), bérinfók.
+
+    ELAVULT a piaci körképhez: a `v_szakma_keszsegek` nézetből olvas, ami a
+    már nem karbantartott `hirdetes_keszseg` + `keszsegek` táblapárosra épül.
+    Új hívót ne kapcsolj rá -- használd a `szakma_csomag()`-ot.
+    """
     db = kliens()
     if not db or not szakma_nev:
         return {}

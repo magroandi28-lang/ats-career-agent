@@ -25,6 +25,40 @@ kliens = TestClient(app)
 FELHASZNALO_ID = "00000000-0000-0000-0000-000000000001"
 
 
+def csomag_minta(allas: int = 42, **felulir) -> dict:
+    """A `szakma_csomag` RPC valódi alakja, kicsiben.
+
+    A mezőnevek az éles RPC-ből valók (2026-07-29). Ha az RPC alakja
+    változik, ennek is változnia kell -- különben a teszt olyasmit
+    igazolna, ami élesben nem létezik.
+    """
+    csomag = {
+        "szakma": "automata tesztelő",
+        "frissesseg": "2026-07-29T08:58:16.866691+00:00",
+        "ber": {
+            "hirdetett_median": 600000,
+            "hirdetett_mintaszam": 12,
+            "ksh_atlagkereset": None,
+            "ksh_idoszak": "2024",
+            "figyelmeztetes": "A KSH-adat és a hirdetések eltérő időszakból valók.",
+        },
+        "esco": [{"nev": "szoftvertesztelő", "isco": "2519.4", "leiras": "…",
+                  "kotelezo_keszseg": 21}],
+        "szomszedok": [
+            {"szakma": "manuális tesztelő", "hasonlosag": 0.31,
+             "kozos_keszseg": 9, "allas": 57},
+        ],
+        "lefedettseg": {
+            "allas": allas, "ceg": 8, "beres": 12, "teteles": 30,
+            "van_ksh": False, "van_esco": True,
+            "kereslet_bizalom": "eros", "ber_bizalom": "gyenge",
+            "elvaras_bizalom": "eros",
+        },
+    }
+    csomag.update(felulir)
+    return csomag
+
+
 class Felhasznalo:
     id = FELHASZNALO_ID
 
@@ -109,9 +143,8 @@ def test_piaci_korkep_vazlatbol_nem_dolgozik(monkeypatch):
 def test_piaci_korkep_adat_nelkul_ertheto_hibat_ad(monkeypatch):
     from backend import workflow_actions
 
-    monkeypatch.setattr(workflow_actions, "szakma_statisztika", lambda _: {})
+    monkeypatch.setattr(workflow_actions, "szakma_csomag", lambda _: {})
     monkeypatch.setattr(workflow_actions, "kereslet_korkep", lambda: [])
-    monkeypatch.setattr(workflow_actions, "ksh_kereset", lambda _: None)
 
     with pytest.raises(ActionError, match="nincs elég saját piaci adatunk"):
         execute_action(
@@ -127,15 +160,7 @@ def test_piaci_korkep_adat_nelkul_ertheto_hibat_ad(monkeypatch):
 def test_piaci_korkep_mert_adatot_ad_vissza(monkeypatch):
     from backend import workflow_actions
 
-    monkeypatch.setattr(
-        workflow_actions,
-        "szakma_statisztika",
-        lambda _: {
-            "hirdetesek_szama": 42,
-            "keszsegek": [{"keszseg": "Python", "hirdetesek_szazaleka": 61}],
-            "bersavok": ["600-800 eFt"],
-        },
-    )
+    monkeypatch.setattr(workflow_actions, "szakma_csomag", lambda _: csomag_minta(42))
     monkeypatch.setattr(
         workflow_actions,
         "kereslet_korkep",
@@ -144,7 +169,6 @@ def test_piaci_korkep_mert_adatot_ad_vissza(monkeypatch):
             {"szakma": "Bolti eladó", "friss_30": 7, "kategoria": "➡️ stabil"},
         ],
     )
-    monkeypatch.setattr(workflow_actions, "ksh_kereset", lambda _: None)
 
     outcome = execute_action(
         CareerAction.PIACI_KORKEP_INDITASA,
@@ -158,6 +182,21 @@ def test_piaci_korkep_mert_adatot_ad_vissza(monkeypatch):
     # A szakmanév egyeztetése kis-nagybetűtől független.
     assert outcome.result["kereslet"]["friss_30"] == 42
     assert outcome.result["hirdetesek_szama"] == 42
+
+    # Kérdésenkénti bizalom: a bérről gyenge az adat, a keresletről erős.
+    # Egyetlen közös jelző ezt elmosná.
+    assert outcome.result["bizalom"] == {
+        "kereslet": "eros", "ber": "gyenge", "elvaras": "eros",
+    }
+
+    # Az átjárhatóság a csomagból jön, külön hívás nélkül.
+    assert outcome.result["atjarhatosag"][0]["szakma"] == "manuális tesztelő"
+
+    # A KSH-időszak figyelmeztetése eljut a felületig -- a 2024-es KSH-adat
+    # és a 2026-os hirdetések összevetése enélkül félrevezetne.
+    assert outcome.result["ber"]["ksh_idoszak"] == "2024"
+    assert "eltérő időszakból" in outcome.result["ber"]["figyelmeztetes"]
+
     assert outcome.gps_esemeny == "market_snapshot_ready"
     assert outcome.gps_terulet == "piaci_kep"
     assert outcome.gps_allapot == "betoltve"
@@ -508,13 +547,8 @@ def test_flow_javaslata_le_is_fut(monkeypatch):
     )
     from backend import workflow_actions
 
-    monkeypatch.setattr(
-        workflow_actions,
-        "szakma_statisztika",
-        lambda _: {"hirdetesek_szama": 41, "keszsegek": [], "bersavok": []},
-    )
+    monkeypatch.setattr(workflow_actions, "szakma_csomag", lambda _: csomag_minta(41))
     monkeypatch.setattr(workflow_actions, "kereslet_korkep", lambda: [])
-    monkeypatch.setattr(workflow_actions, "ksh_kereset", lambda _: None)
     frissitesek = []
     monkeypatch.setattr(
         main, "workflow_frissites", lambda *args: frissitesek.append(args) or True
@@ -667,13 +701,8 @@ def test_sikeres_muvelet_lepteti_az_allapotot_es_gps_nyomot_hagy(monkeypatch):
     main = _alap_mockok(monkeypatch, "PROFIL_ELLENORZOTT")
     from backend import workflow_actions
 
-    monkeypatch.setattr(
-        workflow_actions,
-        "szakma_statisztika",
-        lambda _: {"hirdetesek_szama": 42, "keszsegek": [], "bersavok": []},
-    )
+    monkeypatch.setattr(workflow_actions, "szakma_csomag", lambda _: csomag_minta(42))
     monkeypatch.setattr(workflow_actions, "kereslet_korkep", lambda: [])
-    monkeypatch.setattr(workflow_actions, "ksh_kereset", lambda _: None)
 
     frissitesek = []
     monkeypatch.setattr(
@@ -721,9 +750,8 @@ def test_elhasalt_modul_nem_lepteti_az_allapotot(monkeypatch):
     main = _alap_mockok(monkeypatch, "PROFIL_ELLENORZOTT")
     from backend import workflow_actions
 
-    monkeypatch.setattr(workflow_actions, "szakma_statisztika", lambda _: {})
+    monkeypatch.setattr(workflow_actions, "szakma_csomag", lambda _: {})
     monkeypatch.setattr(workflow_actions, "kereslet_korkep", lambda: [])
-    monkeypatch.setattr(workflow_actions, "ksh_kereset", lambda _: None)
 
     frissitesek = []
     monkeypatch.setattr(
