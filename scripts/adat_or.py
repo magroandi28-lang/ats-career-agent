@@ -306,6 +306,46 @@ def main():
     else:
         print("Nincs gyűjtőhellyé vált szakma.")
 
+    # ── KÉSZSÉGLISTA TISZTASÁGA (4. mérce) ───────────────────
+    #
+    # A besorolasra, a frissessegre es a berre volt napi mercenk, az
+    # ESCO-keszsegretegre nem. Ezert maradhatott eszrevetlen, hogy egy
+    # altalanos raktaros emlekeztetojenek eleje boripari keszseg volt.
+    #
+    # Amit mer: a szakma keszsegeinek hany szazaleka tartozik a MAGHOZ. Ha egy
+    # szakma tobb ESCO-foglalkozashoz kotodik, es azok tavol allnak egymastol,
+    # a lista zajossa valik -- a CV-emlekezteto pedig felrevezet.
+    print("\n--- KÉSZSÉGLISTA TISZTASÁGA ---")
+    MAG_KUSZOB = 20.0
+    try:
+        merce = db.rpc("keszseg_mag_merce", {"p_kuszob": 0.25}).execute().data or []
+    except Exception as e:
+        merce = []
+        FIGYELEM.append(f"A készség-mérce nem futott le: {e}")
+
+    if merce:
+        atlag = sum(float(m["mag_szazalek"]) for m in merce) / len(merce)
+        zajos = sorted(
+            (m for m in merce if float(m["mag_szazalek"]) < MAG_KUSZOB),
+            key=lambda m: float(m["mag_szazalek"]),
+        )
+        print(f"Szakma készséglistával: {len(merce)} | "
+              f"átlagos magarány: {atlag:.1f}%")
+        if zajos:
+            print(f"Zajos készséglista: {len(zajos)}")
+            for m in zajos[:10]:
+                print(f"   {m['szakma']} ({m['mag_keszseg']}/"
+                      f"{m['ossz_keszseg']} = {m['mag_szazalek']}%)")
+            FIGYELEM.append(
+                f"{len(zajos)} szakmánál a készséglista kevesebb mint "
+                f"{MAG_KUSZOB:.0f}%-a tartozik a szakma magjához -- a "
+                f"CV-emlékeztető róluk oda nem illő készségeket kínál: "
+                + _rovid([f"{m['szakma']} ({m['mag_szazalek']}%)"
+                          for m in zajos], 5)
+            )
+        else:
+            print("Nincs zajos készséglista.")
+
     # ── ÖSSZEGZÉS ────────────────────────────────────────────
     print("\n" + "=" * 60)
     print("ÖSSZEGZÉS")
