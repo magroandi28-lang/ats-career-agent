@@ -55,12 +55,48 @@ const CV_MUVELETEK = [
   },
 ];
 
+// A KIRAKAT: mit tudunk. A látogatót nem az érdekli, hol tartunk az
+// építéssel, hanem hogy mit kap. Korábban itt „adatkapcsolat következik" és
+// „tervezés alatt" állt -- az fejlesztői jegyzet, nem látogatói információ.
+//
+// Ez bemutatás, nem menü: nem gomb, nem indít semmit. A belépés utáni
+// felületen nem jelenik meg, ott Flow vezet.
 const MODULOK = [
-  { nev: "Piaci körkép", jel: "01", allapot: "adatkapcsolat következik" },
-  { nev: "Álláslehetőségek", jel: "02", allapot: "adatkapcsolat következik" },
-  { nev: "Képzések", jel: "03", allapot: "adatkapcsolat következik" },
-  { nev: "Külföld", jel: "04", allapot: "adatkapcsolat következik" },
-  { nev: "Portfólió Stúdió", jel: "05", allapot: "tervezés alatt" },
+  {
+    nev: "Van CV-m",
+    jel: "01",
+    allapot: "Átnézzük, megmutatjuk, mit mondj szakmai nyelven, és mi maradt ki.",
+  },
+  {
+    nev: "Nincs CV-m",
+    jel: "02",
+    allapot: "Rövid beszélgetésből építünk ellenőrizhető karrierprofilt.",
+  },
+  {
+    nev: "Pályaváltás",
+    jel: "03",
+    allapot: "Mely szakmákba vihető át a tudásod, és mi hiányzik hozzá.",
+  },
+  {
+    nev: "Piaci körkép",
+    jel: "04",
+    allapot: "Van-e kereslet, mennyit fizetnek — valódi hirdetésekből.",
+  },
+  {
+    nev: "Álláslehetőségek",
+    jel: "05",
+    allapot: "Hozzád illő állások, illeszkedés szerint rangsorolva.",
+  },
+  {
+    nev: "Képzések",
+    jel: "06",
+    allapot: "Mit tanulj meg ahhoz, amit el akarsz érni.",
+  },
+  {
+    nev: "Portfólió",
+    jel: "07",
+    allapot: "Megmutatható munkákból önálló bemutatkozó oldal.",
+  },
 ];
 
 // A kulcsok a backend career_gps_snapshots.terulet értékei, a `kesz` és
@@ -913,21 +949,37 @@ export default function Home() {
         </span>
       </div>
 
-      <div className="mb-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
-        <div className="mb-2 flex items-center justify-between text-xs">
-          <span className="text-slate-300">Karrierút készültsége</span>
-          <span className="font-semibold text-amber-200">{keszSzazalek}%</span>
+      {/* VENDÉGKÉNT NEM A 0%-OT MUTATJUK.
+          Egy látogatónak a „0% készültség" és az öt lezárt lépés azt üzeni,
+          hogy itt még nem csinálhat semmit. Nem eladja az oldalt, hanem
+          elveszi a kedvét. Helyette azt mondjuk el, MI FOG történni. */}
+      {belepve ? (
+        <div className="mb-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="text-slate-300">Karrierút készültsége</span>
+            <span className="font-semibold text-amber-200">{keszSzazalek}%</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-200 transition-[width] duration-500"
+              style={{ width: `${Math.max(keszSzazalek, 3)}%` }}
+            />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            Nem becsülünk találomra. A sáv csak ellenőrzött lépések után halad.
+          </p>
         </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-200 transition-[width] duration-500"
-            style={{ width: `${Math.max(keszSzazalek, 3)}%` }}
-          />
+      ) : (
+        <div className="mb-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+          <p className="text-xs font-semibold text-amber-200">
+            Így fog kinézni az utad
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            Öt lépés, ebben a sorrendben. Mindegyik akkor lép tovább, ha
+            tényleg elkészült valami — nem becsülünk találomra.
+          </p>
         </div>
-        <p className="mt-3 text-xs leading-5 text-slate-400">
-          Nem becsülünk találomra. A sáv csak ellenőrzött lépések után halad.
-        </p>
-      </div>
+      )}
 
       <ol className="space-y-1">
         {gpsLepesek.map((lepes, index) => (
@@ -1290,7 +1342,12 @@ export default function Home() {
                     </button>
                   </form>
 
-                  {!kezdoValasztas && (
+                  {/* BELÉPVE Flow vezet, nem menü.
+                      Vendégként a teljes kirakat úgyis ott van lejjebb; itt
+                      megismételni ugyanazt két helyen csak zsúfol. Belépve
+                      pedig Flow kérdez, és a válaszlehetőségeket ő teszi a
+                      saját üzenete alá -- nem egy állandó kártyarács. */}
+                  {!kezdoValasztas && belepve && (
                   <div className="pt-1">
                     <p className="mb-3 text-xs font-medium text-slate-500">
                       Vagy indulj egy gyors választással:
@@ -1324,16 +1381,16 @@ export default function Home() {
               </div>
             )}
 
+            {/* A kirakat csak vendégként látszik. Belépve Flow vezet, ott egy
+                hétfelé ágazó menü csak elvenné a figyelmet a beszélgetésről. */}
+            {!belepve && (
             <section className="mt-6">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-200">
-                  A rendszer képességei
+                  Amiben segítek
                 </h2>
-                <span className="text-[11px] text-slate-600">
-                  Valós bekötési állapot
-                </span>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {MODULOK.map((modul) => (
                   <article
                     key={modul.nev}
@@ -1345,13 +1402,14 @@ export default function Home() {
                     <h3 className="mt-3 text-sm font-semibold text-slate-200">
                       {modul.nev}
                     </h3>
-                    <p className="mt-2 text-[11px] leading-4 text-slate-600">
+                    <p className="mt-2 text-[11px] leading-4 text-slate-400">
                       {modul.allapot}
                     </p>
                   </article>
                 ))}
               </div>
             </section>
+            )}
           </section>
 
           <div className="hidden lg:block">{gpsPanel}</div>
