@@ -24,7 +24,8 @@ const AKCIO_FELIRATOK = {
   cv_ellenorzes_inditasa: {
     cim: "CV átvizsgálása",
     leiras:
-      "Miért dobhatja ki a szűrő, és mely piaci elvárások hiányoznak belőle.",
+      "Miért dobhatja ki a szűrő, hogyan mondd szakmai nyelven, amit már " +
+      "leírtál, és mi az, amit kihagytál.",
   },
   cv_frissites_inditasa: {
     cim: "CV frissítése",
@@ -248,6 +249,8 @@ function KeresesiFeltetelek({ adat }) {
 function CvAtvizsgalas({ adat }) {
   const hianyzo = adat.hianyzo_elvarasok || [];
   const formai = adat.formai_kifogasok || [];
+  const szokincs = adat.szokincs || [];
+  const emlekezteto = adat.emlekezteto || [];
 
   return (
     <div>
@@ -308,6 +311,62 @@ function CvAtvizsgalas({ adat }) {
           </ul>
         )}
       </div>
+
+      {/* SZÓKINCS. A gyenge CV-k többsége nem attól gyenge, hogy hiányzik
+          belőle valami, hanem hogy rosszul van megfogalmazva. Itt nem
+          hiányt mutatunk, hanem ugyanazt a munkát felismerhető nyelven. */}
+      {szokincs.length > 0 && (
+        <div className="mt-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Ezt már leírtad — csak mondd szakmai nyelven
+          </p>
+          <ul className="mt-2 space-y-2.5">
+            {szokincs.map((elem, index) => (
+              <li
+                key={`${elem.szakmai_megfogalmazas}-${index}`}
+                className="rounded-xl border border-white/8 bg-black/15 px-3.5 py-2.5"
+              >
+                <p className="text-xs text-slate-500">
+                  „{elem.a_cv_ben_igy_all}”
+                </p>
+                <p className="mt-1 text-sm text-slate-100">
+                  {elem.szakmai_megfogalmazas}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* EMLÉKEZTETŐ. Nem „ez hiányzik belőled", hanem „ezt is csináltad?"
+          A legtöbb ember kihagy a CV-jéből olyat, amit évekig végzett, mert
+          magától értetődőnek tartja. */}
+      {emlekezteto.length > 0 && (
+        <div className="mt-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Ezt is csináltad?
+          </p>
+          <p className="mt-1.5 text-xs leading-5 text-slate-500">
+            A szakmádhoz ezek is hozzátartoznak. Ami igaz rád, azt tedd bele —
+            nem hiánylista, hanem emlékeztető.
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {emlekezteto.map((elem, index) => (
+              <li
+                key={`${elem.keszseg}-${index}`}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-200"
+              >
+                {elem.keszseg}
+              </li>
+            ))}
+          </ul>
+          {adat.emlekezteto_ossz > emlekezteto.length && (
+            <p className="mt-2 text-xs text-slate-500">
+              és még {adat.emlekezteto_ossz - emlekezteto.length} további
+            </p>
+          )}
+        </div>
+      )}
 
       {adat.fo_problema && (
         <p className="mt-5 text-sm leading-6 text-slate-300">
