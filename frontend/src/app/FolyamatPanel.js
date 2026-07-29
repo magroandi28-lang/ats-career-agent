@@ -390,12 +390,39 @@ export function Eredmeny({ action, adat }) {
   return null;
 }
 
-export default function FolyamatPanel({ availableActions = [], onStateChange }) {
+// EGY KÁRTYA EGY FOLYAMAT.
+//
+// A szerver minden olyan lépést felkínál, ami az adott állapotból
+// engedélyezett -- CV-átvizsgálás közben az álláskeresést és a piaci
+// körképet is. Ettől a folyamat szétesett: a felhasználó a CV-nél tartott,
+// és három egymástól független út nyílt meg előtte egyszerre.
+//
+// Itt szűkítünk arra, ami az ÉPPEN VÁLASZTOTT folyamathoz tartozik. A többi
+// nem tűnik el véglegesen: az adott folyamat lezárása után újra elérhető.
+const FOLYAMAT_LEPESEI = {
+  cv: [
+    "cv_ellenorzes_inditasa",
+    "cv_frissites_inditasa",
+    "cv_keszites_inditasa",
+  ],
+  allas: ["allaskereses_inditasa", "allasok_bemutatasa"],
+  piac: ["piaci_korkep_inditasa"],
+  tanacs: ["tanacsadas_inditasa"],
+};
+
+export default function FolyamatPanel({
+  availableActions = [],
+  aktivFolyamat = null,
+  onStateChange,
+}) {
   const [futo, setFuto] = useState(null);
   const [eredmeny, setEredmeny] = useState(null);
   const [hiba, setHiba] = useState(null);
 
-  const lepesek = availableActions.filter((akcio) => AKCIO_FELIRATOK[akcio]);
+  const engedett = FOLYAMAT_LEPESEI[aktivFolyamat] || null;
+  const lepesek = availableActions
+    .filter((akcio) => AKCIO_FELIRATOK[akcio])
+    .filter((akcio) => !engedett || engedett.includes(akcio));
 
   async function inditas(action) {
     if (futo) return;

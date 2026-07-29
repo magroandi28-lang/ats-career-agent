@@ -1234,6 +1234,11 @@ export default function Home() {
                   {belepve && valaszthatoLepesek.length > 0 && (
                     <FolyamatPanel
                       availableActions={valaszthatoLepesek}
+                      // Egy kártya egy folyamat: a CV-nél ne nyíljon meg
+                      // egyszerre az álláskeresés és a piaci körkép is.
+                      aktivFolyamat={
+                        kezdoValasztas === "cv" ? "cv" : null
+                      }
                       onStateChange={(result) => {
                         setWorkflowState(result.current_state);
                         setValaszthatoLepesek(result.available_actions || []);

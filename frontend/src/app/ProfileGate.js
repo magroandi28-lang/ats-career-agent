@@ -76,6 +76,9 @@ export default function ProfileGate({ onStateChange, embedded = false }) {
   const [extractedText, setExtractedText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // A CV-ből felismert célmunkakör-javaslatok. A jóváhagyás válaszából
+  // jönnek, és csak felkínáljuk őket -- a döntés a felhasználóé.
+  const [szakmaJavaslatok, setSzakmaJavaslatok] = useState([]);
 
   async function loadProfile() {
     const response = await apiFetch("/api/v1/profile");
@@ -234,6 +237,9 @@ export default function ProfileGate({ onStateChange, embedded = false }) {
         );
       }
       const result = await response.json();
+      // A CV-ből felismert szakmák: a célmunkakör mező fölött jelennek meg,
+      // egy kattintással választhatóan.
+      setSzakmaJavaslatok(result.celmunkakor_javaslatok || []);
       window.localStorage.removeItem("career_pending_cv_import");
       setCvImport(null);
       setExtractedText("");
@@ -295,6 +301,49 @@ export default function ProfileGate({ onStateChange, embedded = false }) {
               <span className="mb-1.5 block text-xs font-medium text-slate-300">
                 {config.label}
               </span>
+
+              {/* A CV-BŐL FELISMERT SZAKMÁK, EGY KATTINTÁSSAL.
+                  Ami a CV-ben ott van, azt ne kelljen begépelni. A javaslat
+                  mellett látszik, MELYIK sor hozta -- így eldönthető, jó-e.
+                  Nem választunk automatikusan: egy emberben több szakmai
+                  profil is lehet (pénztáros és bolti eladó egyszerre), és a
+                  célmunkakör nem azonos a jelenlegivel. */}
+              {config.field === "target_role" &&
+                szakmaJavaslatok.length > 0 && (
+                  <div className="mb-2">
+                    <p className="mb-1.5 text-[11px] text-slate-500">
+                      A CV-d alapján ezeket ismertük fel — válassz, vagy írj
+                      be mást:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {szakmaJavaslatok.map((javaslat) => {
+                        const kivalasztott =
+                          values.target_role === javaslat.szakma;
+                        return (
+                          <button
+                            key={javaslat.szakma}
+                            type="button"
+                            title={`A CV-ben: „${javaslat.bizonyitek}”`}
+                            onClick={() =>
+                              setValues((previous) => ({
+                                ...previous,
+                                target_role: javaslat.szakma,
+                              }))
+                            }
+                            className={`rounded-full border px-3 py-1 text-xs ${
+                              kivalasztott
+                                ? "border-amber-300 bg-amber-300 font-semibold text-slate-950"
+                                : "border-white/15 bg-white/[0.04] text-slate-200 hover:border-amber-300/50"
+                            }`}
+                          >
+                            {javaslat.szakma}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
               <input
                 value={values[config.field] || ""}
                 onChange={(event) =>
