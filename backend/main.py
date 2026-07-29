@@ -67,6 +67,7 @@ from backend.profile_service import (
     profile_readiness,
     profile_update_draft,
 )
+from backend.cv_szakma_javaslat import celmunkakor_javaslatok
 from backend.cv_import_service import (
     cv_import_create,
     cv_import_get,
@@ -1193,9 +1194,22 @@ def profile_facts_review_vegpont(
         ),
         felhasznalo,
     )
+    # CÉLMUNKAKÖR-JAVASLAT A JÓVÁHAGYOTT CV-BŐL.
+    #
+    # A profil eddig csak a `cv_document_id`-t kapta meg -- vagyis
+    # „ellenőrzött" lett úgy, hogy egyetlen valódi karrieradat sem került
+    # bele. Emiatt a célmunkakört külön be kellett gépelni, és addig egyetlen
+    # szolgáltatás sem futott le.
+    #
+    # A javaslatot NEM mentjük automatikusan: egy emberben több szakmai
+    # profil is lehet (pénztáros és bolti eladó egyszerre), és a célmunkakör
+    # nem azonos a jelenlegivel. A felhasználó választ, mi csak felkínáljuk.
     return {
         **confirmation,
         "import": approved_import,
+        "celmunkakor_javaslatok": celmunkakor_javaslatok(
+            bemenet.approved_text or ""
+        ),
     }
 
 
