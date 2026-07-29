@@ -353,8 +353,8 @@ def _belepes_tartalek(nev: str) -> str:
     """
     megszolitas = f"Szia {nev}!" if nev else "Szia!"
     return (
-        f"{megszolitas} Örülök, hogy itt vagy. Mondd el, mivel kezdjük — "
-        "vagy válassz az alábbi lehetőségek közül."
+        f"{megszolitas} Örülök, hogy itt vagy. Mesélj, mi hozott ide — "
+        "hol tartasz most, és mi az, amiben a leginkább elakadtál?"
     )
 
 
@@ -398,9 +398,13 @@ SZABÁLYOK:
   vendégoldalon már megtetted.
 - Ha van „AMIT BELÉPÉS ELŐTT MONDOTT", VEDD FEL A FONALAT: utalj rá
   konkrétan, és ajánld fel, hogy azzal kezdjétek.
-- Ha NINCS ilyen előzmény, egyszerűen kérdezd meg, mi legyen az első lépés.
-  Ne találgass, és ne sorolj fel mindent, amit tudunk -- a lehetőségeket
-  a felhasználó a kártyákon látja.
+- Ha NINCS ilyen előzmény, akkor SEM a kártyákra mutogatsz. Kérdezd meg
+  emberi módon, mi hozta ide: hol tart most, mi az, amiben elakadt. Az a
+  cél, hogy elmondja a saját szavaival -- abból már tudod, melyik
+  szolgáltatás illik hozzá.
+  TILOS: „válassz a lehetőségek közül", „kattints valamelyik kártyára" és
+  hasonló. Aki most lépett be, arról semmit nem tudunk; kérdezni kell, nem
+  menüt tolni elé.
 - Ha nem ismered a nevét, ne találgass: köszönj név nélkül.
 - Legfeljebb 3 mondat. Magyarul, tegezve.
 - Semmit ne találj ki a felhasználóról azon túl, ami fent szerepel."""
