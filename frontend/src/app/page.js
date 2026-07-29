@@ -321,8 +321,23 @@ export default function Home() {
   // kliensoldali nyomait kifejezetten törölni kell -- különben a kilépett
   // felhasználó a belépésre váró panelen ragad, a következő belépő pedig
   // az előző választásait örökölné.
+  // KILÉPÉSKOR takarítunk -- és CSAK akkor.
+  //
+  // Korábban ez az effekt minden olyan esetben lefutott, amikor a munkamenet
+  // „nincs belépve" állapotra állt -- tehát vendégként is, minden
+  // oldalbetöltéskor. Feltétel nélkül visszaírta a köszöntőt, így Flow újra
+  // meg újra bemutatkozott annak, aki csak visszalépett a bejelentkezési
+  // oldalról. A `sessionStorage`-os javítás lefutott, ezt viszont nem
+  // előzte meg: ez felülírta.
+  //
+  // Most az előző munkamenetet is nézzük: takarítani csak akkor kell, ha
+  // VOLT belépett munkamenet, és megszűnt.
+  const elozoSessionRef = useRef(undefined);
   useEffect(() => {
+    const elozoSession = elozoSessionRef.current;
+    elozoSessionRef.current = session;
     if (session !== null) return;
+    if (!elozoSession) return; // vendég volt és az is maradt -- nincs mit takarítani
     folytatasRef.current = false;
     kezdoValasztasRef.current = null;
     setKezdoValasztas(null);
