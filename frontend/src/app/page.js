@@ -447,12 +447,17 @@ export default function Home() {
     // a chatablakban a helyet az aktuális munkafolyamatnak kell hagyni.
     if (vendegSorok.length) vendegElozmenyRef.current = vendegSorok;
 
-    // A vendégköszöntő eltűnik, és NEM kerül a helyére másik fix szöveg:
-    // amíg Flow saját köszöntése megérkezik, a gépel-jelző tartja a helyet.
-    // Így egyetlen köszöntés van a képernyőn, nem kettő egymás után.
-    setUzenetek((elozo) =>
-      elozo.length === 1 && elozo[0] === VENDEG_UZENET ? [] : elozo,
-    );
+    // BELÉPÉS UTÁN A VENDÉGBESZÉLGETÉS LEKERÜL A KÉPERNYŐRŐL.
+    //
+    // Flow emlékszik rá (fent, a `vendegElozmenyRef`-ben), és a köszöntésében
+    // fel is veszi a fonalat -- de a chatablakot a mostani munkának hagyjuk.
+    // Aki belép, ne a saját vendégmondatait olvassa újra: elég, ha Flow a
+    // nevén szólítja és onnan folytatja.
+    //
+    // Korábban ez csak akkor ürített, ha egyedül a köszöntő volt kint. Amióta
+    // a félbehagyott regisztráció után a beszélgetést is visszatöltjük, az
+    // több elem -- így bent ragadt belépés után is.
+    setUzenetek([]);
 
     if (belepesUdvozletRef.current) return;
     belepesUdvozletRef.current = true;
