@@ -200,7 +200,15 @@ def test_piaci_korkep_mert_adatot_ad_vissza(monkeypatch):
     assert outcome.gps_esemeny == "market_snapshot_ready"
     assert outcome.gps_terulet == "piaci_kep"
     assert outcome.gps_allapot == "betoltve"
-    assert outcome.context_patch == {"piaci_kep_szakma": "automata tesztelő"}
+    assert outcome.context_patch["piaci_kep_szakma"] == "automata tesztelő"
+
+    # Az eredmény összefoglalója a workflow-kontextusba kerül, mert Flow innen
+    # veszi. Enélkül csak azt tudná, hogy a körkép „betöltve" -- azt nem,
+    # hogy mi jött ki, és nem tudna beszélni róla.
+    eredmeny = outcome.context_patch["eredmeny_piaci_korkep"]
+    assert eredmeny["ber_median"] == 600000
+    assert eredmeny["bizalom"]["ber"] == "gyenge"
+    assert eredmeny["atjarhatosag"] == ["manuális tesztelő"]
 
 
 # ── Álláskeresés ──────────────────────────────────────────────────────

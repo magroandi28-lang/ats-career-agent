@@ -397,7 +397,8 @@ def flow_dontes(kerdes: str, profil: dict, app_ismeret: str = "",
                  felhasznalo_neve: str = "",
                  gps_osszefoglalo: list | None = None,
                  vendeg_elozmeny: list | None = None,
-                 most_elindithato: list | None = None) -> FlowDecision:
+                 most_elindithato: list | None = None,
+                 lefutott_eredmenyek: dict | None = None) -> FlowDecision:
     """Szándékot osztályoz és műveletet javasol, de nem hajt végre semmit.
 
     A felhasználói szöveg külön adatmezőként jut a modellhez, nem kerül a
@@ -453,6 +454,13 @@ Kötelező szabályok:
   hogyan szólíthatod, és ilyenkor tedd be a required_fields listába a
   „display_name" mezőt. Ha a név már ismert, ne kérdezd újra.
 - Ne kérdezd meg újra, amit a profilból vagy a Career GPS-ből már tudsz.
+- A „lefutott_eredmenyek" a MÁR ELVÉGZETT szolgáltatások mért adatai. Ezekre
+  hivatkozhatsz konkrétan, számmal együtt: ez a mi saját adatbázisunkból
+  származó mérés, nem becslés. Ha van benne bizalmi szint és az „gyenge"
+  vagy „nincs", akkor a számot ÓVATOSAN add elő, vagy hagyd el.
+- SZÁMOT KIZÁRÓLAG a „lefutott_eredmenyek"-ből mondhatsz. Bért, hirdetésszámot
+  vagy százalékot SOHA ne találj ki és ne becsülj -- ha valamire nincs ott
+  adat, mondd meg, hogy azt még meg kell néznünk, és ajánld fel a lépést.
 - SOHA ne köszönj és ne mutatkozz be: a felhasználót már köszöntötted a
   nyitóüzenetben. Tilos „Szia", „Üdv", „Helló" kezdés -- akkor is, ha ő
   köszönt. Folytatásként indíts.
@@ -485,6 +493,13 @@ Kizárólag a megadott strukturált sémát töltsd ki.
         # listában van, de ebben nincs, arra még nincs modul -- azt Flow
         # nem ígérheti meg.
         "most_elindithato": list(most_elindithato or []),
+        # A MÁR LEFUTOTT szolgáltatások mért eredménye. Eddig Flow csak azt
+        # tudta, hogy a piaci körkép „betöltve" -- azt nem, hogy mi jött ki
+        # belőle, tehát nem tudott beszélni róla, csak felajánlani.
+        #
+        # Ami itt van, az mind mért adat a saját adatbázisunkból. Ami nincs,
+        # arról Flow nem mondhat számot.
+        "lefutott_eredmenyek": lefutott_eredmenyek or {},
     }
     gateway = gateway or ModelGateway()
     for kiserlet in range(2):

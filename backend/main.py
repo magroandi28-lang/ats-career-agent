@@ -733,6 +733,15 @@ def flow_uzenet_vegpont(
             for sor in bemenet.vendeg_elozmeny
         ],
         most_elindithato=elerheto_lepesek(previous_state),
+        # A már lefutott szolgáltatások mért eredménye. A műveletek a
+        # workflow-kontextusba teszik le („eredmeny_" előtaggal), innen
+        # kerül Flow elé -- így tud beszélni arról, ami kijött, ahelyett
+        # hogy csak felajánlaná a lépést.
+        lefutott_eredmenyek={
+            kulcs.removeprefix("eredmeny_"): ertek
+            for kulcs, ertek in (workflow.get("context") or {}).items()
+            if kulcs.startswith("eredmeny_")
+        },
     )
 
     uzenet_mentese(

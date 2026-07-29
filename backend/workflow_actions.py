@@ -190,7 +190,31 @@ def _piaci_korkep_inditasa(ctx: ActionContext) -> ActionOutcome:
         gps_esemeny="market_snapshot_ready",
         gps_terulet="piaci_kep",
         gps_allapot="betoltve",
-        context_patch={"piaci_kep_szakma": szakma},
+        # Flow eddig csak annyit tudott, hogy a piaci körkép „betöltve" --
+        # azt nem, hogy MI jött ki belőle. Így nem tudott beszélni róla, csak
+        # felajánlani. Ez a rövid összefoglaló az, amit ténylegesen mérve
+        # tudunk; Flow ezen kívül nem állíthat számot.
+        context_patch={
+            "piaci_kep_szakma": szakma,
+            "eredmeny_piaci_korkep": {
+                "szakma": csomag.get("szakma") or szakma,
+                "hirdetes": lefedettseg.get("allas") or 0,
+                "ceg": lefedettseg.get("ceg") or 0,
+                "ber_median": ber.get("hirdetett_median"),
+                "ber_mintaszam": ber.get("hirdetett_mintaszam"),
+                "bizalom": {
+                    "kereslet": lefedettseg.get("kereslet_bizalom"),
+                    "ber": lefedettseg.get("ber_bizalom"),
+                    "elvaras": lefedettseg.get("elvaras_bizalom"),
+                },
+                "atjarhatosag": [
+                    sz.get("szakma")
+                    for sz in (csomag.get("szomszedok") or [])[:5]
+                ],
+                "mikor": datetime.datetime.now(
+                    datetime.timezone.utc).isoformat(),
+            },
+        },
     )
 
 
@@ -508,7 +532,22 @@ def _cv_ellenorzes_inditasa(ctx: ActionContext) -> ActionOutcome:
         },
         gps_terulet="felkeszultseg",
         gps_allapot="megfelelo" if not formai and not hianyzo else "hianyok",
-        context_patch={"cv_ellenorzes_szakma": szakma},
+        context_patch={
+            "cv_ellenorzes_szakma": szakma,
+            "eredmeny_cv_ellenorzes": {
+                "szakma": szakma,
+                "illeszkedes_szazalek": diagnozis.get("illeszkedes_szazalek", 0),
+                "formai_kifogas_db": len(formai),
+                "hianyzo_elvaras": [
+                    (h.get("szo") if isinstance(h, dict) else h)
+                    for h in hianyzo[:5]
+                ],
+                "szokincs_db": len(szokincs),
+                "emlekezteto_db": len(emlekezteto),
+                "mikor": datetime.datetime.now(
+                    datetime.timezone.utc).isoformat(),
+            },
+        },
     )
 
 
