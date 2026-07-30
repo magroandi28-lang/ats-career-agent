@@ -476,6 +476,8 @@ export default function Home() {
   const [valaszthatoLepesek, setValaszthatoLepesek] = useState([]);
   const [kezdoValasztas, setKezdoValasztas] = useState(null);
   const [cvMuvelet, setCvMuvelet] = useState(null);
+  // A profilban megerősített célmunkakör. Üres string, ha még nincs.
+  const [megerositettCel, setMegerositettCel] = useState("");
   const [futoMuvelet, setFutoMuvelet] = useState(null);
   const kezdoValasztasRef = useRef(null);
   const folytatasRef = useRef(false);
@@ -488,6 +490,14 @@ export default function Home() {
   const celValasztasRef = useRef(false);
   const celSzabadMegadasRef = useRef(false);
   const belepve = Boolean(session);
+
+  // A CV-LÁNC EGYETLEN ZÁRT FOLYAMAT, TÖBB FÁZISSAL.
+  //
+  // A `kezdoValasztas` a CV-úton két értéket vesz fel: `"cv"` a feltöltésnél,
+  // `"cv-cel"` a célmunkakör tisztázásánál. Aki csak az elsőre szűkít, annak a
+  // folyamat közepén szétesik a felület: a jóváhagyás pillanatában újra
+  // kinyílik minden más szolgáltatás, pedig a lánc még fut.
+  const cvFolyamatAktiv = kezdoValasztas === "cv" || kezdoValasztas === "cv-cel";
   const felhasznaloId = session?.user?.id || null;
 
   useEffect(() => {
@@ -536,6 +546,15 @@ export default function Home() {
         if (!profile) return;
         if (profile.current_state) setWorkflowState(profile.current_state);
         setValaszthatoLepesek(profile.available_actions || []);
+        // A MEGERŐSÍTETT CÉLMUNKAKÖRT MEG KELL JEGYEZNI, KÜLÖNBEN ÚJRA KÉRDEZZÜK.
+        //
+        // A válasz eddig is tartalmazta a `confirmed_data`-t, csak senki nem
+        // olvasta ki belőle a célt. Emiatt a CV-jóváhagyás után Flow akkor is
+        // rákérdezett a célmunkakörre, ha a felhasználó azt már korábban
+        // megerősítette (folyamat_terkep.md 3. és 11.4).
+        setMegerositettCel(
+          String((profile.confirmed_data || {}).target_role || "").trim(),
+        );
       })
       .catch(() => {});
     gpsFrissites();
@@ -925,14 +944,41 @@ export default function Home() {
   }
 
   function cvJovahagyasKesz(eredmeny) {
+    kezdoValasztasRef.current = "cv-cel";
+    setKezdoValasztas("cv-cel");
+
+    // AMIT MÁR MEGERŐSÍTETT, AZT NE KÉRDEZZÜK MEG ÚJRA.
+    //
+    // Ez az ág eddig hiányzott: a CV-jóváhagyás után Flow MINDIG rákérdezett a
+    // célmunkakörre, akkor is, ha a felhasználó azt korábban már megerősítette.
+    // A spec (3. fejezet első sora és 11.4) ezt kifejezetten tiltja: ilyenkor
+    // meg kell MUTATNI a célt, és csak egy „Módosítom" lehetőséget adni
+    // mellé -- kérdés nélkül.
+    if (megerositettCel) {
+      celValasztasRef.current = false;
+      celSzabadMegadasRef.current = false;
+      setUzenetek((elozo) => [
+        ...elozo,
+        {
+          szerep: "flow",
+          szoveg:
+            `A CV-d rendben megérkezett. A célod: ${megerositettCel} — ` +
+            "ezzel dolgozom tovább.",
+          valaszlehetosegek: ["Módosítom"],
+        },
+      ]);
+      setWorkflowState(eredmeny.current_state || workflowState);
+      setValaszthatoLepesek(eredmeny.available_actions || []);
+      gpsFrissites();
+      return;
+    }
+
     const valaszlehetosegek =
       eredmeny.flow_valaszlehetosegek ||
       (eredmeny.celmunkakor_javaslatok || [])
         .slice(0, 1)
         .map((sor) => sor.szakma)
         .concat(["Másra készülök"]);
-    kezdoValasztasRef.current = "cv-cel";
-    setKezdoValasztas("cv-cel");
     celValasztasRef.current = valaszlehetosegek.length > 0;
     celSzabadMegadasRef.current = valaszlehetosegek.length === 0;
     setUzenetek((elozo) => [
@@ -970,6 +1016,9 @@ export default function Home() {
       const adat = await valasz.json();
       celValasztasRef.current = false;
       celSzabadMegadasRef.current = false;
+      // Mostantól ez a megerősített cél. Enélkül egy F5 nélküli, ugyanabban a
+      // munkamenetben történő újabb CV-feltöltés megint rákérdezne rá.
+      setMegerositettCel(tisztaCel);
       setUzenetek((elozo) => [
         ...elozo,
         {
@@ -992,6 +1041,22 @@ export default function Home() {
     const kezdoLepes = KEZDO_LEPESEK.find((lepes) => lepes.cim === valasz);
     if (kezdoLepes && !kezdoValasztasRef.current) {
       kezdoLepesValasztasa(kezdoLepes);
+      return;
+    }
+    // „Módosítom": a megmutatott célt mégis átírná. Ez nem ismételt kérdés,
+    // hanem az ő kezdeményezése -- a spec 3. fejezete pont ezt a lehetőséget
+    // írja elő a megerősített cél mellé.
+    if (valasz === "Módosítom") {
+      celValasztasRef.current = false;
+      celSzabadMegadasRef.current = true;
+      setUzenetek((elozo) => [
+        ...elozo,
+        { szerep: "user", szoveg: valasz },
+        {
+          szerep: "flow",
+          szoveg: "Rendben. Milyen pozíció vagy szakma legyen a cél?",
+        },
+      ]);
       return;
     }
     if (celValasztasRef.current) {
@@ -1566,7 +1631,15 @@ export default function Home() {
                     </div>
                   )}
 
+                  {/* NEM NYÍLHAT MEG KÉT PROFILPANEL EGYSZERRE.
+                      Ennek a feltétele eddig csak a `workflowState`-et nézte,
+                      a fenti CV-feltöltésé meg csak a `kezdoValasztas`-t --
+                      így egy visszatérő felhasználónál, akinek már
+                      `CEL_TISZTAZOTT` az állapota, a „Van CV-m" után MINDKETTŐ
+                      megjelent. Két feltöltési felület egyszerre pontosan az,
+                      amit a spec 11.1 tilt. */}
                   {belepve &&
+                    !cvFolyamatAktiv &&
                     [
                       "CEL_TISZTAZOTT",
                       "PROFIL_HIANYOS",
@@ -1587,11 +1660,15 @@ export default function Home() {
                   {belepve && valaszthatoLepesek.length > 0 && (
                     <FolyamatPanel
                       availableActions={valaszthatoLepesek}
-                      // Egy kártya egy folyamat: a CV-nél ne nyíljon meg
-                      // egyszerre az álláskeresés és a piaci körkép is.
-                      aktivFolyamat={
-                        kezdoValasztas === "cv" ? "cv" : null
-                      }
+                      // EGY KÁRTYA EGY ZÁRT FOLYAMAT.
+                      //
+                      // Eddig csak a `"cv"` fázisra szűkült a panel. A
+                      // CV-jóváhagyás után viszont az állapot `"cv-cel"`-re
+                      // vált, és ettől a szűkítés megszűnt: a célmunkakör
+                      // megadása közben újra kinyílt az álláskeresés és a
+                      // piaci körkép is. A spec 2.7 szerint a CV-feltöltés
+                      // után nincs újabb szolgáltatásválasztás -- a lánc fut.
+                      aktivFolyamat={cvFolyamatAktiv ? "cv" : null}
                       onStateChange={(result) => {
                         setWorkflowState(result.current_state);
                         setValaszthatoLepesek(result.available_actions || []);
