@@ -39,6 +39,9 @@ from utils.flow_agy import (
     # A köszöntés tartaléka. A végpontnak is szüksége van rá: ha a modell
     # üres szöveget ad, a válasz nem mehet ki üresen a kliensnek.
     _belepes_tartalek,
+    # A köszöntés válaszgombjai. Determinisztikus, ezért kódból jön: a modell
+    # csak MEGTUDJA, hogy mi lesz a gombokon, nem ő találja ki.
+    belepes_valaszlehetosegek,
     flow_belepes_utan,
     flow_dontes,
     flow_kiertekeles,
@@ -684,6 +687,7 @@ def flow_belepes_utan_vegpont(
     # „mi hozott ide?" -- pedig a folyamat állapota, a célmunkaköre és a
     # korábbi beszélgetése is ott van az adatbázisban.
     workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    celmunkakor = str(server_profile.get("target_role") or "")
     uzenet = flow_belepes_utan(
         nev=_megszolitas(felhasznalo, server_profile),
         vendeg_elozmeny=[
@@ -692,7 +696,7 @@ def flow_belepes_utan_vegpont(
         ],
         gps_osszefoglalo=gps_projekcio(user_id),
         korabbi_allapot=(workflow or {}).get("current_state") or "",
-        celmunkakor=str(server_profile.get("target_role") or ""),
+        celmunkakor=celmunkakor,
         utolso_uzenetek=elozmenyek_lekerese(user_id, session_id),
     )
     # A VÉGPONT NEM ADHAT VISSZA ÜRES ÜZENETET.
@@ -703,13 +707,27 @@ def flow_belepes_utan_vegpont(
     # belépéskor sem volt mire emlékeznie. A tartalék itt is a helyére kerül,
     # hogy egyetlen hívási út se végződhessen csenddel.
     if not (uzenet or "").strip():
-        uzenet = _belepes_tartalek(_megszolitas(felhasznalo, server_profile))
+        uzenet = _belepes_tartalek(
+            _megszolitas(felhasznalo, server_profile), celmunkakor
+        )
     uzenet_mentese(user_id, session_id, "flow", uzenet)
 
     return {
         "uzenet": uzenet,
         "megszolitas_hianyzik": not _megszolitas(felhasznalo, server_profile),
         "nev_javaslatok": _nev_javaslatok(felhasznalo),
+        # FLOW KÉRDEZ, ÉS ITT VANNAK A VÁLASZOK -- NEM KÁRTYARÁCS.
+        #
+        # A köszöntés eddig csak szöveget adott, ezért a belépő felhasználó a
+        # köszöntés után a kártyarács előtt állt: neki kellett kitalálnia,
+        # melyik esetben van. A válaszlehetőségek a beszélgetésnél már be
+        # voltak kötve, a köszöntésnél soha -- két külön kódút volt, és csak
+        # az egyik készült el.
+        #
+        # A gombok KÓDBÓL jönnek (`belepes_valaszlehetosegek`), nem a
+        # modelltől: a döntés determinisztikus, tehát nem is a modell dolga.
+        # Így nem tud olyan gombot kitalálni, ami mögött nincs folyamat.
+        "valaszlehetosegek": belepes_valaszlehetosegek(celmunkakor),
     }
 
 

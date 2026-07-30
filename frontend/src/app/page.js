@@ -172,6 +172,13 @@ function koszontoUzenet(adat) {
     gepel: true,
     nevetKer: Boolean(adat.megszolitas_hianyzik),
     nevJavaslatok: adat.nev_javaslatok || [],
+    // FLOW KÉRDEZ, ÉS A VÁLASZOK AZ ÜZENETE ALATT VANNAK.
+    //
+    // Ugyanaz a mező, amit a beszélgetés válaszai is használnak, tehát a
+    // megjelenítés is ugyanaz. Eddig a köszöntés nem adta át, ezért belépés
+    // után a felhasználó a kártyarács előtt állt: neki kellett kitalálnia,
+    // melyik esetben van. A gombok a szerverről jönnek, kódból eldöntve.
+    valaszlehetosegek: adat.valaszlehetosegek || [],
   };
 }
 

@@ -340,21 +340,54 @@ Válaszolj a fenti szabályok szerint, a beszélgetés folytatásaként."""
         return ""
 
 
-def _belepes_tartalek(nev: str) -> str:
+def belepes_valaszlehetosegek(celmunkakor: str = "") -> list[str]:
+    """A köszöntés válaszgombjai -- KÓDBÓL, nem a modelltől.
+
+    A megbeszélt terv szerint Flow kérdez, és a válaszlehetőségeket a saját
+    üzenete alá teszi -- nincs állandó kártyarács. Ez a döntés viszont
+    determinisztikus: abból következik, amit már tudunk róla. Modellhívás
+    nélkül eldönthető, tehát nem is a modell dönti el -- így nem tud olyan
+    gombot kitalálni, ami mögött nincs folyamat.
+
+    Egyszerre EGY kérdés. Ez az egyetlen, amit tényleg a felhasználónak kell
+    eldöntenie, mert csak ő tudja:
+
+    - Nincs még megerősített célmunkaköre: van-e kész önéletrajza.
+    - Van célmunkaköre: a CV-jével kezdjünk, vagy a piaci képpel.
+
+    A többi eset (feltöltött CV megerősítése, pályaváltás, „nem tudom, mit
+    akarok" → kérdőív) a beszélgetés közben jön, nem a köszöntésben.
+    """
+    if celmunkakor:
+        return ["Nézd át a CV-met", "Mutasd a piacot"]
+    return ["Van CV-m", "Nincs, elmondom"]
+
+
+def _belepes_tartalek(nev: str, celmunkakor: str = "") -> str:
     """Köszöntés modellhívás nélkül.
 
     A belépés utáni üdvözlés eddig ÜRES STRINGGEL tért vissza, ha a modell
     nem volt elérhető -- és az üres üzenetből semmi nem jelent meg. Flow
     némán elmaradt, a felhasználó pedig azt hitte, nem működik az oldal.
 
-    Ehhez nem kell modell: a nevet a regisztrációból biztosan tudjuk, és a
-    következő lépést a felhasználó úgyis a kártyákról választja ki. Egy
-    kimaradt köszöntés rosszabb, mint egy egyszerűbb köszöntés.
+    A KÉRDÉS ITT IS UGYANAZ, MINT A GOMBOKON.
+
+    Eddig ez a szöveg nyitott kérdést tett fel („mi hozott ide?"), a gombokon
+    viszont „Van CV-m / Nincs, elmondom" áll. A kettő így egymásnak beszélt:
+    a felhasználó azt olvasta, hogy mesélje el a helyzetét, alatta meg két
+    gomb volt, ami nem válasz arra. A tartalék szövegének a gombokhoz kell
+    illeszkednie, különben a tartalék maga lesz a hiba.
     """
     megszolitas = f"Szia {nev}!" if nev else "Szia!"
+    if celmunkakor:
+        return (
+            f"{megszolitas} Örülök, hogy itt vagy. A célod a(z) {celmunkakor} — "
+            "átnézzem előbb a CV-det, vagy megmutassam, hogy áll ez a szakma "
+            "a piacon?"
+        )
     return (
-        f"{megszolitas} Örülök, hogy itt vagy. Mesélj, mi hozott ide — "
-        "hol tartasz most, és mi az, amiben a leginkább elakadtál?"
+        f"{megszolitas} Örülök, hogy itt vagy. Kezdjünk a legegyszerűbbel: "
+        "van kész önéletrajzod, vagy inkább elmondod, hol tartasz most?"
     )
 
 
@@ -376,7 +409,7 @@ def flow_belepes_utan(nev: str = "", vendeg_elozmeny: list | None = None,
     )
 
     if not GEMINI_KEY:
-        return _belepes_tartalek(nev)
+        return _belepes_tartalek(nev, celmunkakor)
     gps_sorok = "\n".join(
         f"- {sor.get('terulet')}: {sor.get('allapot')}"
         for sor in (gps_osszefoglalo or [])
@@ -385,6 +418,11 @@ def flow_belepes_utan(nev: str = "", vendeg_elozmeny: list | None = None,
         f"{'Te' if e.get('szerep') == 'user' else 'Flow'}: "
         f"{str(e.get('szoveg', ''))[:400]}"
         for e in (utolso_uzenetek or [])[-4:]
+    )
+    # A gombokat a kód dönti el, és a modell CSAK MEGTUDJA őket. Így a kérdés
+    # és a gombok nem tudnak elválni egymástól: ugyanabból a forrásból jönnek.
+    gombok = "\n".join(
+        f"- {szoveg}" for szoveg in belepes_valaszlehetosegek(celmunkakor)
     )
 
     prompt = f"""Flow vagy, a Karrier-Ügynökség karrierasszisztense. A
@@ -431,7 +469,18 @@ SZABÁLYOK:
   itt, azt ne fogadd úgy, mintha most találkoznátok.
 - Ha nem ismered a nevét, ne találgass: köszönj név nélkül.
 - Legfeljebb 3 mondat. Magyarul, tegezve.
-- Semmit ne találj ki a felhasználóról azon túl, ami fent szerepel."""
+- Semmit ne találj ki a felhasználóról azon túl, ami fent szerepel.
+
+A VÁLASZGOMBOK, AMIKET A FELHASZNÁLÓ LÁTNI FOG (a rendszer teszi ki őket, te
+nem tudod megváltoztatni):
+{gombok}
+
+- A köszöntésed VÉGE pontosan erre az egy kérdésre fusson ki, hogy a fenti
+  gombok válaszok legyenek rá. EGYSZERRE EGY KÉRDÉS.
+- NE sorolj fel más lehetőséget, és ne kérj olyat, amire ezek nem válaszok.
+  Ha mást kérdezel, a gombok értelmetlenek lesznek a felhasználó alatt.
+- A gombok szövegét nem kell szó szerint idéznod, de a kérdésed ne hagyjon
+  kétséget afelől, hogy melyik gomb mit válaszol."""
 
     # AZ ÜRES MODELLVÁLASZ UGYANAZ, MINT A HIBA.
     #
@@ -452,11 +501,11 @@ SZABÁLYOK:
         print(f"[flow] Belepes utani koszontes hiba: {e}")
         # NEM üres string: az néma Flow-t jelentene, és a felhasználó azt
         # hinné, elromlott az oldal. A nevét ismerjük, ennyi mindig futja.
-        return _belepes_tartalek(nev)
+        return _belepes_tartalek(nev, celmunkakor)
 
     if not valasz.strip():
         print("[flow] Belepes utani koszontes: a modell ures szoveget adott")
-        return _belepes_tartalek(nev)
+        return _belepes_tartalek(nev, celmunkakor)
     return valasz
 
 

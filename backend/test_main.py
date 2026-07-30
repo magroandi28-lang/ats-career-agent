@@ -653,3 +653,74 @@ def test_megerositett_profilnev_eros_a_sajat_urlapnal_is():
         user_metadata = {"sajat_keresztnev": "Andrea"}
 
     assert main._megszolitas(Felhasznalo(), {"display_name": "Andi"}) == "Andi"
+
+
+def test_koszontes_valaszgombjai_kodbol_jonnek():
+    """A gombok determinisztikusak, tehát nem a modell dönti el őket.
+
+    Egyszerre EGY kérdés. Ez az egyetlen, amit tényleg a felhasználónak kell
+    eldöntenie, mert csak ő tudja: van-e kész önéletrajza.
+    """
+    from utils.flow_agy import belepes_valaszlehetosegek
+
+    assert belepes_valaszlehetosegek("") == ["Van CV-m", "Nincs, elmondom"]
+    assert belepes_valaszlehetosegek("bolti eladó") == [
+        "Nézd át a CV-met",
+        "Mutasd a piacot",
+    ]
+    # A szerződés legfeljebb hármat enged, és a terv is ezt mondja.
+    assert len(belepes_valaszlehetosegek("")) <= 3
+    assert len(belepes_valaszlehetosegek("bolti eladó")) <= 3
+
+
+def test_koszontes_tartaleka_a_gombokra_kerdez():
+    """A tartalékszöveg kérdése illeszkedjen a gombokhoz.
+
+    Eddig nyitott kérdést tett fel („mi hozott ide?"), a gombokon viszont
+    „Van CV-m / Nincs, elmondom" áll. A kettő így egymásnak beszélt: a
+    felhasználó azt olvasta, mesélje el a helyzetét, alatta meg két gomb volt,
+    ami nem válasz arra.
+    """
+    from utils.flow_agy import _belepes_tartalek
+
+    cv_nelkul = _belepes_tartalek("Andrea")
+    assert "önéletrajz" in cv_nelkul
+    assert "Andrea" in cv_nelkul
+
+    cellal = _belepes_tartalek("Andrea", "bolti eladó")
+    assert "bolti eladó" in cellal
+    assert "piac" in cellal
+
+
+def test_belepes_utani_vegpont_valaszlehetosegeket_is_ad(monkeypatch):
+    """A köszöntés válaszlehetőségek nélkül a kártyarácsra hagyja a döntést."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {}
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "elozmenyek_lekerese", lambda *_: [])
+    monkeypatch.setattr(main, "gps_projekcio", lambda *_: [])
+    monkeypatch.setattr(main, "uzenet_mentese", lambda *_, **__: None)
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"id": "profile-1", "confirmed_data": {}, "draft_data": {}},
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {"id": "workflow-1", "current_state": "CEL_TISZTAZATLAN"},
+    )
+    monkeypatch.setattr(main, "flow_belepes_utan", lambda **__: "Szia! Van CV-d?")
+
+    try:
+        valasz = kliens.post("/api/v1/flow/belepes-utan", json={"vendeg_elozmeny": []})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert valasz.json()["valaszlehetosegek"] == ["Van CV-m", "Nincs, elmondom"]
