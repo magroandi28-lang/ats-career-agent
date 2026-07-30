@@ -90,7 +90,10 @@ export default function KarrierUgynok({ kezdoSzakma = "", kezdoHelyszin = "Budap
           type="submit"
           disabled={dolgozik}
           className="rounded-lg px-5 py-2 text-sm font-medium disabled:opacity-50"
-          style={{ background: "#e0b84a", color: "#1a1305" }}
+          style={{
+            background: "var(--button-background)",
+            color: "var(--button-foreground)",
+          }}
         >
           {dolgozik
             ? futAllapot === "szakma"

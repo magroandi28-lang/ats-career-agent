@@ -9,6 +9,8 @@
   --panel-strong: #121d33;
   --gold: #e1b84f;
   --gold-soft: #f1cc6b;
+  --button-background: #685922;
+  --button-foreground: #000000;
   --muted: #98a5bb;
   --line: rgba(225, 184, 79, 0.22);
 }
@@ -34,8 +36,38 @@ textarea {
   transition:
     border-color 160ms ease,
     background-color 160ms ease,
+    box-shadow 160ms ease,
     color 160ms ease,
     transform 160ms ease;
+}
+
+/*
+ * Az alkalmazás egyetlen, kötelező gombszíne. A #685922 érték közvetlenül
+ * a Flow chat „Küldés” gombjáról származik. A button-link osztály azokat a
+ * navigációs linkeket fedi le, amelyek a felületen gombként jelennek meg.
+ */
+button,
+.button-link {
+  background-color: var(--button-background) !important;
+  border-color: var(--button-background) !important;
+  color: var(--button-foreground) !important;
+}
+
+button *,
+.button-link * {
+  color: inherit !important;
+}
+
+button:not(:disabled):hover,
+.button-link:hover {
+  background-color: var(--button-background) !important;
+  border-color: var(--button-background) !important;
+  box-shadow: 0 6px 18px rgba(104, 89, 34, 0.32);
+}
+
+button:disabled {
+  background-color: var(--button-background) !important;
+  color: var(--button-foreground) !important;
 }
 
 button:focus-visible,
@@ -84,4 +116,3 @@ textarea:focus-visible {
     background-size: 24px 24px;
   }
 }
-

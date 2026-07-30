@@ -211,7 +211,7 @@ export default function LoginPage() {
       <div className="mx-auto w-full max-w-2xl">
         <Link
           href="/"
-          className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 text-xs font-semibold text-slate-300 hover:border-amber-300/35 hover:text-amber-100"
+          className="button-link mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold"
         >
           ← Vissza a kezdőoldalra
         </Link>

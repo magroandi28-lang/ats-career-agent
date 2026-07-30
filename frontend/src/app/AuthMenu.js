@@ -44,7 +44,7 @@ export default function AuthMenu() {
     return (
       <Link
         href="/login?next=/"
-        className="rounded-full border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-xs font-semibold text-amber-100 hover:border-amber-200 hover:bg-amber-300/15"
+        className="button-link rounded-full border px-4 py-2 text-xs font-semibold"
       >
         Belépés
       </Link>
