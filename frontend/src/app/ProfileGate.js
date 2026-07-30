@@ -3,6 +3,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../lib/api";
 
+// A CV-feltöltés elfogadott formátumai (folyamat_terkep.md 2.3).
+//
+// Ennek a listának EGYEZNIE KELL a backend `CV_FORMATUMOK` szabályaival: ami
+// itt felkínálható, azt ott fel is kell tudni dolgozni. Amíg csak PDF volt
+// bekötve, a felület is csak PDF-et kínált -- ez így volt őszinte. Most a
+// DOCX-kinyerés és a kép-átírás is be van kötve, ezért bővül mind a kettő.
+const CV_KITERJESZTESEK = [".pdf", ".docx", ".jpg", ".jpeg", ".png"];
+const CV_ACCEPT = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+  ...CV_KITERJESZTESEK,
+].join(",");
+const CV_FORMATUM_SZOVEG = "PDF, DOCX, JPG és PNG";
+
 const FIELD_CONFIG = {
   target_role: {
     field: "target_role",
@@ -203,7 +219,7 @@ export default function ProfileGate({
   async function uploadCv(event) {
     event.preventDefault();
     if (!cvFile) {
-      setError("Válassz ki egy PDF-formátumú CV-t.");
+      setError(`Válassz ki egy CV-t. Feltölthető: ${CV_FORMATUM_SZOVEG}.`);
       return;
     }
     setBusy(true);
@@ -238,13 +254,14 @@ export default function ProfileGate({
       setCvFile(null);
       return;
     }
-    if (
-      file.type !== "application/pdf" &&
-      !file.name.toLocaleLowerCase("hu-HU").endsWith(".pdf")
-    ) {
+    // A backend magic byte alapján dönt (`read_validated_cv_file`); ez itt
+    // csak udvariasság, hogy a rossz fájl ne a feltöltés után derüljön ki.
+    // Ezért elég a kiterjesztés: a valódi ellenőrzés úgyis a szerveren van.
+    const nev = file.name.toLocaleLowerCase("hu-HU");
+    if (!CV_KITERJESZTESEK.some((veg) => nev.endsWith(veg))) {
       event.target.value = "";
       setCvFile(null);
-      setError("Csak PDF-formátumú CV tölthető fel.");
+      setError(`Feltölthető formátumok: ${CV_FORMATUM_SZOVEG}.`);
       return;
     }
     setCvFile(file);
@@ -413,39 +430,52 @@ export default function ProfileGate({
           CV feltöltése
         </p>
         <h3 className="mt-2 text-base font-semibold text-white">
-          Válaszd ki a jelenlegi CV-d PDF-változatát
+          Válaszd ki a jelenlegi CV-det
         </h3>
         <p className="mt-2 text-xs leading-5 text-slate-500">
-          A feltöltés után megmutatjuk a kinyert szöveget. Ekkor még semmit
-          nem hagyunk jóvá és nem indítunk el automatikusan.
+          Feltölthető: {CV_FORMATUM_SZOVEG}. Fotózott vagy szkennelt CV-t is
+          fel tudok dolgozni. A feltöltés után megmutatjuk a kinyert szöveget.
         </p>
         <input
           ref={cvFileInputRef}
           type="file"
-          accept="application/pdf,.pdf"
+          accept={CV_ACCEPT}
           onChange={cvFileKivalasztasa}
           className="sr-only"
         />
-        <div className="mt-4 rounded-2xl border border-[#685922]/45 bg-[#685922]/10 p-3.5">
-          <button
-            type="button"
-            onClick={() => cvFileInputRef.current?.click()}
-            disabled={busy}
-            className="rounded-xl border border-[#685922] bg-[#685922] px-4 py-2.5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {cvFile ? "Másik PDF választása" : "PDF kiválasztása"}
-          </button>
-          <p className="mt-2.5 break-all text-xs text-slate-400">
-            {cvFile ? cvFile.name : "Még nincs fájl kiválasztva."}
-          </p>
-        </div>
+
+        {/* EGY ELSŐDLEGES MŰVELET, NEM KETTŐ.
+            Korábban két azonos súlyú arany gomb állt itt egymás alatt
+            („PDF kiválasztása" és „Feltöltés és ellenőrzés"), és a
+            felhasználónak kellett kitalálnia, melyikkel jut előbbre. A spec
+            (11.1) kimondja: nem láthat két külön feltöltési műveletet.
+            Ugyanaz a gomb előbb kiválaszt, utána feldolgoz -- a felirata
+            mondja meg, most melyik. A fájlcsere másodlagos, halkabb hivatkozás. */}
+        {cvFile && (
+          <div className="mt-4 rounded-2xl border border-[#685922]/45 bg-[#685922]/10 p-3.5">
+            <p className="break-all text-xs text-slate-300">{cvFile.name}</p>
+            <button
+              type="button"
+              onClick={() => cvFileInputRef.current?.click()}
+              disabled={busy}
+              className="mt-1.5 text-xs font-semibold text-amber-200/80 underline hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Másik fájl választása
+            </button>
+          </div>
+        )}
         {error && <p className="mt-3 text-xs text-red-200">{error}</p>}
         <button
-          type="submit"
-          disabled={busy || !cvFile}
+          type={cvFile ? "submit" : "button"}
+          onClick={cvFile ? undefined : () => cvFileInputRef.current?.click()}
+          disabled={busy}
           className="mt-4 rounded-xl border border-[#685922] bg-[#685922] px-5 py-3 text-sm font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? "Feltöltés és szövegkinyerés…" : "Feltöltés és ellenőrzés"}
+          {busy
+            ? "Kiolvasom a CV-det…"
+            : cvFile
+              ? "CV feldolgozása"
+              : "Fájl kiválasztása"}
         </button>
       </form>
     );
@@ -458,7 +488,7 @@ export default function ProfileGate({
           Kinyert CV-szöveg ellenőrzése
         </p>
         <h3 className="mt-2 text-base font-semibold text-white">
-          Nézd át, és javítsd, ha a PDF-ből valami pontatlanul olvasható
+          Nézd át, és javítsd, ha valami pontatlanul olvasható
         </h3>
         <p className="mt-2 text-xs leading-5 text-slate-500">
           Fájl: {cvImport.file_name} · {extractedText.length.toLocaleString("hu-HU")} karakter
@@ -489,7 +519,7 @@ export default function ProfileGate({
             disabled={busy}
             className="rounded-xl border border-white/12 px-5 py-3 text-sm font-semibold text-slate-300 hover:border-amber-300/35 hover:text-amber-100 disabled:opacity-50"
           >
-            Másik PDF választása
+            Másik fájl választása
           </button>
         </div>
         <p className="mt-3 text-[11px] leading-5 text-slate-500">

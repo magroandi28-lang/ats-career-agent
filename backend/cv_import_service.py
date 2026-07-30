@@ -52,6 +52,118 @@ def extract_pdf_text(content: bytes) -> str:
     return text
 
 
+def extract_docx_text(content: bytes) -> str:
+    """DOCX-ből determinisztikusan kinyeri a szöveget -- modell nélkül.
+
+    A bekezdések mellett a TÁBLÁZATOK celláit is olvassa. Ez nem részletkérdés:
+    a magyar CV-sablonok többsége táblázatba tördeli a munkahelyeket és az
+    időszakokat, és ha csak a bekezdéseket néznénk, pont a szakmai előzmény
+    veszne el -- a felhasználó meg azt látná, hogy „nincs kinyerhető szöveg".
+
+    (Az ATS Standard sablon ettől még nem használ táblázatot: azt mi írjuk,
+    ezt viszont ő hozza, olyat amilyet.)
+    """
+
+    try:
+        from docx import Document
+    except ImportError as exc:  # pragma: no cover - a függőség a requirements-ben van
+        raise ValueError("A DOCX-feldolgozás most nem elérhető.") from exc
+
+    # EGY ÜZENET MINDEN MEGNYITÁSI KUDARCRA, ÉS AZ MONDJA MEG, MIT TEGYEN.
+    #
+    # A `python-docx` a megnyithatatlan fájlra nem mindig `PackageNotFoundError`-t
+    # dob (mérve: a régi bináris `.doc` fejléce máshol akad el). A felhasználót
+    # viszont nem érdekli, melyik kivétel jött: az érdekli, hogy most mit
+    # csináljon. A leggyakoribb valódi ok a `.doc`-ra átnevezett vagy régi
+    # formátumú fájl, ezért erre irányítunk.
+    try:
+        dokumentum = Document(BytesIO(content))
+    except Exception as exc:
+        raise ValueError(
+            "A fájl nem nyitható meg Word-dokumentumként. Ha régi .doc "
+            "formátumú, mentsd el .docx-ként, és töltsd fel újra."
+        ) from exc
+
+    darabok = [bekezdes.text for bekezdes in dokumentum.paragraphs]
+    for tabla in dokumentum.tables:
+        for sor in tabla.rows:
+            for cella in sor.cells:
+                darabok.append(cella.text)
+
+    text = _normalized_text("\n".join(darabok))
+    if not text:
+        raise ValueError("A DOCX nem tartalmaz kinyerhető szöveget.")
+    if len(text) > MAX_EXTRACTED_CHARACTERS:
+        raise ValueError("A kinyert CV-szöveg túl hosszú.")
+    return text
+
+
+def extract_image_text(content: bytes, mime: str) -> str:
+    """Fotózott vagy szkennelt CV átírása szöveggé.
+
+    EZ AZ EGYETLEN KINYERÉSI ÚT, AMI MODELLT HASZNÁL. A PDF és a DOCX
+    determinisztikus; képnél nincs mit determinisztikusan olvasni, ezért itt a
+    modell nem kényelmi döntés, hanem az egyetlen lehetőség.
+
+    A `kep_atiras` a Gemini flash ingyenes szintjét használja, és kifejezetten
+    arra van utasítva, hogy semmit ne egészítsen ki, az olvashatatlan részt
+    pedig `[olvashatatlan]`-ként jelölje. Az átirat innentől ugyanúgy „a
+    felhasználó CV-je", mint a PDF-ből kiolvasott szöveg -- a tényellenőrzés
+    később ehhez köti az állításokat.
+    """
+
+    # Helyben importálva: a `flow_agy` a backend több moduljából olvas, és így
+    # a CV-import nem húzza be az egész modellréteget, ha nem képet kapott.
+    from utils.flow_agy import kep_atiras
+
+    text = _normalized_text(kep_atiras(content, mime))
+    if not text:
+        raise ValueError(
+            "A képből nem sikerült szöveget kiolvasni. Próbáld élesebb "
+            "fényképpel, vagy tölts fel PDF-et."
+        )
+    if len(text) > MAX_EXTRACTED_CHARACTERS:
+        raise ValueError("A kinyert CV-szöveg túl hosszú.")
+    return text
+
+
+def extract_cv_text(content: bytes, formatum: str, mime: str = "") -> str:
+    """A feltöltött CV szövege, a formátumnak megfelelő úton.
+
+    A `formatum` a `security.read_validated_cv_file` visszaadott típusa --
+    tehát nem a kliens állítása, hanem magic byte-tal ellenőrzött tény.
+    """
+
+    if formatum == "pdf":
+        return extract_pdf_text(content)
+    if formatum == "docx":
+        return extract_docx_text(content)
+    if formatum == "kep":
+        return extract_image_text(content, mime or "image/jpeg")
+    raise ValueError("Nem támogatott CV-formátum.")
+
+
+# A tárolt fájl kiterjesztése és MIME-je a VALÓDI típust kövesse. Korábban
+# minden feltöltés `.pdf` néven és `application/pdf` típussal került a tárba;
+# egy DOCX így hibás típussal feküdt volna ott, és letöltéskor a böngésző nem
+# tudta volna megnyitni.
+_TAROLASI_TIPUS = {
+    "pdf": (".pdf", "application/pdf"),
+    "docx": (
+        ".docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ),
+}
+
+
+def _tarolasi_tipus(formatum: str, mime: str) -> tuple[str, str]:
+    """A tárolt fájl kiterjesztése és MIME-je. Képnél a valódi képtípus szerint."""
+
+    if formatum == "kep":
+        return (".png", "image/png") if mime == "image/png" else (".jpg", "image/jpeg")
+    return _TAROLASI_TIPUS.get(formatum, (".pdf", "application/pdf"))
+
+
 def _safe_file_name(file_name: str) -> str:
     return Path(file_name or "cv.pdf").name[:255] or "cv.pdf"
 
@@ -76,23 +188,35 @@ def _public_import(job: dict) -> dict:
     }
 
 
-def cv_import_create(user_id: str, file_name: str, content: bytes) -> dict | None:
-    """Kinyeri és privát tárba menti a CV-t; a profilhoz még nem kapcsolja."""
+def cv_import_create(
+    user_id: str,
+    file_name: str,
+    content: bytes,
+    formatum: str = "pdf",
+    mime: str = "",
+) -> dict | None:
+    """Kinyeri és privát tárba menti a CV-t; a profilhoz még nem kapcsolja.
 
-    text = extract_pdf_text(content)
+    A `formatum` alapértelmezése azért `pdf`, mert a hívók egy része (és a
+    korábbi tesztek) még két paraméterrel hívják -- a viselkedésük így
+    változatlan marad.
+    """
+
+    text = extract_cv_text(content, formatum, mime)
     db = kliens()
     if not db:
         return None
 
     import_id = str(uuid4())
-    storage_path = f"{user_id}/{import_id}.pdf"
+    kiterjesztes, tarolt_mime = _tarolasi_tipus(formatum, mime)
+    storage_path = f"{user_id}/{import_id}{kiterjesztes}"
     now = datetime.datetime.now(datetime.UTC).isoformat()
     try:
         db.storage.from_(CV_BUCKET).upload(
             storage_path,
             content,
             file_options={
-                "content-type": "application/pdf",
+                "content-type": tarolt_mime,
                 "upsert": "false",
             },
         )

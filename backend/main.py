@@ -97,6 +97,7 @@ from backend.auth import (
 from backend.security import (
     RequestSecurityMiddleware,
     limit_guest_ai_request,
+    read_validated_cv_file,
     read_validated_pdf,
 )
 from backend.settings import get_settings
@@ -1392,14 +1393,21 @@ async def profile_import_vegpont(
     fajl: UploadFile = File(...),
     felhasznalo=Depends(jelenlegi_felhasznalo),
 ):
-    """PDF-feltöltés és szövegkinyerés; még nem erősít meg profiltényt."""
+    """CV-feltöltés és szövegkinyerés; még nem erősít meg profiltényt.
 
-    content = await read_validated_pdf(fajl)
+    Elfogadott formátumok: PDF, DOCX, JPG és PNG (folyamat_terkep.md 2.3).
+    A `formatum` nem a kliens állítása, hanem magic byte-tal ellenőrzött tény --
+    a szövegkinyerés ez alapján választ utat.
+    """
+
+    content, formatum = await read_validated_cv_file(fajl)
     try:
         result = cv_import_create(
             str(felhasznalo.id),
             fajl.filename or "cv.pdf",
             content,
+            formatum,
+            fajl.content_type or "",
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc))

@@ -162,6 +162,102 @@ def limit_user_request(request: Request, user_id: str) -> None:
     rate_limiter.check(f"user:{identity_hash}:{request.url.path}", limit)
 
 
+# A CV-feltöltés elfogadott formátumai (folyamat_terkep.md 2. és 11.2).
+#
+# A kulcs a belső típusnév, amit a szövegkinyerés használ. Minden formátumnál
+# HÁROM egyezésnek kell teljesülnie: kiterjesztés, MIME-típus és magic byte.
+#
+# A magic byte az EGYETLEN, amiben megbízunk: a kiterjesztést és a MIME-t a
+# böngésző (vagy egy támadó) állítja. A másik kettő azért marad, hogy a
+# véletlen félrekattintás érthető hibaüzenetet kapjon, ne rejtélyes elakadást.
+CV_FORMATUMOK: dict[str, dict] = {
+    "pdf": {
+        "kiterjesztesek": (".pdf",),
+        "mime": ("application/pdf",),
+        "magic": (b"%PDF-",),
+        "nev": "PDF",
+    },
+    "docx": {
+        # A .docx valójában ZIP, ezért a magic byte a ZIP-fejléc. Hogy tényleg
+        # Word-dokumentum-e, azt a szövegkinyerés dönti el (`python-docx`) --
+        # itt csak annyit állítunk, hogy nem valami egészen más fájl.
+        "kiterjesztesek": (".docx",),
+        "mime": (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+        "magic": (b"PK\x03\x04",),
+        "nev": "DOCX",
+    },
+    "kep": {
+        "kiterjesztesek": (".jpg", ".jpeg", ".png"),
+        "mime": ("image/jpeg", "image/png"),
+        "magic": (b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n"),
+        "nev": "JPG vagy PNG",
+    },
+}
+
+# Néhány rendszer minden csatolmányra ezt küldi MIME-ként. Ettől még a
+# kiterjesztés és a magic byte ellenőrzés érvényben marad, tehát nem lyuk:
+# az általános MIME önmagában semmit nem enged át.
+_ALTALANOS_MIME = {"application/octet-stream", "", None}
+
+
+def _cv_formatum(filename: str, content_type: str | None) -> str | None:
+    """Melyik elfogadott formátumra vall a név és a MIME. None, ha egyikre sem."""
+
+    for kulcs, szabaly in CV_FORMATUMOK.items():
+        if not filename.endswith(szabaly["kiterjesztesek"]):
+            continue
+        if content_type in szabaly["mime"] or content_type in _ALTALANOS_MIME:
+            return kulcs
+    return None
+
+
+async def read_validated_cv_file(upload: UploadFile) -> tuple[bytes, str]:
+    """Méret-, MIME-, kiterjesztés- és magic-byte ellenőrzött CV-olvasás.
+
+    A `read_validated_pdf` szigorúbb testvére: PDF mellett DOCX-et és képet is
+    elfogad, és megmondja, MELYIKET -- a szövegkinyerésnek tudnia kell, mit
+    kapott. A méretkorlát ugyanaz, és itt is olvasás közben érvényesül, nem
+    utólag: a túl nagy fájl nem kerül be a memóriába egészben.
+    """
+
+    settings = get_settings()
+    filename = (upload.filename or "").lower()
+    formatum = _cv_formatum(filename, upload.content_type)
+    if formatum is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Feltölthető formátumok: PDF, DOCX, JPG és PNG.",
+        )
+
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await upload.read(64 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > settings.max_upload_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail="A fájl túl nagy (maximum 5 MB).",
+            )
+        chunks.append(chunk)
+
+    content = b"".join(chunks)
+    szabaly = CV_FORMATUMOK[formatum]
+    if not content.startswith(szabaly["magic"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"A fájl tartalma nem érvényes {szabaly['nev']}. "
+                "Lehet, hogy a kiterjesztése nem egyezik a tényleges típusával."
+            ),
+        )
+    return content, formatum
+
+
 async def read_validated_pdf(upload: UploadFile) -> bytes:
     """Méret-, MIME-, kiterjesztés- és magic-byte ellenőrzött PDF-olvasás."""
 
