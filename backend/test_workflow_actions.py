@@ -467,8 +467,15 @@ def test_cv_ellenorzes_jovahagyott_cv_nelkul_elutasit(monkeypatch):
         )
 
 
-def test_cv_ellenorzes_hirdetes_nelkul_is_ad_hianylistat(monkeypatch):
-    """A szakma piaci elvárásaihoz mér, nem konkrét álláshirdetéshez."""
+@pytest.mark.parametrize(
+    "action",
+    [
+        CareerAction.CV_ELLENORZES_INDITASA,
+        CareerAction.CV_FRISSITES_INDITASA,
+    ],
+)
+def test_cv_muveltet_tenyellenorzott_uj_valtozatot_ad(monkeypatch, action):
+    """Mindkét CV-művelet ugyanazt a tényellenőrzött szolgáltatást indítja."""
     from backend import workflow_actions
 
     monkeypatch.setattr(
@@ -478,17 +485,25 @@ def test_cv_ellenorzes_hirdetes_nelkul_is_ad_hianylistat(monkeypatch):
     )
     monkeypatch.setattr(
         workflow_actions,
-        "ats_diagnozis",
-        lambda cv, szakma: {
-            "illeszkedes_szazalek": 62,
-            "hianyzo_kulcsszavak": [{"szo": "HACCP"}, {"szo": "állványozás"}],
-            "meglevo_kulcsszavak": ["glettelés"],
-            "fo_problema": "Hiányzik két gyakori elvárás.",
+        "create_improved_cv",
+        lambda cv, szakma, **_: {
+            "target_role": szakma,
+            "original_cv": cv,
+            "improved_cv": "Tényellenőrzött CV",
+            "database_basis": {
+                "esco_occupations_considered": 1,
+                "requirements_confidence": "eros",
+            },
+            "fact_check": {
+                "status": "passed",
+                "verified_fact_count": 4,
+                "corrected_claims": ["egy állítás pontosítva"],
+            },
         },
     )
 
     outcome = execute_action(
-        CareerAction.CV_ELLENORZES_INDITASA,
+        action,
         ActionContext(
             user_id=FELHASZNALO_ID,
             workflow={"context": {}},
@@ -499,11 +514,14 @@ def test_cv_ellenorzes_hirdetes_nelkul_is_ad_hianylistat(monkeypatch):
         ),
     )
 
-    assert outcome.result["illeszkedes_szazalek"] == 62
-    assert len(outcome.result["hianyzo_elvarasok"]) == 2
-    assert outcome.result["formai_kifogasok"] == []
+    assert outcome.result["improved_cv"] == "Tényellenőrzött CV"
+    assert outcome.result["fact_check"]["verified_fact_count"] == 4
     assert outcome.gps_terulet == "felkeszultseg"
-    assert outcome.gps_allapot == "hianyok"
+    assert outcome.gps_allapot == "terv"
+    summary = outcome.context_patch["eredmeny_cv_ellenorzes"]
+    assert summary["igazolt_teny_db"] == 4
+    assert summary["javitott_allitas_db"] == 1
+    assert "improved_cv" not in summary
 
 
 # ── Flow mint orchestrator ────────────────────────────────────────────

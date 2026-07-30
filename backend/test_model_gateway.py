@@ -8,6 +8,7 @@ from backend.model_gateway import (
     ModelCall,
     ModelGateway,
     ModelGatewayError,
+    OpenAIAdapter,
     _openai_strict_schema,
 )
 
@@ -71,3 +72,26 @@ def test_openai_strict_schema_minden_mezot_kotelezoen_felsorol():
 
     assert schema["additionalProperties"] is False
     assert set(schema["required"]) == set(schema["properties"])
+
+
+def test_cv_feladatok_a_kulon_openai_szolgaltatot_hasznaljak(monkeypatch):
+    from backend import model_gateway
+
+    class SettingsStub:
+        gemini_api_key = "gemini-test"
+        openai_api_key = "openai-test"
+
+        @staticmethod
+        def provider_for_task(task_type):
+            return "openai" if task_type.startswith("cv_") else "gemini"
+
+        @staticmethod
+        def model_for_task(task_type):
+            return "gpt-cv-test" if task_type.startswith("cv_") else "gemini-test"
+
+    monkeypatch.setattr(model_gateway, "get_settings", SettingsStub)
+
+    adapter = ModelGateway()._configured_adapter("cv_writing")
+
+    assert isinstance(adapter, OpenAIAdapter)
+    assert adapter.model == "gpt-cv-test"

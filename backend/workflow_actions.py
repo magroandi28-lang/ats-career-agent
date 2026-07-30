@@ -20,6 +20,7 @@ import re
 
 from agents.karrier_ugynok import allasok_minosegi_kereses
 from backend.cv_ats import ats_diagnozis
+from backend.cv_review_service import CvReviewError, create_improved_cv
 from backend.keszseg_felismero import normalizal
 from backend.career_state_machine import CareerAction
 from backend.cv_import_service import cv_import_get
@@ -551,6 +552,49 @@ def _cv_ellenorzes_inditasa(ctx: ActionContext) -> ActionOutcome:
     )
 
 
+def _cv_uj_valtozat_inditasa(ctx: ActionContext) -> ActionOutcome:
+    """A jóváhagyott CV-ből tényellenőrzött, szerkeszthető változatot készít."""
+    szakma = _celmunkakor(ctx)
+    cv_szoveg = _jovahagyott_cv_szoveg(ctx)
+    if not cv_szoveg:
+        raise ActionError(
+            "Az átvizsgáláshoz előbb töltsd fel és hagyd jóvá a CV-det."
+        )
+    try:
+        result = create_improved_cv(
+            cv_szoveg,
+            szakma,
+            user_id=ctx.user_id,
+        )
+    except CvReviewError as exc:
+        raise ActionError(str(exc)) from exc
+
+    fact_check = result.get("fact_check") or {}
+    basis = result.get("database_basis") or {}
+    return ActionOutcome(
+        result=result,
+        gps_terulet="felkeszultseg",
+        gps_allapot="terv",
+        context_patch={
+            "cv_ellenorzes_szakma": szakma,
+            "eredmeny_cv_ellenorzes": {
+                "szakma": result.get("target_role") or szakma,
+                "statusz": fact_check.get("status"),
+                "igazolt_teny_db": fact_check.get("verified_fact_count") or 0,
+                "javitott_allitas_db": len(
+                    fact_check.get("corrected_claims") or []
+                ),
+                "esco_foglalkozas_db": (
+                    basis.get("esco_occupations_considered") or 0
+                ),
+                "mikor": datetime.datetime.now(
+                    datetime.timezone.utc
+                ).isoformat(),
+            },
+        },
+    )
+
+
 Handler = Callable[[ActionContext], ActionOutcome]
 
 # A regiszterben szereplő műveletek hajthatók végre. Ami nincs benne, arra a
@@ -561,7 +605,8 @@ ACTION_HANDLERS: Final[dict[CareerAction, Handler]] = {
     CareerAction.PIACI_KORKEP_INDITASA: _piaci_korkep_inditasa,
     CareerAction.ALLASKERESES_INDITASA: _allaskereses_inditasa,
     CareerAction.ALLASOK_BEMUTATASA: _allasok_bemutatasa,
-    CareerAction.CV_ELLENORZES_INDITASA: _cv_ellenorzes_inditasa,
+    CareerAction.CV_ELLENORZES_INDITASA: _cv_uj_valtozat_inditasa,
+    CareerAction.CV_FRISSITES_INDITASA: _cv_uj_valtozat_inditasa,
 }
 
 

@@ -50,6 +50,7 @@ class Settings:
     ai_requests_per_minute: int
     auth_requests_per_minute: int
     ai_provider: str
+    cv_ai_provider: str
     gemini_api_key: str
     openai_api_key: str
     gemini_flow_model: str
@@ -80,6 +81,12 @@ class Settings:
             return bool(self.gemini_api_key)
         return bool(self.openai_api_key)
 
+    def provider_for_task(self, task_type: str) -> str:
+        """A CV-lánc külön szolgáltatón futhat a többi AI-feladattól."""
+        if task_type in {"cv_analysis", "cv_writing", "cv_fact_check"}:
+            return self.cv_ai_provider
+        return self.ai_provider
+
     def model_for_task(self, task_type: str) -> str:
         """A feladat modelljét központilag választja ki.
 
@@ -88,10 +95,14 @@ class Settings:
         model_group = {
             "flow_routing": "flow",
             "career_advice": "advisor",
+            "cv_analysis": "advisor",
+            "cv_fact_check": "advisor",
+            "cv_writing": "writer",
             "application_writing": "writer",
             "portfolio_writing": "writer",
         }.get(task_type, "flow")
-        return getattr(self, f"{self.ai_provider}_{model_group}_model")
+        provider = self.provider_for_task(task_type)
+        return getattr(self, f"{provider}_{model_group}_model")
 
 
 @lru_cache
@@ -117,6 +128,9 @@ def get_settings() -> Settings:
         ai_requests_per_minute=_positive_int("AI_REQUESTS_PER_MINUTE", 12),
         auth_requests_per_minute=_positive_int("AUTH_REQUESTS_PER_MINUTE", 8),
         ai_provider=_choice("AI_PROVIDER", "gemini", {"gemini", "openai"}),
+        cv_ai_provider=_choice(
+            "CV_AI_PROVIDER", "openai", {"gemini", "openai"}
+        ),
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         gemini_flow_model=os.getenv("GEMINI_FLOW_MODEL", "gemini-2.5-flash"),

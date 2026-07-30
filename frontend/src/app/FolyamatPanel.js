@@ -22,14 +22,14 @@ const AKCIO_FELIRATOK = {
     leiras: "Legfeljebb öt megfelelő állás, illeszkedés szerint rangsorolva.",
   },
   cv_ellenorzes_inditasa: {
-    cim: "CV átvizsgálása",
-    leiras:
-      "Miért dobhatja ki a szűrő, hogyan mondd szakmai nyelven, amit már " +
-      "leírtál, és mi az, amit kihagytál.",
+    cim: "CV új változata",
+    leiras: "Az eredeti CV mellé elkészül a szerkeszthető új változat.",
   },
   cv_frissites_inditasa: {
-    cim: "CV frissítése",
-    leiras: "A célmunkakör mért elvárásaihoz igazítva.",
+    cim: "CV új változata",
+    leiras:
+      "Az eredeti mellé elkészítjük a célmunkakörhöz igazított, " +
+      "szerkeszthető új változatot.",
   },
   cv_keszites_inditasa: {
     cim: "CV készítése",
@@ -246,133 +246,70 @@ function KeresesiFeltetelek({ adat }) {
   );
 }
 
-function CvAtvizsgalas({ adat }) {
-  const hianyzo = adat.hianyzo_elvarasok || [];
-  const formai = adat.formai_kifogasok || [];
-  const szokincs = adat.szokincs || [];
-  const emlekezteto = adat.emlekezteto || [];
+function CvUjValtozat({ adat }) {
+  const [editedCv, setEditedCv] = useState(adat.improved_cv || "");
+  const [copied, setCopied] = useState(false);
+  const userEdited = editedCv !== (adat.improved_cv || "");
+
+  async function copyCv() {
+    await navigator.clipboard.writeText(editedCv);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline gap-x-3">
-        <h4 className="text-base font-semibold text-white">
-          {adat.illeszkedes_szazalek}% illeszkedés
-        </h4>
-        <span className="text-xs text-slate-400">
-          a(z) {adat.szakma} szakma mért elvárásaihoz
-        </span>
+      <h4 className="text-base font-semibold text-white">
+        Elkészült a CV új változata
+      </h4>
+      <p className="mt-1.5 text-xs leading-5 text-slate-400">
+        Célmunkakör: {adat.target_role}. Az új szöveg csak a feltöltött
+        CV-ben szereplő tényeket használja.
+      </p>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <section>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Eredeti
+          </p>
+          <pre className="min-h-96 max-h-[42rem] overflow-auto whitespace-pre-wrap rounded-xl border border-white/8 bg-slate-950/60 p-4 font-sans text-xs leading-5 text-slate-400">
+            {adat.original_cv}
+          </pre>
+        </section>
+
+        <section>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+            Új, szerkeszthető változat
+          </p>
+          <textarea
+            value={editedCv}
+            onChange={(event) => setEditedCv(event.target.value)}
+            rows={24}
+            maxLength={120000}
+            className="min-h-96 max-h-[42rem] w-full resize-y rounded-xl border border-amber-300/25 bg-slate-950/70 p-4 text-sm leading-6 text-slate-100 focus:border-amber-300/60"
+          />
+        </section>
       </div>
 
-      <div className="mt-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          Átmegy-e a szűrőn
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p
+          className={`text-xs ${
+            userEdited ? "text-amber-200/80" : "text-emerald-200/80"
+          }`}
+        >
+          {userEdited
+            ? "Saját szerkesztés — a módosításokat még nem ellenőriztük"
+            : "Tényellenőrzés rendben"}
         </p>
-        {formai.length === 0 ? (
-          <p className="mt-2 text-sm text-emerald-100">
-            A dokumentum géppel olvasható, formai akadályt nem találtunk.
-          </p>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {formai.map((kifogas) => (
-              <li
-                key={kifogas.kod}
-                className="rounded-xl border border-red-300/20 bg-red-300/[0.06] px-3.5 py-2.5 text-xs leading-5 text-red-50"
-              >
-                {kifogas.leiras}
-              </li>
-            ))}
-          </ul>
-        )}
+        <button
+          type="button"
+          onClick={copyCv}
+          disabled={!editedCv.trim()}
+          className="rounded-xl border border-amber-300/35 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10 disabled:opacity-50"
+        >
+          {copied ? "Kimásolva" : "Új változat másolása"}
+        </button>
       </div>
-
-      <div className="mt-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          Amit a cégek kérnek, de nincs benne
-        </p>
-        {hianyzo.length === 0 ? (
-          <p className="mt-2 text-sm text-emerald-100">
-            A leggyakoribb elvárások szerepelnek a CV-dben.
-          </p>
-        ) : (
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {hianyzo.map((elem, index) => (
-              <li
-                key={`${elem.szo || elem}-${index}`}
-                className="rounded-full border border-amber-300/25 bg-amber-300/[0.07] px-3 py-1 text-xs text-amber-100"
-              >
-                {elem.szo || elem}
-                {elem.hirdetesek_szama != null && (
-                  <span className="ml-1.5 text-amber-200/60">
-                    {elem.hirdetesek_szama} hirdetésben
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* SZÓKINCS. A gyenge CV-k többsége nem attól gyenge, hogy hiányzik
-          belőle valami, hanem hogy rosszul van megfogalmazva. Itt nem
-          hiányt mutatunk, hanem ugyanazt a munkát felismerhető nyelven. */}
-      {szokincs.length > 0 && (
-        <div className="mt-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Ezt már leírtad — csak mondd szakmai nyelven
-          </p>
-          <ul className="mt-2 space-y-2.5">
-            {szokincs.map((elem, index) => (
-              <li
-                key={`${elem.szakmai_megfogalmazas}-${index}`}
-                className="rounded-xl border border-white/8 bg-black/15 px-3.5 py-2.5"
-              >
-                <p className="text-xs text-slate-500">
-                  „{elem.a_cv_ben_igy_all}”
-                </p>
-                <p className="mt-1 text-sm text-slate-100">
-                  {elem.szakmai_megfogalmazas}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* EMLÉKEZTETŐ. Nem „ez hiányzik belőled", hanem „ezt is csináltad?"
-          A legtöbb ember kihagy a CV-jéből olyat, amit évekig végzett, mert
-          magától értetődőnek tartja. */}
-      {emlekezteto.length > 0 && (
-        <div className="mt-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Ezt is csináltad?
-          </p>
-          <p className="mt-1.5 text-xs leading-5 text-slate-500">
-            A szakmádhoz ezek is hozzátartoznak. Ami igaz rád, azt tedd bele —
-            nem hiánylista, hanem emlékeztető.
-          </p>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {emlekezteto.map((elem, index) => (
-              <li
-                key={`${elem.keszseg}-${index}`}
-                className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-200"
-              >
-                {elem.keszseg}
-              </li>
-            ))}
-          </ul>
-          {adat.emlekezteto_ossz > emlekezteto.length && (
-            <p className="mt-2 text-xs text-slate-500">
-              és még {adat.emlekezteto_ossz - emlekezteto.length} további
-            </p>
-          )}
-        </div>
-      )}
-
-      {adat.fo_problema && (
-        <p className="mt-5 text-sm leading-6 text-slate-300">
-          {adat.fo_problema}
-        </p>
-      )}
     </div>
   );
 }
@@ -381,7 +318,12 @@ function CvAtvizsgalas({ adat }) {
  *  külön változat óhatatlanul elcsúszna egymástól. */
 export function Eredmeny({ action, adat }) {
   if (!adat) return null;
-  if (action === "cv_ellenorzes_inditasa") return <CvAtvizsgalas adat={adat} />;
+  if (
+    action === "cv_ellenorzes_inditasa" ||
+    action === "cv_frissites_inditasa"
+  ) {
+    return <CvUjValtozat adat={adat} />;
+  }
   if (action === "piaci_korkep_inditasa") return <PiaciKorkep adat={adat} />;
   if (action === "allasok_bemutatasa") return <Allaslista adat={adat} />;
   if (action === "allaskereses_inditasa") {

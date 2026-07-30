@@ -517,6 +517,58 @@ def cv_illesztes(szakma_nev: str, cv_kifejezesek: list[str],
         return []
 
 
+def szakma_hirdetes_mintak(szakma_id, limit: int = 15) -> list[dict]:
+    """Gyakori, már eltárolt feladat- és elvárásminták egy szakmához.
+
+    Kizárólag a `hirdetes_tetel` meglévő sorait olvassa; hirdetéslinket nem
+    nyit meg és külső tartalmat nem tölt le. A normalizált szöveg alapján
+    számol előfordulást, de az eredeti mintaszöveget adja vissza.
+    """
+    db = kliens()
+    if not db or szakma_id is None:
+        return []
+    limit = max(1, min(int(limit or 15), 100))
+    try:
+        r = (
+            db.table("hirdetes_tetel")
+            .select("szekcio,szoveg,normalizalt")
+            .eq("szakma_id", szakma_id)
+            .in_("szekcio", ["feladat", "elvaras"])
+            .limit(1000)
+            .execute()
+        )
+        grouped: dict[tuple[str, str], dict] = {}
+        for row in r.data or []:
+            text = " ".join(str(row.get("szoveg") or "").split())
+            normalized = " ".join(
+                str(row.get("normalizalt") or text).casefold().split()
+            )
+            section = str(row.get("szekcio") or "").strip()
+            if not text or not normalized or section not in {"feladat", "elvaras"}:
+                continue
+            key = (section, normalized)
+            item = grouped.setdefault(
+                key,
+                {
+                    "text": text,
+                    "section": section,
+                    "sample_occurrences": 0,
+                },
+            )
+            item["sample_occurrences"] += 1
+        return sorted(
+            grouped.values(),
+            key=lambda item: (
+                -item["sample_occurrences"],
+                item["section"],
+                item["text"].casefold(),
+            ),
+        )[:limit]
+    except Exception as e:
+        print(f"[adatbazis] Hirdetesmintak lekerdezese hiba: {e}")
+        return []
+
+
 def szakma_statisztika(szakma_nev: str) -> dict:
     """Egy szakma piaci képe a saját adatainkból: hirdetésszám,
     leggyakoribb elvárások (százalékkal), bérinfók.

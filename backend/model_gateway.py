@@ -166,11 +166,12 @@ class ModelGateway:
     def _configured_adapter(self, task_type: str) -> ModelAdapter:
         settings = get_settings()
         model = settings.model_for_task(task_type)
-        if settings.ai_provider == "gemini":
+        provider = settings.provider_for_task(task_type)
+        if provider == "gemini":
             if not settings.gemini_api_key:
                 raise ModelGatewayError("A Gemini nincs konfigurálva.")
             return GeminiAdapter(settings.gemini_api_key, model)
-        if settings.ai_provider == "openai":
+        if provider == "openai":
             if not settings.openai_api_key:
                 raise ModelGatewayError("Az OpenAI nincs konfigurálva.")
             return OpenAIAdapter(settings.openai_api_key, model)
@@ -187,6 +188,7 @@ class ModelGateway:
         user_id: str | None = None,
     ) -> OutputModel:
         settings = get_settings()
+        provider = settings.provider_for_task(task_type)
         call = ModelCall(
             task_type=task_type,
             system_instructions=system_instructions,
@@ -202,7 +204,7 @@ class ModelGateway:
         finally:
             # A naplózás a `finally`-ben van: a sikertelen hívás is pénzbe
             # kerülhetett, és épp a hibás futásokat fontos látni a keretnél.
-            self._naplozas(adapter, task_type, settings.ai_provider, user_id)
+            self._naplozas(adapter, task_type, provider, user_id)
 
     @staticmethod
     def _naplozas(
