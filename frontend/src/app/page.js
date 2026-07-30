@@ -1010,7 +1010,13 @@ export default function Home() {
       const valasz = await apiFetch("/api/v1/flow/celmunkakor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target_role: tisztaCel }),
+        // A CV-úton a cél kimondása egyben a szándék megerősítése is: a
+        // felhasználó új CV-változatot kap, nem hibajegyzéket. Enélkül a
+        // workflow `CEL_TISZTAZATLAN`-ban ragadt, és a folyamat nem indult el.
+        body: JSON.stringify({
+          target_role: tisztaCel,
+          intent: cvFolyamatAktiv ? "cv_frissites" : undefined,
+        }),
       });
       if (!valasz.ok) throw new Error(`flow-celmunkakor: ${valasz.status}`);
       const adat = await valasz.json();

@@ -676,6 +676,16 @@ class FlowCelmunkakorBemenet(ApiModel):
     """A felhasználó által kimondott cél, modellértelmezés nélkül."""
 
     target_role: str = Field(min_length=1, max_length=200)
+    # MELYIK ÚTON MONDTA KI A CÉLT.
+    #
+    # A célmunkakör rögzítése önmagában is állapotváltás (CEL_TISZTAZATLAN ->
+    # CEL_TISZTAZOTT), de az állapotgépnek tudnia kell, MILYEN szándékhoz
+    # rögzítjük. A CV-úton ez `cv_frissites`: a felhasználó új CV-változatot
+    # kap, nem hibajegyzéket (folyamat_terkep.md 1.).
+    #
+    # Opcionális, mert a végpont máshonnan is hívható; ilyenkor nem találgatunk
+    # szándékot, csak a profiltényt mentjük, ahogy eddig.
+    intent: str | None = Field(default=None, max_length=40)
 
 
 class FlowKezdesBemenet(ApiModel):
@@ -864,6 +874,72 @@ def flow_belepes_utan_vegpont(
     }
 
 
+def _cel_megerositese(
+    user_id: str,
+    session_id: str | None,
+    kert_intent: str | None,
+) -> dict:
+    """A célmunkakör rögzítése után egy lépés az állapotgépen.
+
+    Csak a `CEL_TISZTAZATLAN` állapotból lép, és csak akkor, ha a kért szándék
+    létező és megerősíthető. Minden más esetben nem történik semmi -- egy
+    állapotgép nem attól jó, hogy mindig lép, hanem attól, hogy csak
+    engedélyezettet lép.
+
+    A visszaadott szótár a kliensnek szól: ugyanazok a mezők, mint a
+    `/api/v1/workflow/intent` válaszában, hogy a felület ne lássa másnak
+    ugyanazt az állapotot.
+    """
+
+    if not kert_intent:
+        return {}
+    try:
+        intent = CareerIntent(kert_intent)
+    except ValueError:
+        # Ismeretlen szándék: a profiltény mentése ettől még érvényes marad.
+        # NEM hiba, mert a hívó nem is köteles szándékot küldeni.
+        return {}
+
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    if not workflow:
+        return {}
+    try:
+        allapot = CareerState(workflow["current_state"])
+    except ValueError:
+        return {}
+
+    cel_allapot = confirm_intent_transition(allapot, intent)
+    if cel_allapot is None:
+        # Nem a kiindulóállapotban vagyunk, vagy a szándék nem megerősíthető.
+        # A folyamat már túl van ezen a lépésen -- nincs mit tenni.
+        return {}
+
+    if not workflow_frissites(
+        user_id,
+        workflow["id"],
+        cel_allapot,
+        intent,
+        dict(workflow.get("context") or {}),
+    ):
+        raise HTTPException(503, "A folyamat állapotának mentése nem sikerült.")
+
+    gps_esemeny_rogzitese(
+        user_id,
+        session_id,
+        # A `career_gps_events` ZÁRT típuslistájának eleme. Nem engedélyezett
+        # névnél a beszúrás csendben elbukna, és az audit nyom veszne el --
+        # ez a hiba egyszer már megtörtént a profilmegerősítésnél.
+        "career_intent_confirmed",
+        {"intent": intent.value, "from_state": allapot.value},
+        actor="user",
+    )
+    return {
+        **_akcio_lista(cel_allapot),
+        "current_state": cel_allapot.value,
+        "state_changed": True,
+    }
+
+
 @app.post("/api/v1/flow/celmunkakor")
 def flow_celmunkakor_vegpont(
     bemenet: FlowCelmunkakorBemenet,
@@ -893,6 +969,25 @@ def flow_celmunkakor_vegpont(
         felhasznalo,
     )
     session_id = session_lekeres_vagy_letrehozas(user_id)
+
+    # A CÉL KIMONDÁSA MAGA A MEGERŐSÍTÉS -- NEM KELL UTÁNA MÉG EGY GOMB.
+    #
+    # Mérve (2026-07-30): a `career_profiles.confirmed_data` már tartalmazta a
+    # `target_role`-t, a `career_workflows` mégis `CEL_TISZTAZATLAN`-ban állt,
+    # `intent: null`-lal. Az ok: a `/api/v1/profile/confirm` csak akkor vált
+    # állapotot, ha a workflow-nak MÁR van szándéka -- azt viszont kizárólag a
+    # `/api/v1/workflow/intent` végpont írja be, ami egy külön gombnyomás.
+    #
+    # Így a felhasználó kimondta a célját, a rendszer el is mentette, és utána
+    # semmi nem történt: a folyamat beragadt a kiindulóállapotban, és a
+    # CV-feldolgozás következő szakasza meg sem nyílt.
+    #
+    # A spec 2.7 kimondja: a felhasználó újabb szolgáltatásválasztása nélkül
+    # fut tovább a lánc. Ezért a célmunkakör rögzítésekor itt lépünk egyet --
+    # ugyanazon a determinisztikus kapun (`confirm_intent_transition`), amit a
+    # gomb is használ. Nem a modell dönt, és nem is a kliens: az állapotgép.
+    allapotvaltas = _cel_megerositese(user_id, session_id, bemenet.intent)
+
     profile = profile_get_or_create(user_id) or {}
     cv_javaslatok = _cv_szakma_javaslatok(
         user_id,
@@ -925,6 +1020,7 @@ def flow_celmunkakor_vegpont(
 
     return {
         **confirmation,
+        **allapotvaltas,
         "target_role": target_role,
         "palyavaltas": palyavaltas,
         "uzenet": flow_uzenet,

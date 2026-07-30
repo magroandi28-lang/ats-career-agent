@@ -10,7 +10,7 @@ from starlette.datastructures import Headers, UploadFile
 
 from backend.main import app
 from backend.auth import jelenlegi_felhasznalo
-from backend.career_state_machine import CareerAction, CareerIntent
+from backend.career_state_machine import CareerAction, CareerIntent, CareerState
 from backend.flow_contract import FlowDecision
 from backend.security import (
     FixedWindowRateLimiter,
@@ -1230,3 +1230,116 @@ def test_elozmeny_nezet_kiszuri_a_vendegbol_atvett_sorokat(monkeypatch):
     assert belepett == [
         {"szerep": "flow", "szoveg": "Belépés után innen folytatjuk."}
     ]
+
+
+def test_celmunkakor_rogzitese_kilepteti_a_kiindulo_allapotbol(monkeypatch):
+    """A cél kimondása maga a megerősítés -- nem kell utána még egy gomb.
+
+    Mérve (2026-07-30): a `confirmed_data` már tartalmazta a `target_role`-t,
+    a workflow mégis `CEL_TISZTAZATLAN`-ban állt `intent: null`-lal. A
+    `/api/v1/profile/confirm` csak akkor vált állapotot, ha a workflow-nak MÁR
+    van szándéka -- azt viszont csak egy külön gombnyomás írja be. A folyamat
+    így beragadt, és a CV-feldolgozás következő szakasza meg sem nyílt.
+    """
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {}
+
+    mentett = {}
+
+    def workflow_frissites(user_id, workflow_id, allapot, intent, context):
+        mentett["allapot"] = allapot
+        mentett["intent"] = intent
+        return True
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "uzenet_mentese", lambda *_, **__: None)
+    monkeypatch.setattr(main, "gps_esemeny_rogzitese", lambda *_, **__: "event-1")
+    monkeypatch.setattr(main, "workflow_frissites", workflow_frissites)
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {
+            "id": "workflow-1",
+            "current_state": "CEL_TISZTAZATLAN",
+            "intent": None,
+            "context": {},
+        },
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_update_draft",
+        lambda *_: {"id": "profile-1", "draft_version": 1},
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_confirm_vegpont",
+        lambda *_: {"ok": True},
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"id": "profile-1", "confirmed_data": {"target_role": "eladó"}},
+    )
+    monkeypatch.setattr(main, "_cv_szakma_javaslatok", lambda *_: [])
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/celmunkakor",
+            json={"target_role": "eladó", "intent": "cv_frissites"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert valasz.json()["current_state"] == "CEL_TISZTAZOTT"
+    assert valasz.json()["state_changed"] is True
+    assert mentett["allapot"] is CareerState.CEL_TISZTAZOTT
+    assert mentett["intent"] is CareerIntent.CV_FRISSITES
+
+
+def test_celmunkakor_szandek_nelkul_nem_lep_allapotot(monkeypatch):
+    """Szándék nélkül csak profiltényt mentünk -- az állapotgép nem találgat."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {}
+
+    lepett = {"igen": False}
+
+    def workflow_frissites(*_, **__):
+        lepett["igen"] = True
+        return True
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "uzenet_mentese", lambda *_, **__: None)
+    monkeypatch.setattr(main, "gps_esemeny_rogzitese", lambda *_, **__: "event-1")
+    monkeypatch.setattr(main, "workflow_frissites", workflow_frissites)
+    monkeypatch.setattr(
+        main,
+        "profile_update_draft",
+        lambda *_: {"id": "profile-1", "draft_version": 1},
+    )
+    monkeypatch.setattr(main, "profile_confirm_vegpont", lambda *_: {"ok": True})
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"id": "profile-1", "confirmed_data": {}},
+    )
+    monkeypatch.setattr(main, "_cv_szakma_javaslatok", lambda *_: [])
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/celmunkakor", json={"target_role": "eladó"}
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert "current_state" not in valasz.json()
+    assert lepett["igen"] is False
