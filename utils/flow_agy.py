@@ -433,13 +433,31 @@ SZABÁLYOK:
 - Legfeljebb 3 mondat. Magyarul, tegezve.
 - Semmit ne találj ki a felhasználóról azon túl, ami fent szerepel."""
 
+    # AZ ÜRES MODELLVÁLASZ UGYANAZ, MINT A HIBA.
+    #
+    # Eddig csak a KIVÉTEL esett tartalékra. Ha a modell kivétel nélkül adott
+    # vissza üres szöveget, az üres string ment tovább -- és onnantól minden
+    # néma lett: a végpont `if uzenet:`-re nem mentett üzenetet, a kliens az
+    # üres válaszra a saját tartalékára esett, ami eldobja a névkérdést és a
+    # vendégbeszélgetés fonalát is.
+    #
+    # Mérve (2026-07-30, a 09:38-as belépés): a végpont végig lefutott --
+    # `flow_sessions` 09:38:35, `career_workflows` 09:38:36 --, mégis egyetlen
+    # sor sem került a `flow_messages`-be. Ez csak úgy lehetséges, ha az
+    # `uzenet` üres volt. Egy néma Flow-tól a felhasználó azt hiszi,
+    # elromlott az oldal.
     try:
-        return _gemini_szoveg(prompt)
+        valasz = _gemini_szoveg(prompt)
     except Exception as e:
         print(f"[flow] Belepes utani koszontes hiba: {e}")
         # NEM üres string: az néma Flow-t jelentene, és a felhasználó azt
         # hinné, elromlott az oldal. A nevét ismerjük, ennyi mindig futja.
         return _belepes_tartalek(nev)
+
+    if not valasz.strip():
+        print("[flow] Belepes utani koszontes: a modell ures szoveget adott")
+        return _belepes_tartalek(nev)
+    return valasz
 
 
 def flow_dontes(kerdes: str, profil: dict, app_ismeret: str = "",

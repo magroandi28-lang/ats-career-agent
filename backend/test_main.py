@@ -536,3 +536,80 @@ def test_megerositett_minimumprofil_atlep_ellenorzott_allapotba(monkeypatch):
     assert response.json()["current_state"] == "PROFIL_ELLENORZOTT"
     assert response.json()["state_changed"] is True
     assert len(updates) == 1
+
+
+def test_belepes_utani_koszontes_ures_modellvalasznal_sem_nema(monkeypatch):
+    """Üres modellválasznál is köszön Flow, ÉS a naplóba is bekerül.
+
+    Mérve (2026-07-30): a végpont végig lefutott -- `flow_sessions` 09:38:35,
+    `career_workflows` 09:38:36 --, mégis 0 sor volt a `flow_messages`-ben.
+    Az `if uzenet:` miatt az üres modellválasz kettős csendet okozott: a
+    kliens az üres válaszra a SAJÁT tartalékára esett (az pedig eldobja a
+    névkérdést és a vendégbeszélgetés fonalát), a napló meg üres maradt,
+    tehát a következő belépéskor sem volt mire emlékezni.
+    """
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {"full_name": "Varga Andrea"}
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "elozmenyek_lekerese", lambda *_: [])
+    monkeypatch.setattr(main, "gps_projekcio", lambda *_: [])
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"id": "profile-1", "confirmed_data": {}, "draft_data": {}},
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {"id": "workflow-1", "current_state": "CEL_TISZTAZATLAN"},
+    )
+    mentett = []
+    monkeypatch.setattr(
+        main,
+        "uzenet_mentese",
+        lambda *args, **__: mentett.append(args),
+    )
+    # A modell üres szöveget ad -- kivétel NÉLKÜL. Pontosan ez volt élesben.
+    monkeypatch.setattr(main, "flow_belepes_utan", lambda **__: "   ")
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/belepes-utan",
+            json={"vendeg_elozmeny": []},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    test = valasz.json()
+    # 1. Flow nem maradhat néma: a kliens tartalékára ne kelljen esni.
+    assert test["uzenet"].strip()
+    # 2. A névkérdés megmarad: a szerver válasza mondja meg, hogy kell a név.
+    assert test["megszolitas_hianyzik"] is True
+    assert test["nev_javaslatok"] == ["Varga", "Andrea"]
+    # 3. A köszöntés a NAPLÓBA is bekerül -- enélkül nincs mire emlékezni.
+    assert len(mentett) == 1
+    assert mentett[0][2] == "flow"
+    assert mentett[0][3].strip()
+
+
+def test_ures_modellvalasz_a_koszontesben_tartalekra_esik(monkeypatch):
+    """A `flow_belepes_utan` maga se adhasson vissza üres stringet.
+
+    Eddig CSAK a kivétel esett tartalékra: ha a modell kivétel nélkül adott
+    üres szöveget, az üres string ment tovább.
+    """
+    from utils import flow_agy
+
+    monkeypatch.setattr(flow_agy, "GEMINI_KEY", "teszt-kulcs")
+    monkeypatch.setattr(flow_agy, "_gemini_szoveg", lambda _: "  \n ")
+
+    uzenet = flow_agy.flow_belepes_utan(nev="Andrea")
+
+    assert uzenet.strip()
+    assert "Andrea" in uzenet

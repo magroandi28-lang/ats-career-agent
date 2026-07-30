@@ -36,6 +36,9 @@ from agents.karrier_ugynok import (
 from utils.adatbazis import kereslet_korkep, szakma_statisztika, kliens
 from utils.teszt import ENERGIA_SKALA, STRESSZ_SKALA, holland_tipus, jollet_jelzes
 from utils.flow_agy import (
+    # A köszöntés tartaléka. A végpontnak is szüksége van rá: ha a modell
+    # üres szöveget ad, a válasz nem mehet ki üresen a kliensnek.
+    _belepes_tartalek,
     flow_belepes_utan,
     flow_dontes,
     flow_kiertekeles,
@@ -692,8 +695,16 @@ def flow_belepes_utan_vegpont(
         celmunkakor=str(server_profile.get("target_role") or ""),
         utolso_uzenetek=elozmenyek_lekerese(user_id, session_id),
     )
-    if uzenet:
-        uzenet_mentese(user_id, session_id, "flow", uzenet)
+    # A VÉGPONT NEM ADHAT VISSZA ÜRES ÜZENETET.
+    #
+    # Az `if uzenet:` eddig azt jelentette, hogy üres válasznál nem mentünk --
+    # és a kliens is üres üzenetet kapott. Két hiba egyszerre: Flow néma
+    # maradt, ÉS a beszélgetés nem került a naplóba, tehát a következő
+    # belépéskor sem volt mire emlékeznie. A tartalék itt is a helyére kerül,
+    # hogy egyetlen hívási út se végződhessen csenddel.
+    if not (uzenet or "").strip():
+        uzenet = _belepes_tartalek(_megszolitas(felhasznalo, server_profile))
+    uzenet_mentese(user_id, session_id, "flow", uzenet)
 
     return {
         "uzenet": uzenet,
