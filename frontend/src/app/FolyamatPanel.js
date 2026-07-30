@@ -249,12 +249,46 @@ function KeresesiFeltetelek({ adat }) {
 function CvUjValtozat({ adat }) {
   const [editedCv, setEditedCv] = useState(adat.improved_cv || "");
   const [copied, setCopied] = useState(false);
+  const [letoltes, setLetoltes] = useState(null);
+  const [letoltesHiba, setLetoltesHiba] = useState(null);
   const userEdited = editedCv !== (adat.improved_cv || "");
 
   async function copyCv() {
     await navigator.clipboard.writeText(editedCv);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  // A LETÖLTÉS MINDIG AZT ADJA, AMI A KÉPERNYŐN VAN.
+  //
+  // A szerkesztett szöveget is elküldjük: aki javított az új változaton, ne
+  // a javítás előtti fájlt kapja meg. A megjelenítést a szerver ATS Standard
+  // sablonja adja -- egy hasáb, fotó és ikon nélkül --, nem ez a felület.
+  async function letoltesInditasa(formatum) {
+    if (letoltes || !editedCv.trim()) return;
+    setLetoltes(formatum);
+    setLetoltesHiba(null);
+    try {
+      const valasz = await apiFetch("/api/v1/cv/letoltes", {
+        method: "POST",
+        body: JSON.stringify({ formatum, cv_szoveg: editedCv }),
+      });
+      if (!valasz.ok) throw new Error(`cv-letoltes: ${valasz.status}`);
+      const fajl = await valasz.blob();
+      const url = URL.createObjectURL(fajl);
+      const hivatkozas = document.createElement("a");
+      hivatkozas.href = url;
+      hivatkozas.download = `oneletrajz.${formatum}`;
+      document.body.appendChild(hivatkozas);
+      hivatkozas.click();
+      hivatkozas.remove();
+      // Enélkül a blob a lap bezárásáig a memóriában maradna.
+      URL.revokeObjectURL(url);
+    } catch {
+      setLetoltesHiba("A letöltés nem sikerült. Próbáld újra.");
+    } finally {
+      setLetoltes(null);
+    }
   }
 
   return (
@@ -301,15 +335,43 @@ function CvUjValtozat({ adat }) {
             ? "Saját szerkesztés — a módosításokat még nem ellenőriztük"
             : "Tényellenőrzés rendben"}
         </p>
-        <button
-          type="button"
-          onClick={copyCv}
-          disabled={!editedCv.trim()}
-          className="rounded-xl border border-amber-300/35 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10 disabled:opacity-50"
-        >
-          {copied ? "Kimásolva" : "Új változat másolása"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={copyCv}
+            disabled={!editedCv.trim()}
+            className="rounded-xl border border-amber-300/35 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10 disabled:opacity-50"
+          >
+            {copied ? "Kimásolva" : "Új változat másolása"}
+          </button>
+          {/* A DOCX az elsődleges szerkeszthető fájl, a PDF a rögzített
+              megjelenés (spec 8.) -- ezért áll a DOCX elöl, teli gombbal. */}
+          <button
+            type="button"
+            onClick={() => letoltesInditasa("docx")}
+            disabled={Boolean(letoltes) || !editedCv.trim()}
+            className="rounded-xl border border-[#685922] bg-[#685922] px-4 py-2 text-xs font-bold text-black disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {letoltes === "docx" ? "Készül…" : "Letöltés DOCX-ben"}
+          </button>
+          <button
+            type="button"
+            onClick={() => letoltesInditasa("pdf")}
+            disabled={Boolean(letoltes) || !editedCv.trim()}
+            className="rounded-xl border border-amber-300/35 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {letoltes === "pdf" ? "Készül…" : "PDF"}
+          </button>
+        </div>
       </div>
+      {letoltesHiba && (
+        <p className="mt-2 text-right text-xs text-red-200">{letoltesHiba}</p>
+      )}
+      <p className="mt-3 text-[11px] leading-5 text-slate-500">
+        A letöltött fájl ATS Standard sablonban készül: egy hasáb, fotó, ikon és
+        táblázat nélkül — ezeket a robotszűrők gyakran nem tudják kiolvasni. Ha
+        szerkesztettél, a letöltés a mostani szöveget viszi.
+      </p>
     </div>
   );
 }
