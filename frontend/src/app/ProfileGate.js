@@ -68,7 +68,11 @@ async function responseError(response, fallback) {
   }
 }
 
-export default function ProfileGate({ onStateChange, embedded = false }) {
+export default function ProfileGate({
+  onStateChange,
+  embedded = false,
+  forceCvUpload = false,
+}) {
   const [profile, setProfile] = useState(null);
   const [values, setValues] = useState({});
   const [cvFile, setCvFile] = useState(null);
@@ -123,7 +127,14 @@ export default function ProfileGate({ onStateChange, embedded = false }) {
       .catch(() => setError("A profiladatok most nem tölthetők be."));
   }, []);
 
-  const missing = profile?.readiness?.missing_fields || [];
+  // A legelső „Van CV-m" válasz még nem karriercél. Ilyenkor semleges
+  // CV-importot mutatunk, és csak a jóváhagyott CV után kérdezzük meg,
+  // merre készül. Nem választunk helyette idő előtt CV-szolgáltatást.
+  const missing = forceCvUpload
+    ? profile?.confirmed_data?.cv_document_id
+      ? []
+      : ["cv_document"]
+    : profile?.readiness?.missing_fields || [];
   const configs = useMemo(
     () =>
       missing.map((code) => ({
@@ -268,7 +279,7 @@ export default function ProfileGate({ onStateChange, embedded = false }) {
     );
   }
 
-  if (profile.readiness?.ready) {
+  if (!forceCvUpload && profile.readiness?.ready) {
     return (
       <div className="mt-6 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-5">
         <p className="text-sm font-semibold text-emerald-100">
@@ -451,6 +462,16 @@ export default function ProfileGate({ onStateChange, embedded = false }) {
           Csak a külön jóváhagyás után válik ez a CV használható profilténnyé.
         </p>
       </section>
+    );
+  }
+
+  if (forceCvUpload && profile.confirmed_data?.cv_document_id) {
+    return (
+      <div className={shellClass}>
+        <p className="text-sm text-emerald-100">
+          A jóváhagyott CV-d készen áll a következő kérdéshez.
+        </p>
+      </div>
     );
   }
 

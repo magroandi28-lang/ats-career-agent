@@ -2,6 +2,7 @@
 
 import asyncio
 from io import BytesIO
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -663,11 +664,16 @@ def test_koszontes_valaszgombjai_kodbol_jonnek():
     """
     from utils.flow_agy import belepes_valaszlehetosegek
 
-    assert belepes_valaszlehetosegek("") == ["Van CV-m", "Nincs, elmondom"]
+    assert belepes_valaszlehetosegek("") == ["Van CV-m", "Nincs CV-m"]
     assert belepes_valaszlehetosegek("bolti eladó") == [
         "Nézd át a CV-met",
         "Mutasd a piacot",
     ]
+    assert belepes_valaszlehetosegek("", "bolti eladó", True) == [
+        "bolti eladó",
+        "Másra készülök",
+    ]
+    assert belepes_valaszlehetosegek("", "", True) == []
     # A szerződés legfeljebb hármat enged, és a terv is ezt mondja.
     assert len(belepes_valaszlehetosegek("")) <= 3
     assert len(belepes_valaszlehetosegek("bolti eladó")) <= 3
@@ -677,7 +683,7 @@ def test_koszontes_tartaleka_a_gombokra_kerdez():
     """A tartalékszöveg kérdése illeszkedjen a gombokhoz.
 
     Eddig nyitott kérdést tett fel („mi hozott ide?"), a gombokon viszont
-    „Van CV-m / Nincs, elmondom" áll. A kettő így egymásnak beszélt: a
+    „Van CV-m / Nincs CV-m" áll. A kettő így egymásnak beszélt: a
     felhasználó azt olvasta, mesélje el a helyzetét, alatta meg két gomb volt,
     ami nem válasz arra.
     """
@@ -691,9 +697,13 @@ def test_koszontes_tartaleka_a_gombokra_kerdez():
     assert "bolti eladó" in cellal
     assert "piac" in cellal
 
+    feltoltott_cvvel = _belepes_tartalek("Andrea", "", "bolti eladó", True)
+    assert "bolti eladó" in feltoltott_cvvel
+    assert "másra" in feltoltott_cvvel
+
 
 def test_belepes_utani_vegpont_valaszlehetosegeket_is_ad(monkeypatch):
-    """A köszöntés válaszlehetőségek nélkül a kártyarácsra hagyja a döntést."""
+    """A köszöntés alatt pontosan a két valódi kezdőválasz jelenik meg."""
     from backend import main
 
     class Felhasznalo:
@@ -723,4 +733,267 @@ def test_belepes_utani_vegpont_valaszlehetosegeket_is_ad(monkeypatch):
         app.dependency_overrides.clear()
 
     assert valasz.status_code == 200
-    assert valasz.json()["valaszlehetosegek"] == ["Van CV-m", "Nincs, elmondom"]
+    assert valasz.json()["valaszlehetosegek"] == ["Van CV-m", "Nincs CV-m"]
+
+
+def test_f5_a_tarolt_beszelgetest_tolti_vissza_uj_koszontes_nelkul(
+    monkeypatch,
+):
+    """A frissítés nem gyárthat újabb Flow-köszöntést a meglévő mellé."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {"sajat_keresztnev": "Andrea"}
+
+    tarolt = [
+        {"szerep": "user", "szoveg": "Van CV-m"},
+        {"szerep": "flow", "szoveg": "Rendben, töltsd fel a CV-det."},
+    ]
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "elozmenyek_lekerese", lambda *_: list(tarolt))
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"id": "profile-1", "confirmed_data": {}, "draft_data": {}},
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {"id": "workflow-1", "current_state": "CEL_TISZTAZATLAN"},
+    )
+    monkeypatch.setattr(main, "gps_projekcio", lambda *_: [])
+    monkeypatch.setattr(
+        main,
+        "flow_belepes_utan",
+        lambda **__: pytest.fail("F5-re nem készülhet új köszöntés"),
+    )
+    monkeypatch.setattr(
+        main,
+        "uzenet_mentese",
+        lambda *_args, **_kwargs: pytest.fail("F5-re nem menthet új üzenetet"),
+    )
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/belepes-utan",
+            json={"vendeg_elozmeny": []},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert valasz.json()["uzenetek"] == tarolt
+    assert valasz.json()["uj_koszontes"] is False
+    assert valasz.json()["vendeg_atadas_allapot"] == "nincs"
+
+
+def test_vendeg_beszelgetes_atadasa_utan_flow_felveszi_a_fonalat(monkeypatch):
+    """A belépés előtti beszélgetés csak az azonosított fiókhoz kerül."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {"sajat_keresztnev": "Andrea"}
+
+    tarolt = []
+    atadasok = []
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "elozmenyek_lekerese", lambda *_: list(tarolt))
+    monkeypatch.setattr(
+        main,
+        "vendeg_elozmeny_atadasa",
+        lambda *args: atadasok.append(args) or "atadva",
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"id": "profile-1", "confirmed_data": {}, "draft_data": {}},
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {"id": "workflow-1", "current_state": "CEL_TISZTAZATLAN"},
+    )
+    monkeypatch.setattr(main, "gps_projekcio", lambda *_: [])
+    flow_bemenetek = []
+
+    def koszontes(**kwargs):
+        flow_bemenetek.append(kwargs)
+        return "Andrea, folytassuk a bolti eladói céloddal."
+
+    def mentes(_user_id, _session_id, szerep, szoveg, *_args, **_kwargs):
+        tarolt.append({"szerep": szerep, "szoveg": szoveg})
+
+    monkeypatch.setattr(main, "flow_belepes_utan", koszontes)
+    monkeypatch.setattr(main, "uzenet_mentese", mentes)
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/belepes-utan",
+            json={
+                "vendeg_atadas_azonosito": "8e4dc64f-c892-46a1-9418-d00c37e36cb1",
+                "vendeg_elozmeny": [
+                    {
+                        "szerep": "user",
+                        "szoveg": "Bolti eladóként másik munkahelyet keresek.",
+                    }
+                ],
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert valasz.json()["vendeg_atadas_allapot"] == "atadva"
+    assert valasz.json()["uj_koszontes"] is True
+    assert atadasok[0][3][0]["szoveg"].startswith("Bolti eladóként")
+    assert flow_bemenetek[0]["vendeg_elozmeny"][0]["szerep"] == "user"
+
+
+def test_celmunkakor_mentese_utan_flow_egyetlen_kovetkezo_kerdest_ad(
+    monkeypatch,
+):
+    """A cél profiltény lesz; Flow ezután CV vagy piac között kérdez."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {"sajat_keresztnev": "Andrea"}
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    draftok = []
+    mentett_uzenetek = []
+    monkeypatch.setattr(
+        main,
+        "profile_update_draft",
+        lambda *args: draftok.append(args) or {"draft_version": 1},
+    )
+    monkeypatch.setattr(
+        main,
+        "profile_confirm_vegpont",
+        lambda *_: {
+            "current_state": "CEL_TISZTAZATLAN",
+            "available_actions": [],
+        },
+    )
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {
+            "confirmed_data": {
+                "cv_document_id": "00000000-0000-0000-0000-000000000002",
+                "target_role": "raktáros",
+            }
+        },
+    )
+    monkeypatch.setattr(
+        main,
+        "_cv_szakma_javaslatok",
+        lambda *_: [{"szakma": "bolti eladó"}],
+    )
+    monkeypatch.setattr(
+        main,
+        "uzenet_mentese",
+        lambda *args, **__: mentett_uzenetek.append(args),
+    )
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/celmunkakor",
+            json={"target_role": "  raktáros  "},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    test = valasz.json()
+    assert draftok[0][1] == {"target_role": "raktáros"}
+    assert test["target_role"] == "raktáros"
+    assert test["palyavaltas"] is True
+    assert test["valaszlehetosegek"] == [
+        "Nézd át a CV-met",
+        "Mutasd a piacot",
+    ]
+    assert "pályaváltás" in test["uzenet"]
+    assert [sor[2] for sor in mentett_uzenetek] == ["user", "flow"]
+
+
+def test_vendeg_atadas_azonos_uuid_val_nem_duplaz(monkeypatch):
+    """Ugyanaz a böngészőátadás F5-re ugyanazokat az üzenet-ID-ket adja."""
+    from utils import flow_allapot
+
+    class Eredmeny:
+        def __init__(self, data):
+            self.data = data
+
+    class Tabla:
+        def __init__(self):
+            self.sorok = {}
+            self.kert_idk = []
+            self.upsert_sorok = None
+
+        def select(self, *_):
+            self.upsert_sorok = None
+            return self
+
+        def in_(self, _mezo, ertekek):
+            self.kert_idk = list(ertekek)
+            return self
+
+        def upsert(self, sorok, **_):
+            self.upsert_sorok = list(sorok)
+            return self
+
+        def execute(self):
+            if self.upsert_sorok is not None:
+                for sor in self.upsert_sorok:
+                    self.sorok.setdefault(sor["id"], dict(sor))
+                return Eredmeny(self.upsert_sorok)
+            return Eredmeny(
+                [
+                    {"id": azonosito, "user_id": self.sorok[azonosito]["user_id"]}
+                    for azonosito in self.kert_idk
+                    if azonosito in self.sorok
+                ]
+            )
+
+    class Adatbazis:
+        def __init__(self):
+            self.tabla = Tabla()
+
+        def schema(self, nev):
+            assert nev == "private"
+            return self
+
+        def table(self, nev):
+            assert nev == "flow_messages"
+            return self.tabla
+
+    db = Adatbazis()
+    monkeypatch.setattr(flow_allapot, "kliens", lambda: db)
+    atadas_id = uuid.UUID("8e4dc64f-c892-46a1-9418-d00c37e36cb1")
+    uzenetek = [
+        {"szerep": "user", "szoveg": "Bolti eladó vagyok."},
+        {"szerep": "flow", "szoveg": "Segítek a továbblépésben."},
+    ]
+
+    elso = flow_allapot.vendeg_elozmeny_atadasa(
+        "user-1",
+        "session-1",
+        atadas_id,
+        uzenetek,
+    )
+    masodik = flow_allapot.vendeg_elozmeny_atadasa(
+        "user-1",
+        "session-1",
+        atadas_id,
+        uzenetek,
+    )
+
+    assert elso == "atadva"
+    assert masodik == "mar_atadva"
+    assert len(db.tabla.sorok) == 2

@@ -14,6 +14,7 @@ ezért minden hívásnál kifejezetten jelezni kell: db.schema("private").table(
 """
 
 import datetime
+import uuid
 
 from backend.career_state_machine import CareerIntent, CareerState, RULE_VERSION
 from utils.adatbazis import kliens
@@ -158,6 +159,106 @@ def uzenet_mentese(user_id: str, session_id: str | None, szerep: str,
         }).execute()
     except Exception as e:
         print(f"[flow_allapot] uzenet-mentes hiba: {e}")
+
+
+def vendeg_elozmeny_atadasa(
+    user_id: str,
+    session_id: str | None,
+    atadas_azonosito: uuid.UUID | None,
+    uzenetek: list[dict],
+) -> str:
+    """A böngészőben őrzött vendégbeszélgetést egyszer, tartósan átadja.
+
+    A vendégüzenetek csak a sikeres belépés és az adatkezelési hozzájárulás
+    után kerülnek a fiók szerveroldali előzményei közé. Minden sor azonosítója
+    determinisztikusan az átadás UUID-jából és a sorszámból készül. Emiatt egy
+    F5, hálózati újrapróbálás vagy két párhuzamos böngészőhívás sem tudja
+    megduplázni a beszélgetést: ugyanazokra az elsődleges kulcsokra fut.
+
+    A több sort egyetlen PostgREST-upsert küldi az adatbázisba, tehát nem
+    maradhat félbehagyott, részben átköltöztetett beszélgetés.
+    """
+
+    if not uzenetek:
+        return "nincs"
+    db = kliens()
+    if not db or not session_id or not atadas_azonosito:
+        return "hiba"
+
+    most = datetime.datetime.now(datetime.UTC)
+    sorok = []
+    for sorszam, uzenet in enumerate(uzenetek[:6]):
+        szerep = uzenet.get("szerep")
+        tartalom = str(uzenet.get("szoveg") or "").strip()
+        if szerep not in {"user", "flow"} or not tartalom:
+            continue
+        uzenet_id = uuid.uuid5(atadas_azonosito, str(sorszam))
+        sorok.append({
+            "id": str(uzenet_id),
+            "session_id": session_id,
+            "user_id": user_id,
+            "szerep": szerep,
+            "tartalom": tartalom[:600],
+            "strukturalt_hivatkozasok": [{
+                "tipus": "vendeg_atadas",
+                "azonosito": str(atadas_azonosito),
+                "sorszam": sorszam,
+            }],
+            # A meglévő visszaolvasás idő szerint rendez. Mikromásodperces
+            # eltérés őrzi a vendégbeszélgetés eredeti sorrendjét.
+            "letrehozva": (
+                most + datetime.timedelta(microseconds=sorszam)
+            ).isoformat(),
+        })
+
+    if not sorok:
+        return "nincs"
+
+    try:
+        tabla = db.schema("private").table("flow_messages")
+        azonosito_lista = [sor["id"] for sor in sorok]
+        korabbi = (
+            tabla.select("id,user_id")
+            .in_("id", azonosito_lista)
+            .execute()
+        )
+        korabbi_talalatok = {
+            sor["id"]: sor["user_id"] for sor in (korabbi.data or [])
+        }
+        if len(korabbi_talalatok) == len(sorok):
+            return (
+                "mar_atadva"
+                if all(
+                    korabbi_talalatok.get(sor["id"]) == user_id
+                    for sor in sorok
+                )
+                else "hiba"
+            )
+
+        tabla.upsert(
+            sorok,
+            on_conflict="id",
+            ignore_duplicates=True,
+        ).execute()
+        ellenorzes = (
+            tabla.select("id,user_id")
+            .in_("id", azonosito_lista)
+            .execute()
+        )
+        talalatok = {
+            sor["id"]: sor["user_id"] for sor in (ellenorzes.data or [])
+        }
+        return (
+            "atadva"
+            if all(
+                talalatok.get(sor["id"]) == user_id
+                for sor in sorok
+            )
+            else "hiba"
+        )
+    except Exception as exc:
+        print(f"[flow_allapot] vendeg-atadas hiba: {exc}")
+        return "hiba"
 
 
 def gps_esemeny_rogzitese(user_id: str, session_id: str | None,

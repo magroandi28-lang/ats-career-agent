@@ -340,7 +340,11 @@ Válaszolj a fenti szabályok szerint, a beszélgetés folytatásaként."""
         return ""
 
 
-def belepes_valaszlehetosegek(celmunkakor: str = "") -> list[str]:
+def belepes_valaszlehetosegek(
+    celmunkakor: str = "",
+    cv_szakma: str = "",
+    van_cv: bool = False,
+) -> list[str]:
     """A köszöntés válaszgombjai -- KÓDBÓL, nem a modelltől.
 
     A megbeszélt terv szerint Flow kérdez, és a válaszlehetőségeket a saját
@@ -352,7 +356,8 @@ def belepes_valaszlehetosegek(celmunkakor: str = "") -> list[str]:
     Egyszerre EGY kérdés. Ez az egyetlen, amit tényleg a felhasználónak kell
     eldöntenie, mert csak ő tudja:
 
-    - Nincs még megerősített célmunkaköre: van-e kész önéletrajza.
+    - Nincs még megerősített célmunkaköre és CV-je: van-e önéletrajza.
+    - Már feltöltötte a CV-jét: jó-e a felismert szakma célnak.
     - Van célmunkaköre: a CV-jével kezdjünk, vagy a piaci képpel.
 
     A többi eset (feltöltött CV megerősítése, pályaváltás, „nem tudom, mit
@@ -360,10 +365,19 @@ def belepes_valaszlehetosegek(celmunkakor: str = "") -> list[str]:
     """
     if celmunkakor:
         return ["Nézd át a CV-met", "Mutasd a piacot"]
-    return ["Van CV-m", "Nincs, elmondom"]
+    if cv_szakma:
+        return [cv_szakma, "Másra készülök"]
+    if van_cv:
+        return []
+    return ["Van CV-m", "Nincs CV-m"]
 
 
-def _belepes_tartalek(nev: str, celmunkakor: str = "") -> str:
+def _belepes_tartalek(
+    nev: str,
+    celmunkakor: str = "",
+    cv_szakma: str = "",
+    van_cv: bool = False,
+) -> str:
     """Köszöntés modellhívás nélkül.
 
     A belépés utáni üdvözlés eddig ÜRES STRINGGEL tért vissza, ha a modell
@@ -373,7 +387,7 @@ def _belepes_tartalek(nev: str, celmunkakor: str = "") -> str:
     A KÉRDÉS ITT IS UGYANAZ, MINT A GOMBOKON.
 
     Eddig ez a szöveg nyitott kérdést tett fel („mi hozott ide?"), a gombokon
-    viszont „Van CV-m / Nincs, elmondom" áll. A kettő így egymásnak beszélt:
+    viszont „Van CV-m / Nincs CV-m" áll. A kettő így egymásnak beszélt:
     a felhasználó azt olvasta, hogy mesélje el a helyzetét, alatta meg két
     gomb volt, ami nem válasz arra. A tartalék szövegének a gombokhoz kell
     illeszkednie, különben a tartalék maga lesz a hiba.
@@ -385,6 +399,16 @@ def _belepes_tartalek(nev: str, celmunkakor: str = "") -> str:
             "átnézzem előbb a CV-det, vagy megmutassam, hogy áll ez a szakma "
             "a piacon?"
         )
+    if cv_szakma:
+        return (
+            f"{megszolitas} A CV-d alapján {cv_szakma}. "
+            "Ez lesz a célod, vagy másra készülsz?"
+        )
+    if van_cv:
+        return (
+            f"{megszolitas} A CV-d megvan, de a célodat még nem tisztáztuk. "
+            "Milyen pozíció vagy szakma a célod?"
+        )
     return (
         f"{megszolitas} Örülök, hogy itt vagy. Kezdjünk a legegyszerűbbel: "
         "van kész önéletrajzod, vagy inkább elmondod, hol tartasz most?"
@@ -395,6 +419,8 @@ def flow_belepes_utan(nev: str = "", vendeg_elozmeny: list | None = None,
                        gps_osszefoglalo: list | None = None,
                        korabbi_allapot: str = "",
                        celmunkakor: str = "",
+                       cv_szakma: str = "",
+                       van_cv: bool = False,
                        utolso_uzenetek: list | None = None) -> str:
     """Flow megszólal magától, közvetlenül a belépés után.
 
@@ -409,7 +435,7 @@ def flow_belepes_utan(nev: str = "", vendeg_elozmeny: list | None = None,
     )
 
     if not GEMINI_KEY:
-        return _belepes_tartalek(nev, celmunkakor)
+        return _belepes_tartalek(nev, celmunkakor, cv_szakma, van_cv)
     gps_sorok = "\n".join(
         f"- {sor.get('terulet')}: {sor.get('allapot')}"
         for sor in (gps_osszefoglalo or [])
@@ -422,7 +448,12 @@ def flow_belepes_utan(nev: str = "", vendeg_elozmeny: list | None = None,
     # A gombokat a kód dönti el, és a modell CSAK MEGTUDJA őket. Így a kérdés
     # és a gombok nem tudnak elválni egymástól: ugyanabból a forrásból jönnek.
     gombok = "\n".join(
-        f"- {szoveg}" for szoveg in belepes_valaszlehetosegek(celmunkakor)
+        f"- {szoveg}"
+        for szoveg in belepes_valaszlehetosegek(
+            celmunkakor,
+            cv_szakma,
+            van_cv,
+        )
     )
 
     prompt = f"""Flow vagy, a Karrier-Ügynökség karrierasszisztense. A
@@ -442,6 +473,12 @@ KORÁBBI ÁLLAPOTA (a folyamat lépése, ahol legutóbb abbahagyta):
 
 MEGERŐSÍTETT CÉLMUNKAKÖRE:
 {celmunkakor or "még nincs"}
+
+A JÓVÁHAGYOTT CV-BŐL FELISMERT LEGFONTOSABB SZAKMA:
+{cv_szakma or "még nincs jóváhagyott CV vagy nem volt felismerhető"}
+
+VAN JÓVÁHAGYOTT CV:
+{"igen" if van_cv else "nem"}
 
 AMIRŐL LEGUTÓBB BESZÉLGETTETEK (belépve, korábbi alkalommal):
 {korabbi_sorok or "még nem beszélgettetek belépve"}
@@ -501,11 +538,11 @@ nem tudod megváltoztatni):
         print(f"[flow] Belepes utani koszontes hiba: {e}")
         # NEM üres string: az néma Flow-t jelentene, és a felhasználó azt
         # hinné, elromlott az oldal. A nevét ismerjük, ennyi mindig futja.
-        return _belepes_tartalek(nev, celmunkakor)
+        return _belepes_tartalek(nev, celmunkakor, cv_szakma, van_cv)
 
     if not valasz.strip():
         print("[flow] Belepes utani koszontes: a modell ures szoveget adott")
-        return _belepes_tartalek(nev, celmunkakor)
+        return _belepes_tartalek(nev, celmunkakor, cv_szakma, van_cv)
     return valasz
 
 
@@ -579,7 +616,7 @@ Kötelező szabályok:
   Legfeljebb három, mindegyik rövid (1-4 szó), és úgy fogalmazd őket,
   ahogy a felhasználó mondaná -- nem gombfelirat, hanem válasz.
   Példa: kérdés „Van kész önéletrajzod, vagy inkább elmondod?",
-  valaszlehetosegek: ["Van CV-m", "Nincs, elmondom"].
+  valaszlehetosegek: ["Van CV-m", "Nincs CV-m"].
 - Ha nincs mit választani (csak közlöd, mi történt), hagyd üresen.
   Ne gyártsd őket minden üzenethez -- a folyamatos gombozás ugyanolyan
   fárasztó, mint a menü.

@@ -10,9 +10,7 @@ import { createClient } from "../../lib/supabase/client";
 // újra be kell kérni a hozzájárulást.
 const ADATKEZELES_VERZIO = "2026-07-26";
 
-// Ugyanaz a pipa két helyen: regisztrációkor az űrlap alján, belépéskor
-// közvetlenül a Google-gomb fölött. Egyszerre mindig csak az egyik látszik,
-// és mindkettő ugyanazt az `elfogadva` állapotot állítja.
+// Egyetlen, közös hozzájárulás a Google- és az e-mailes úthoz.
 function HozzajarulasPipa({ elfogadva, setElfogadva, className }) {
   return (
     <label
@@ -79,7 +77,7 @@ export default function LoginPage() {
     // Hozzájárulás nélkül nem indulhat OAuth: a Supabase az ismeretlen
     // Google-fiókhoz azonnal létrehozza a fiókot, és onnantól nincs mit
     // visszavonni. A gomb is tiltva van, ez a második zár.
-    if (!elfogadva) return;
+    if (!elfogadva || (mod === "regisztracio" && !keresztnev.trim())) return;
 
     setDolgozik(true);
     setHiba("");
@@ -127,6 +125,10 @@ export default function LoginPage() {
   }
 
   async function hitelesites() {
+    if (mod === "regisztracio" && !keresztnev.trim()) {
+      setHiba("Add meg a keresztnevedet.");
+      return;
+    }
     if (mod === "regisztracio" && jelszo.length < 12) {
       setHiba("Az új jelszó legalább 12 karakter legyen.");
       return;
@@ -242,22 +244,46 @@ export default function LoginPage() {
             </div>
 
             <div className="px-7 py-9 sm:px-9">
-              {/* Belépés módban ez az egyetlen út, amin új fiók keletkezhet
-                  (ismeretlen Google-fiókhoz a Supabase azonnal létrehozza),
-                  ezért itt a pipának a gomb mellett a helye. Regisztráció
-                  módban az űrlap alján lévő példány takarja le. */}
-              {mod === "belepes" && (
-                <HozzajarulasPipa
-                  elfogadva={elfogadva}
-                  setElfogadva={setElfogadva}
-                  className="mb-4"
-                />
+              {/* A Google-gomb az e-mailes űrlap előtt van, ezért a nevet is
+                  előtte kérjük. Korábban a mező a gomb ALATT volt: Google-lal
+                  regisztrálva a felhasználó el sem jutott odáig, így Flow nem
+                  tudhatta a nevét. */}
+              {mod === "regisztracio" && (
+                <div className="mb-4">
+                  <label
+                    className="block text-xs font-semibold text-slate-300"
+                    htmlFor="keresztnev"
+                  >
+                    Keresztneved
+                  </label>
+                  <input
+                    id="keresztnev"
+                    type="text"
+                    autoComplete="off"
+                    required
+                    maxLength={80}
+                    value={keresztnev}
+                    onChange={(event) => setKeresztnev(event.target.value)}
+                    placeholder="Andrea"
+                    className="mt-2 w-full rounded-xl border border-white/12 bg-slate-950/55 px-3.5 py-3 text-sm text-white placeholder:text-slate-600 focus:border-amber-300/50"
+                  />
+                </div>
               )}
+
+              <HozzajarulasPipa
+                elfogadva={elfogadva}
+                setElfogadva={setElfogadva}
+                className="mb-4"
+              />
 
               <button
                 type="button"
                 onClick={googleBelepes}
-                disabled={dolgozik || !elfogadva}
+                disabled={
+                  dolgozik ||
+                  !elfogadva ||
+                  (mod === "regisztracio" && !keresztnev.trim())
+                }
                 className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-slate-100 hover:border-amber-300/40 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
@@ -295,31 +321,6 @@ export default function LoginPage() {
                   hitelesites();
                 }}
               >
-                {mod === "regisztracio" && (
-                  <div className="mb-3">
-                    <label
-                      className="block text-xs font-semibold text-slate-300"
-                      htmlFor="keresztnev"
-                    >
-                      Keresztneved
-                    </label>
-                    <input
-                      id="keresztnev"
-                      type="text"
-                      /* A böngésző „keresztnév" bejegyzése gyakran a
-                         vezetéknevet tartalmazza, és így rossz néven
-                         szólítanánk a felhasználót. Ne találgasson. */
-                      autoComplete="off"
-                      required
-                      maxLength={80}
-                      value={keresztnev}
-                      onChange={(event) => setKeresztnev(event.target.value)}
-                      placeholder="Andrea"
-                      className="mt-2 w-full rounded-xl border border-white/12 bg-slate-950/55 px-3.5 py-3 text-sm text-white placeholder:text-slate-600 focus:border-amber-300/50"
-                    />
-                  </div>
-                )}
-
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label
@@ -374,17 +375,9 @@ export default function LoginPage() {
                 </div>
 
                 {mod === "regisztracio" && (
-                  <>
-                    <p className="mt-2 text-xs text-slate-500">
-                      Legalább 12 karakter. Soha ne használd másik fiókod jelszavát.
-                    </p>
-
-                    <HozzajarulasPipa
-                      elfogadva={elfogadva}
-                      setElfogadva={setElfogadva}
-                      className="mt-4"
-                    />
-                  </>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Legalább 12 karakter. Soha ne használd másik fiókod jelszavát.
+                  </p>
                 )}
 
                 {hiba && (
@@ -449,4 +442,3 @@ export default function LoginPage() {
     </main>
   );
 }
-

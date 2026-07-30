@@ -19,41 +19,21 @@ const KEZDO_LEPESEK = [
     cim: "Nincs CV-m",
     leiras: "Rövid interjúból építünk ellenőrizhető karrierprofilt.",
   },
-  {
-    id: "valt",
-    cim: "Pályát váltanék",
-    leiras: "Reális átjárókat, készséghiányt és képzési utat keresünk.",
-  },
 ];
 
-const CV_MUVELETEK = [
-  {
-    id: "ellenorzes",
-    intent: "cv_ellenorzes",
-    cim: "Csak vizsgáld át",
-    leiras:
-      "Hibák, érthetőség és ATS-kockázatok. A CV szövegét nem írjuk át.",
-    kerdes: "A meglévő CV-met szeretném ellenőrizni, átírás nélkül.",
-  },
-  {
-    id: "frissites",
-    intent: "cv_frissites",
-    cim: "Írd át és frissítsd",
-    leiras:
-      "A célmunkakör valós elvárásaihoz igazítjuk, de nem találunk ki tapasztalatot.",
-    kerdes:
-      "A meglévő CV-met szeretném frissíteni és átírni a célmunkaköröm elvárásai alapján.",
-  },
-  {
-    id: "konkret",
-    intent: "konkret_palyazas",
-    cim: "Konkrét állásra szabás",
-    leiras:
-      "Már van egy hirdetésed. A link vagy a hirdetés szövege alapján készítjük el a célzott változatot.",
-    kerdes:
-      "Egy konkrét álláshirdetésre szeretném szabni a meglévő CV-met.",
-  },
-];
+const CV_ELLENORZES_MUVELET = {
+  id: "ellenorzes",
+  intent: "cv_ellenorzes",
+  cim: "Nézd át a CV-met",
+  kerdes: "A meglévő CV-met szeretném ellenőrizni, átírás nélkül.",
+};
+
+const PIAC_MUVELET = {
+  id: "piac",
+  intent: "piaci_korkep",
+  cim: "Mutasd a piacot",
+  kerdes: "Előbb a célmunkaköröm piaci helyzetét szeretném látni.",
+};
 
 // A KIRAKAT: mit tudunk. A látogatót nem az érdekli, hol tartunk az
 // építéssel, hanem hogy mit kap. Korábban itt „adatkapcsolat következik" és
@@ -158,8 +138,9 @@ function tartalekKoszontes() {
   return {
     szerep: "flow",
     szoveg:
-      "Szia! Örülök, hogy itt vagy. Mesélj, mi hozott ide — hol tartasz " +
-      "most, és mi az, amiben a leginkább elakadtál?",
+      "Szia! Örülök, hogy itt vagy. Kezdjünk a legegyszerűbbel: " +
+      "van kész önéletrajzod?",
+    valaszlehetosegek: ["Van CV-m", "Nincs CV-m"],
   };
 }
 
@@ -178,8 +159,49 @@ function koszontoUzenet(adat) {
     // megjelenítés is ugyanaz. Eddig a köszöntés nem adta át, ezért belépés
     // után a felhasználó a kártyarács előtt állt: neki kellett kitalálnia,
     // melyik esetben van. A gombok a szerverről jönnek, kódból eldöntve.
-    valaszlehetosegek: adat.valaszlehetosegek || [],
+    valaszlehetosegek:
+      adat.valaszlehetosegek || ["Van CV-m", "Nincs CV-m"],
   };
+}
+
+function belepesUzenetek(adat) {
+  const tarolt = Array.isArray(adat?.uzenetek)
+    ? adat.uzenetek
+        .filter(
+          (uzenet) =>
+            ["user", "flow"].includes(uzenet?.szerep) &&
+            typeof uzenet?.szoveg === "string" &&
+            uzenet.szoveg.trim(),
+        )
+        .map((uzenet) => ({ ...uzenet, gepel: false }))
+    : [];
+
+  if (!tarolt.length) {
+    return [
+      koszontoUzenet({
+        ...(adat || {}),
+        uzenet: adat?.uzenet || tartalekKoszontes().szoveg,
+      }),
+    ];
+  }
+
+  let utolsoFlow = -1;
+  for (let index = tarolt.length - 1; index >= 0; index -= 1) {
+    if (tarolt[index].szerep === "flow") {
+      utolsoFlow = index;
+      break;
+    }
+  }
+  if (utolsoFlow < 0) return tarolt;
+
+  tarolt[utolsoFlow] = {
+    ...tarolt[utolsoFlow],
+    gepel: Boolean(adat?.uj_koszontes),
+    nevetKer: Boolean(adat?.megszolitas_hianyzik),
+    nevJavaslatok: adat?.nev_javaslatok || [],
+    valaszlehetosegek: adat?.valaszlehetosegek || [],
+  };
+  return tarolt;
 }
 
 // Vendégként Flow maga köszönt, betűnként kiírva. Fix szöveg, nincs
@@ -196,10 +218,85 @@ const VENDEG_UZENET = {
     "Mondd el, hol tartasz most, és hová szeretnél eljutni. Ha regisztrálsz, megőrzöm az előzményeidet, így mindig pontosan onnan folytatjuk, ahol abbahagytuk.",
   ].join("\n\n"),
   gepel: true,
-  // Az érkezéskori köszöntő lassabban íródik, hogy a látogató észrevegye.
-  // A későbbi válaszok az alapértelmezett, gyorsabb ütemet kapják.
-  gepelSebesseg: 60,
+  rendszerKoszonto: true,
+  // A teljes bemutatkozás legfeljebb 4,5 másodperc alatt jelenjen meg.
+  // Korábban karakterenként 60 ms volt: ez ennél a hosszú szövegnél több
+  // mint egy perc várakozást jelentett.
+  gepelMaxIdotartamMs: 4500,
 };
+
+const VENDEG_CHAT_KULCS = "career_guest_chat";
+
+function ujAtadasAzonosito() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  const bajtok = new Uint8Array(16);
+  window.crypto.getRandomValues(bajtok);
+  bajtok[6] = (bajtok[6] & 0x0f) | 0x40;
+  bajtok[8] = (bajtok[8] & 0x3f) | 0x80;
+  const hex = [...bajtok].map((bajt) => bajt.toString(16).padStart(2, "0"));
+  return [
+    hex.slice(0, 4).join(""),
+    hex.slice(4, 6).join(""),
+    hex.slice(6, 8).join(""),
+    hex.slice(8, 10).join(""),
+    hex.slice(10).join(""),
+  ].join("-");
+}
+
+function vendegAtadasOlvasasa() {
+  if (typeof window === "undefined") return null;
+  try {
+    const nyers = window.localStorage.getItem(VENDEG_CHAT_KULCS);
+    if (!nyers) return null;
+    const ertelmezett = JSON.parse(nyers);
+    if (Array.isArray(ertelmezett)) {
+      const atadas = {
+        verzio: 1,
+        azonosito: ujAtadasAzonosito(),
+        uzenetek: ertelmezett,
+      };
+      window.localStorage.setItem(VENDEG_CHAT_KULCS, JSON.stringify(atadas));
+      return atadas;
+    }
+    if (
+      ertelmezett &&
+      typeof ertelmezett.azonosito === "string" &&
+      Array.isArray(ertelmezett.uzenetek)
+    ) {
+      return ertelmezett;
+    }
+  } catch {
+    // Sérült böngészőadatot nem adunk tovább.
+  }
+  return null;
+}
+
+function vendegAtadasMentese(uzenetek) {
+  if (typeof window === "undefined") return;
+  const mentendo = uzenetek
+    .filter(
+      (uzenet) =>
+        ["user", "flow"].includes(uzenet.szerep) &&
+        !uzenet.rendszerKoszonto &&
+        typeof uzenet.szoveg === "string" &&
+        uzenet.szoveg.trim(),
+    )
+    .slice(-6)
+    .map((uzenet) => ({
+      szerep: uzenet.szerep,
+      szoveg: uzenet.szoveg.slice(0, 600),
+    }));
+  if (!mentendo.length) return;
+  const korabbi = vendegAtadasOlvasasa();
+  window.localStorage.setItem(
+    VENDEG_CHAT_KULCS,
+    JSON.stringify({
+      verzio: 1,
+      azonosito: korabbi?.azonosito || ujAtadasAzonosito(),
+      uzenetek: mentendo,
+    }),
+  );
+}
 
 // Mi legyen a vendégfelületen. Három eset, ebben a sorrendben.
 //
@@ -234,10 +331,9 @@ function vendegKezdoUzenetek() {
     return [{ ...VENDEG_UZENET, gepel: false }];
   }
   try {
-    const nyers = window.localStorage.getItem("career_guest_chat");
-    const korabbi = nyers ? JSON.parse(nyers) : null;
-    if (Array.isArray(korabbi) && korabbi.length) {
-      return korabbi.map((sor) => ({ ...sor, gepel: false }));
+    const atadas = vendegAtadasOlvasasa();
+    if (atadas?.uzenetek.length) {
+      return atadas.uzenetek.map((sor) => ({ ...sor, gepel: false }));
     }
   } catch {
     // Sérült tartalom: a köszöntővel indulunk.
@@ -248,7 +344,7 @@ function vendegKezdoUzenetek() {
 /** Betűnként jeleníti meg a szöveget, mintha Flow épp írná. Kattintásra
  *  azonnal kiírja a többit; csökkentett animációt kérő beállításnál
  *  eleve nem animál. */
-function GepeloSzoveg({ szoveg, sebessegMs = 18 }) {
+function GepeloSzoveg({ szoveg, sebessegMs = 18, maxIdotartamMs = null }) {
   const [hossz, setHossz] = useState(0);
 
   useEffect(() => {
@@ -257,17 +353,24 @@ function GepeloSzoveg({ szoveg, sebessegMs = 18 }) {
       return;
     }
     setHossz(0);
+    const idokoz = maxIdotartamMs ? 20 : sebessegMs;
+    const lepes = maxIdotartamMs
+      ? Math.max(1, Math.ceil(szoveg.length / (maxIdotartamMs / idokoz)))
+      : 1;
     const idozito = setInterval(() => {
-      setHossz((elozo) => (elozo >= szoveg.length ? elozo : elozo + 1));
-    }, sebessegMs);
+      setHossz((elozo) =>
+        elozo >= szoveg.length ? elozo : Math.min(szoveg.length, elozo + lepes),
+      );
+    }, idokoz);
     return () => clearInterval(idozito);
-  }, [szoveg, sebessegMs]);
+  }, [szoveg, sebessegMs, maxIdotartamMs]);
 
   const kesz = hossz >= szoveg.length;
 
   return (
     <span
       onClick={() => setHossz(szoveg.length)}
+      title={kesz ? undefined : "Kattints a teljes szöveg megjelenítéséhez"}
       className={kesz ? undefined : "cursor-pointer"}
     >
       {szoveg.slice(0, hossz)}
@@ -380,18 +483,30 @@ export default function Home() {
   const uzenetVegeRef = useRef(null);
   const elsoRenderRef = useRef(true);
   const vendegElozmenyRef = useRef([]);
-  const belepesUdvozletRef = useRef(false);
+  const udvozoltUserRef = useRef(null);
+  const celValasztasRef = useRef(false);
+  const celSzabadMegadasRef = useRef(false);
   const belepve = Boolean(session);
+  const felhasznaloId = session?.user?.id || null;
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    let aktiv = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!aktiv) return;
+      // Ha az auth-listener gyorsabban már adott állapotot, a később
+      // beérkező kezdeti lekérés ne írja azt felül egy elavult eredménnyel.
+      setSession((elozo) => (elozo === undefined ? data.session : elozo));
+    });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+      if (aktiv) setSession(nextSession);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      aktiv = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // A GPS-panel a szerveroldali projekcióból frissül. Minden olyan művelet
@@ -413,7 +528,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!session) return;
+    if (!felhasznaloId) return;
     apiFetch("/api/v1/profile")
       .then((response) => (response.ok ? response.json() : null))
       .then((profile) => {
@@ -423,7 +538,7 @@ export default function Home() {
       })
       .catch(() => {});
     gpsFrissites();
-  }, [session, gpsFrissites]);
+  }, [felhasznaloId, gpsFrissites]);
 
   // Kijelentkezéskor a komponens nem mountolódik újra, ezért a folyamat
   // kliensoldali nyomait kifejezetten törölni kell -- különben a kilépett
@@ -466,12 +581,15 @@ export default function Home() {
     // kimaradt, és a belépett felület (GPS-panel, lépésgombok) ott ragadt
     // vendégmódban. Éles adat látszott olyannak, aki már nincs bejelentkezve.
     folytatasRef.current = false;
+    udvozoltUserRef.current = null;
     kezdoValasztasRef.current = null;
     setKezdoValasztas(null);
     setCvMuvelet(null);
     setWorkflowState(null);
     setGpsTeruletek({});
     setValaszthatoLepesek([]);
+    celValasztasRef.current = false;
+    celSzabadMegadasRef.current = false;
     setSzoveg("");
     setHiba(null);
 
@@ -508,57 +626,32 @@ export default function Home() {
 
   // A belépés elnavigál a /login oldalra, ezért a React-állapot elveszne.
   // A vendégbeszélgetést a böngészőben őrizzük meg, hogy belépés után
-  // ne kelljen elölről kezdeni. Szerverre nem kerül, amíg a felhasználó
-  // nem ír egy új üzenetet.
+  // ne kelljen elölről kezdeni. Szerverre csak sikeres belépés után kerül.
   useEffect(() => {
     if (belepve || uzenetek.length <= 1) return;
-    window.localStorage.setItem(
-      "career_guest_chat",
-      JSON.stringify(
-        uzenetek
-          .slice(-6)
-          .map((uzenet) => ({ szerep: uzenet.szerep, szoveg: uzenet.szoveg })),
-      ),
-    );
+    vendegAtadasMentese(uzenetek);
   }, [uzenetek, belepve]);
 
-  // Belépés után: ha volt vendégbeszélgetés, azt folytatjuk, és az első
-  // üzenetnél kontextusként átadjuk Flow-nak. A vendégköszöntő helyére nem
-  // lép beégetett bemutatkozás -- belépés után Flow már ismeri a
-  // felhasználót, a „ki vagyok én" a vendégoldal dolga.
+  // Felhasználónként egyszer töltjük be a szerveroldali beszélgetést.
+  // A Supabase TOKEN_REFRESHED eseménye új session objektumot ad, de attól
+  // még ugyanaz az ember marad. Korábban minden ilyen eseménynél kiürítettük
+  // az üzeneteket, majd a ref miatt nem töltöttük vissza: ettől tűnt el a
+  // Flow-ablak lapváltás után, és ettől hozta vissza az F5.
   useEffect(() => {
-    if (!session) return;
-    const nyers = window.localStorage.getItem("career_guest_chat");
-    window.localStorage.removeItem("career_guest_chat");
+    if (!felhasznaloId || udvozoltUserRef.current === felhasznaloId) return;
+    udvozoltUserRef.current = felhasznaloId;
+
+    const vendegAtadas = vendegAtadasOlvasasa();
+    const vendegSorok = vendegAtadas?.uzenetek || [];
     // A belépés sikerült, tehát a „félbehagyta a regisztrációt" jelző
     // elévült. Ha később kijelentkezik, friss bemutatkozás fogadja.
     window.sessionStorage.removeItem("career_login_probalkozas");
-    let vendegSorok = [];
-    try {
-      const ertelmezett = nyers ? JSON.parse(nyers) : null;
-      if (Array.isArray(ertelmezett)) vendegSorok = ertelmezett;
-    } catch {
-      // Sérült tartalom: egyszerűen nincs folytatás.
-    }
 
-    // A vendégbeszélgetés csak Flow emlékezetébe kerül, a képernyőre nem:
-    // a chatablakban a helyet az aktuális munkafolyamatnak kell hagyni.
+    // Ha az adatbázis-átadás nem sikerülne, az első belépett üzenet még
+    // egyszer megkapja háttérként. Sikeres átadásnál lent azonnal kiürítjük.
     if (vendegSorok.length) vendegElozmenyRef.current = vendegSorok;
 
-    // BELÉPÉS UTÁN A VENDÉGBESZÉLGETÉS LEKERÜL A KÉPERNYŐRŐL.
-    //
-    // Flow emlékszik rá (fent, a `vendegElozmenyRef`-ben), és a köszöntésében
-    // fel is veszi a fonalat -- de a chatablakot a mostani munkának hagyjuk.
-    // Aki belép, ne a saját vendégmondatait olvassa újra: elég, ha Flow a
-    // nevén szólítja és onnan folytatja.
-    //
-    // Korábban ez csak akkor ürített, ha egyedül a köszöntő volt kint. Amióta
-    // a félbehagyott regisztráció után a beszélgetést is visszatöltjük, az
-    // több elem -- így bent ragadt belépés után is.
     setUzenetek([]);
-
-    if (belepesUdvozletRef.current) return;
-    belepesUdvozletRef.current = true;
     setKuldesFolyamatban(true);
 
     // A Google-átirányítás előtt megadott keresztnév mentése. Enélkül
@@ -607,12 +700,15 @@ export default function Home() {
       }
     }
 
-    // Flow szólal meg először: felveszi a fonalat, néven szólít, és
-    // javasol egy kezdést. Csak a névmentés után, hogy már tudja a neved.
+    // A szerver egyszerre végzi az idempotens vendégátadást és a tartós
+    // előzmény visszaolvasását. F5-re nem készít új köszöntést.
     Promise.all([nevMentes, hozzajarulasMentes]).then(() =>
     apiFetch("/api/v1/flow/belepes-utan", {
       method: "POST",
-      body: JSON.stringify({ vendeg_elozmeny: vendegSorok.slice(-6) }),
+      body: JSON.stringify({
+        vendeg_elozmeny: vendegSorok.slice(-6),
+        vendeg_atadas_azonosito: vendegAtadas?.azonosito || null,
+      }),
     })
       .then((valasz) => (valasz.ok ? valasz.json() : null))
       .then((adat) => {
@@ -637,20 +733,25 @@ export default function Home() {
         // megtartani -- olyankor nem találgatunk: a megszólítás állapotát
         // csak a szerver tudja, és rosszul kérdezni rosszabb, mint nem
         // kérdezni.
-        if (!adat?.uzenet) {
-          setUzenetek([
-            koszontoUzenet({ ...(adat || {}), uzenet: tartalekKoszontes().szoveg }),
-          ]);
-          return;
+        if (
+          ["atadva", "mar_atadva"].includes(adat?.vendeg_atadas_allapot)
+        ) {
+          window.localStorage.removeItem(VENDEG_CHAT_KULCS);
+          vendegElozmenyRef.current = [];
         }
-        setUzenetek([koszontoUzenet(adat)]);
+        celValasztasRef.current = adat?.valasz_tipus === "celmunkakor";
+        celSzabadMegadasRef.current =
+          adat?.valasz_tipus === "celmunkakor" &&
+          !(adat?.valaszlehetosegek || []).length;
+        setUzenetek(belepesUzenetek(adat));
       })
       .catch(() => {
+        // Az átadandó vendégbeszélgetést hiba esetén NEM töröljük.
         setUzenetek([{ ...tartalekKoszontes(), gepel: true }]);
       })
       .finally(() => setKuldesFolyamatban(false)),
     );
-  }, [session]);
+  }, [felhasznaloId]);
 
   useEffect(() => {
     if (!session || folytatasRef.current) return;
@@ -741,6 +842,7 @@ export default function Home() {
   // Minden más eset marad a régiben: friss látogató végignézi a
   // bemutatkozást, ahogy eddig.
   function loginraNavigalas(url = "/login?next=%2F") {
+    if (!belepve) vendegAtadasMentese(uzenetek);
     window.sessionStorage.setItem("career_login_probalkozas", "1");
     router.push(url);
   }
@@ -769,22 +871,119 @@ export default function Home() {
     kezdoValasztasRef.current = lepes.id;
     setKezdoValasztas(lepes.id);
     if (lepes.id === "cv") {
-      // A választás a beszélgetésben történik, nem egy külön képernyőn:
-      // Flow nyugtázza, és a kártyák az ő üzenete alatt jelennek meg.
+      // A CV megléte még nem szolgáltatásválasztás. Előbb feltöltjük és
+      // jóváhagyjuk, utána Flow a felismert szakmáról kérdez.
       setUzenetek((elozo) => [
         ...elozo,
         { szerep: "user", szoveg: lepes.cim },
         {
           szerep: "flow",
           szoveg:
-            "Mit szeretnél a meglévő CV-ddel? Semmit nem indítok el " +
-            "automatikusan — válassz célt, és csak a szükséges következő " +
-            "lépést mutatom.",
+            "Rendben. Töltsd fel a CV-det; előbb megmutatom a kinyert " +
+            "szöveget, és csak a jóváhagyásod után lépünk tovább.",
         },
       ]);
       return;
     }
     uzenetKuldese(lepes.cim);
+  }
+
+  function cvJovahagyasKesz(eredmeny) {
+    const valaszlehetosegek =
+      eredmeny.flow_valaszlehetosegek ||
+      (eredmeny.celmunkakor_javaslatok || [])
+        .slice(0, 1)
+        .map((sor) => sor.szakma)
+        .concat(["Másra készülök"]);
+    kezdoValasztasRef.current = "cv-cel";
+    setKezdoValasztas("cv-cel");
+    celValasztasRef.current = valaszlehetosegek.length > 0;
+    celSzabadMegadasRef.current = valaszlehetosegek.length === 0;
+    setUzenetek((elozo) => [
+      ...elozo,
+      {
+        szerep: "flow",
+        szoveg:
+          eredmeny.flow_uzenet ||
+          "A CV-d rendben megérkezett. Milyen pozíció vagy szakma a célod?",
+        valaszlehetosegek,
+      },
+    ]);
+    setWorkflowState(eredmeny.current_state || workflowState);
+    setValaszthatoLepesek(eredmeny.available_actions || []);
+    gpsFrissites();
+  }
+
+  async function celmunkakorMentese(celmunkakor) {
+    const tisztaCel = celmunkakor.trim();
+    if (!tisztaCel || kuldesFolyamatban) return;
+    setHiba(null);
+    setKuldesFolyamatban(true);
+    setUzenetek((elozo) => [
+      ...elozo,
+      { szerep: "user", szoveg: tisztaCel },
+    ]);
+    setSzoveg("");
+    try {
+      const valasz = await apiFetch("/api/v1/flow/celmunkakor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_role: tisztaCel }),
+      });
+      if (!valasz.ok) throw new Error(`flow-celmunkakor: ${valasz.status}`);
+      const adat = await valasz.json();
+      celValasztasRef.current = false;
+      celSzabadMegadasRef.current = false;
+      setUzenetek((elozo) => [
+        ...elozo,
+        {
+          szerep: "flow",
+          szoveg: adat.uzenet,
+          valaszlehetosegek: adat.valaszlehetosegek || [],
+        },
+      ]);
+      setWorkflowState(adat.current_state || workflowState);
+      setValaszthatoLepesek(adat.available_actions || []);
+      gpsFrissites();
+    } catch {
+      setHiba("A célmunkakör mentése nem sikerült. Próbáld újra.");
+    } finally {
+      setKuldesFolyamatban(false);
+    }
+  }
+
+  function flowValaszKivalasztasa(valasz) {
+    const kezdoLepes = KEZDO_LEPESEK.find((lepes) => lepes.cim === valasz);
+    if (kezdoLepes && !kezdoValasztasRef.current) {
+      kezdoLepesValasztasa(kezdoLepes);
+      return;
+    }
+    if (celValasztasRef.current) {
+      if (valasz === "Másra készülök") {
+        celValasztasRef.current = false;
+        celSzabadMegadasRef.current = true;
+        setUzenetek((elozo) => [
+          ...elozo,
+          { szerep: "user", szoveg: valasz },
+          {
+            szerep: "flow",
+            szoveg: "Rendben. Milyen pozíció vagy szakma a célod?",
+          },
+        ]);
+        return;
+      }
+      celmunkakorMentese(valasz);
+      return;
+    }
+    if (valasz === "Nézd át a CV-met") {
+      cvMuveletValasztasa(CV_ELLENORZES_MUVELET);
+      return;
+    }
+    if (valasz === "Mutasd a piacot") {
+      cvMuveletValasztasa(PIAC_MUVELET);
+      return;
+    }
+    uzenetKuldese(valasz);
   }
 
   async function cvMuveletValasztasa(muvelet) {
@@ -806,6 +1005,10 @@ export default function Home() {
       if (!valasz.ok) throw new Error(`workflow-intent: ${valasz.status}`);
       const dontes = await valasz.json();
       setCvMuvelet(muvelet.id);
+      if (muvelet.id === "piac") {
+        kezdoValasztasRef.current = "piac";
+        setKezdoValasztas("piac");
+      }
       setWorkflowState(dontes.current_state);
       setValaszthatoLepesek(dontes.available_actions || []);
       gpsFrissites();
@@ -821,7 +1024,7 @@ export default function Home() {
     if (kuldesFolyamatban) return;
     setKuldesFolyamatban(true);
     setHiba(null);
-    if (belepve && kezdoValasztas === "cv") {
+    if (belepve && kezdoValasztas) {
       try {
         const response = await apiFetch("/api/v1/workflow/reset", {
           method: "POST",
@@ -843,6 +1046,8 @@ export default function Home() {
     setCvMuvelet(null);
     setWorkflowState(null);
     setValaszthatoLepesek([]);
+    celValasztasRef.current = false;
+    celSzabadMegadasRef.current = false;
     setUzenetek(belepve ? [] : [VENDEG_UZENET]);
     setSzoveg("");
     setHiba(null);
@@ -861,7 +1066,13 @@ export default function Home() {
         body: JSON.stringify({ vendeg_elozmeny: [] }),
       });
       const adat = valasz.ok ? await valasz.json() : null;
-      if (adat?.uzenet) setUzenetek([koszontoUzenet(adat)]);
+      if (adat?.uzenet) {
+        celValasztasRef.current = adat.valasz_tipus === "celmunkakor";
+        celSzabadMegadasRef.current =
+          adat.valasz_tipus === "celmunkakor" &&
+          !(adat.valaszlehetosegek || []).length;
+        setUzenetek([koszontoUzenet(adat)]);
+      }
     } catch {
       // Köszöntés nélkül is használható a beszélgetés.
     } finally {
@@ -872,6 +1083,11 @@ export default function Home() {
   async function uzenetKuldese(uzenetSzoveg) {
     const tiszta = uzenetSzoveg.trim();
     if (!tiszta || kuldesFolyamatban) return;
+
+    if (belepve && celSzabadMegadasRef.current) {
+      await celmunkakorMentese(tiszta);
+      return;
+    }
 
     if (!belepve) {
       // Vendégmód: szűk hatókörű, bejelentkezés nélküli Flow-válasz.
@@ -1082,6 +1298,25 @@ export default function Home() {
     </aside>
   );
 
+  // Amíg a böngészőből nem olvastuk ki a Supabase-munkamenetet, nem
+  // rajzolunk vendégfelületet. Korábban néhány pillanatra (lassabb gépen
+  // jóval tovább) vendégnek látszott a már belépett felhasználó, majd a
+  // teljes oldal átváltott alatta.
+  if (session === undefined) {
+    return (
+      <main className="career-shell career-grid grid min-h-screen place-items-center">
+        <div
+          role="status"
+          aria-live="polite"
+          className="glass-panel flex items-center gap-3 rounded-2xl px-5 py-4 text-sm text-slate-300"
+        >
+          <span className="flow-pulse h-2.5 w-2.5 rounded-full bg-amber-300" />
+          Flow betölti a munkameneted…
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="career-shell career-grid min-h-screen">
       <header className="border-b border-white/8 bg-[#070b16]/80 backdrop-blur-xl">
@@ -1179,6 +1414,7 @@ export default function Home() {
                         <GepeloSzoveg
                           szoveg={uzenet.szoveg}
                           sebessegMs={uzenet.gepelSebesseg}
+                          maxIdotartamMs={uzenet.gepelMaxIdotartamMs}
                         />
                       ) : (
                         uzenet.szoveg
@@ -1212,8 +1448,9 @@ export default function Home() {
                           hanem egy kérdés lehetséges válaszai. Csak a LEGUTOLSÓ
                           üzenetnél jelennek meg -- a korábbi kérdésekre már
                           válaszoltál, azok gombjai csak zavarnának.
-                          A gomb ugyanaz, mintha beírtad volna: nem indít
-                          műveletet, csak válaszol. A szabad szöveg is marad. */}
+                          A kezdő- és célválaszok profilt építenek; a két
+                          szolgáltatásgomb csak az ellenőrzött backend-kaput
+                          indítja. A szabad szöveg is marad. */}
                       {(uzenet.valaszlehetosegek || []).length > 0 &&
                         index === uzenetek.length - 1 &&
                         !kuldesFolyamatban && (
@@ -1222,7 +1459,7 @@ export default function Home() {
                               <button
                                 key={valasz}
                                 type="button"
-                                onClick={() => uzenetKuldese(valasz)}
+                                onClick={() => flowValaszKivalasztasa(valasz)}
                                 className="rounded-full border border-amber-300/30 bg-amber-300/[0.07] px-4 py-1.5 text-xs font-semibold text-amber-100 hover:border-amber-300/60 hover:bg-amber-300/15"
                               >
                                 {valasz}
@@ -1284,46 +1521,11 @@ export default function Home() {
                       üzenete alatt -- nem cserélik le a chatet. Így ő vezet,
                       a panelek pedig a válaszlehetőségei. */}
                   {belepve && kezdoValasztas === "cv" && !cvMuvelet && (
-                    <div className="grid gap-3 md:grid-cols-3">
-                      {CV_MUVELETEK.map((muvelet) => (
-                        <button
-                          key={muvelet.id}
-                          type="button"
-                          onClick={() => cvMuveletValasztasa(muvelet)}
-                          disabled={kuldesFolyamatban}
-                          aria-busy={futoMuvelet === muvelet.id}
-                          className={`group rounded-2xl border p-4 text-left transition ${
-                            futoMuvelet === muvelet.id
-                              ? "border-amber-300/60 bg-amber-300/10"
-                              : "border-white/10 bg-white/[0.025] hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05]"
-                          } ${
-                            futoMuvelet && futoMuvelet !== muvelet.id
-                              ? "opacity-30"
-                              : ""
-                          } disabled:cursor-not-allowed`}
-                        >
-                          <span
-                            className={`text-sm font-semibold ${
-                              futoMuvelet === muvelet.id
-                                ? "text-amber-100"
-                                : "text-slate-100 group-hover:text-amber-100"
-                            }`}
-                          >
-                            {muvelet.cim}
-                          </span>
-                          <span className="mt-2 block text-xs leading-5 text-slate-500">
-                            {futoMuvelet === muvelet.id ? (
-                              <span className="inline-flex items-center gap-2 text-amber-200/80">
-                                <span className="flow-pulse h-1.5 w-1.5 rounded-full bg-amber-300" />
-                                Indítás…
-                              </span>
-                            ) : (
-                              muvelet.leiras
-                            )}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                    <ProfileGate
+                      embedded
+                      forceCvUpload
+                      onStateChange={cvJovahagyasKesz}
+                    />
                   )}
 
                   {belepve &&
@@ -1403,36 +1605,6 @@ export default function Home() {
                     </button>
                   </form>
 
-                  {/* BELÉPVE Flow vezet, nem menü.
-                      Vendégként a teljes kirakat úgyis ott van lejjebb; itt
-                      megismételni ugyanazt két helyen csak zsúfol. Belépve
-                      pedig Flow kérdez, és a válaszlehetőségeket ő teszi a
-                      saját üzenete alá -- nem egy állandó kártyarács. */}
-                  {!kezdoValasztas && belepve && (
-                  <div className="pt-1">
-                    <p className="mb-3 text-xs font-medium text-slate-500">
-                      Vagy indulj egy gyors választással:
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      {KEZDO_LEPESEK.map((lepes) => (
-                        <button
-                          key={lepes.id}
-                          type="button"
-                          onClick={() => kezdoLepesValasztasa(lepes)}
-                          disabled={kuldesFolyamatban}
-                          className="group rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-left hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-amber-300/[0.05] disabled:opacity-50"
-                        >
-                          <span className="text-sm font-semibold text-slate-100 group-hover:text-amber-100">
-                            {lepes.cim}
-                          </span>
-                          <span className="mt-2 block text-xs leading-5 text-slate-500">
-                            {lepes.leiras}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  )}
                 </div>
             </div>
 

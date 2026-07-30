@@ -17,6 +17,7 @@ Utana a bongeszoben:
 """
 
 from typing import Literal
+from uuid import UUID
 
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,6 +52,7 @@ from utils.flow_allapot import (
     session_lekeres_vagy_letrehozas,
     elozmenyek_lekerese,
     uzenet_mentese,
+    vendeg_elozmeny_atadasa,
     workflow_lekeres_vagy_letrehozas,
     workflow_frissites,
     workflow_ujrakezdes,
@@ -420,9 +422,9 @@ class FlowUzenetBemenet(ApiModel):
     # hagyja. Személyre szabáshoz csak a szerveroldali, megerősített profil jó.
     profil: dict = Field(default_factory=dict)
     app_ismeret: str = Field(default="", max_length=20_000)
-    # A belépés előtti vendégbeszélgetés, hogy ne kelljen elölről kezdeni.
-    # Csak ehhez az egy válaszhoz ad kontextust: NEM mentjük el, mert a
-    # felhasználó ezt még bejelentkezés nélkül írta.
+    # Kompatibilitási tartalék: normál esetben a /flow/belepes-utan a sikeres
+    # azonosítás után már tartósan átadta a vendégbeszélgetést. Ha az átadás
+    # átmenetileg nem sikerült, az első üzenet még megkaphatja kontextusként.
     vendeg_elozmeny: list[FlowVendegElozmeny] = Field(
         default_factory=list, max_length=6
     )
@@ -662,6 +664,32 @@ class FlowBelepesBemenet(ApiModel):
     vendeg_elozmeny: list[FlowVendegElozmeny] = Field(
         default_factory=list, max_length=6
     )
+    # A böngésző egy vendégbeszélgetéshez egyszer készíti. A backend ebből
+    # determinisztikus üzenetazonosítókat képez, ezért F5 vagy hálózati
+    # újrapróbálás sem tudja megduplázni az átadott előzményt.
+    vendeg_atadas_azonosito: UUID | None = None
+
+
+class FlowCelmunkakorBemenet(ApiModel):
+    """A felhasználó által kimondott cél, modellértelmezés nélkül."""
+
+    target_role: str = Field(min_length=1, max_length=200)
+
+
+def _cv_szakma_javaslatok(user_id: str, server_profile: dict) -> list[dict]:
+    """A jóváhagyott CV-ből újra előállítható javaslatok.
+
+    A javaslatot nem kell külön böngészőállapotként tárolni: F5 után is a
+    jóváhagyott CV a forrás, ezért ugyanaz a determinisztikus eredmény jön.
+    """
+
+    import_id = server_profile.get("cv_document_id")
+    if not import_id:
+        return []
+    cv_import = cv_import_get(user_id, str(import_id))
+    if not cv_import or cv_import.get("review_status") != "approved":
+        return []
+    return celmunkakor_javaslatok(cv_import.get("extracted_text") or "")
 
 
 @app.post("/api/v1/flow/belepes-utan")
@@ -669,16 +697,31 @@ def flow_belepes_utan_vegpont(
     bemenet: FlowBelepesBemenet,
     felhasznalo=Depends(jelenlegi_felhasznalo),
 ):
-    """Flow megszólal magától, közvetlenül a belépés után.
+    """Belépéskor átveszi vagy visszatölti Flow tartós beszélgetését.
 
-    Nem változtat állapotot és nem hajt végre modult -- csak felveszi a
-    fonalat és javasol egy következő lépést. A felhasználó üzenete nem
-    keletkezik, mert nem ő írt: csak Flow válasza kerül a naplóba.
+    Új felhasználónál Flow megszólal, visszatéréskor viszont nem gyárt újabb
+    köszöntést minden F5-re: a már eltárolt beszélgetést adja vissza. A
+    vendégelőzmény csak sikeres, azonosított belépés után kerül a fiókhoz.
     """
     user_id = str(felhasznalo.id)
     session_id = session_lekeres_vagy_letrehozas(user_id)
     profile = profile_get_or_create(user_id) or {}
     server_profile = dict(profile.get("confirmed_data") or {})
+    vendeg_sorok = [
+        {"szerep": sor.szerep, "szoveg": sor.szoveg}
+        for sor in bemenet.vendeg_elozmeny
+    ]
+
+    # Még az átadás előtt olvasunk: ebből tudjuk, hogy tényleg új belépésről
+    # van-e szó. A tokenfrissítés és az F5 nem új beszélgetés.
+    korabbi_uzenetek = elozmenyek_lekerese(user_id, session_id, 50)
+    atadas_allapot = vendeg_elozmeny_atadasa(
+        user_id,
+        session_id,
+        bemenet.vendeg_atadas_azonosito,
+        vendeg_sorok,
+    )
+    uj_vendeg_atadas = atadas_allapot == "atadva"
 
     # AMIT MÁR TÁROLUNK RÓLA, AZT NE KÉRDEZZÜK MEG ÚJRA.
     #
@@ -688,32 +731,50 @@ def flow_belepes_utan_vegpont(
     # korábbi beszélgetése is ott van az adatbázisban.
     workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
     celmunkakor = str(server_profile.get("target_role") or "")
-    uzenet = flow_belepes_utan(
-        nev=_megszolitas(felhasznalo, server_profile),
-        vendeg_elozmeny=[
-            {"szerep": sor.szerep, "szoveg": sor.szoveg}
-            for sor in bemenet.vendeg_elozmeny
-        ],
-        gps_osszefoglalo=gps_projekcio(user_id),
-        korabbi_allapot=(workflow or {}).get("current_state") or "",
-        celmunkakor=celmunkakor,
-        utolso_uzenetek=elozmenyek_lekerese(user_id, session_id),
-    )
-    # A VÉGPONT NEM ADHAT VISSZA ÜRES ÜZENETET.
-    #
-    # Az `if uzenet:` eddig azt jelentette, hogy üres válasznál nem mentünk --
-    # és a kliens is üres üzenetet kapott. Két hiba egyszerre: Flow néma
-    # maradt, ÉS a beszélgetés nem került a naplóba, tehát a következő
-    # belépéskor sem volt mire emlékeznie. A tartalék itt is a helyére kerül,
-    # hogy egyetlen hívási út se végződhessen csenddel.
-    if not (uzenet or "").strip():
-        uzenet = _belepes_tartalek(
-            _megszolitas(felhasznalo, server_profile), celmunkakor
+    cv_javaslatok = _cv_szakma_javaslatok(user_id, server_profile)
+    cv_szakma = str((cv_javaslatok[0] if cv_javaslatok else {}).get("szakma") or "")
+    van_cv = bool(server_profile.get("cv_document_id"))
+    uj_koszontes = not korabbi_uzenetek or uj_vendeg_atadas
+    if uj_koszontes:
+        uzenet = flow_belepes_utan(
+            nev=_megszolitas(felhasznalo, server_profile),
+            vendeg_elozmeny=vendeg_sorok,
+            gps_osszefoglalo=gps_projekcio(user_id),
+            korabbi_allapot=(workflow or {}).get("current_state") or "",
+            celmunkakor=celmunkakor,
+            cv_szakma=cv_szakma,
+            van_cv=van_cv,
+            utolso_uzenetek=korabbi_uzenetek,
         )
-    uzenet_mentese(user_id, session_id, "flow", uzenet)
+        # A VÉGPONT NEM ADHAT VISSZA ÜRES ÜZENETET.
+        if not (uzenet or "").strip():
+            uzenet = _belepes_tartalek(
+                _megszolitas(felhasznalo, server_profile),
+                celmunkakor,
+                cv_szakma,
+                van_cv,
+            )
+        uzenet_mentese(user_id, session_id, "flow", uzenet)
+
+    uzenetek = elozmenyek_lekerese(user_id, session_id, 50)
+    if not uzenetek:
+        # Adatbázis-kimaradásnál a kliens akkor se maradjon üresen.
+        uzenet = _belepes_tartalek(
+            _megszolitas(felhasznalo, server_profile),
+            celmunkakor,
+            cv_szakma,
+            van_cv,
+        )
+        uzenetek = [{"szerep": "flow", "szoveg": uzenet}]
+        uj_koszontes = True
+    else:
+        uzenet = uzenetek[-1]["szoveg"]
 
     return {
         "uzenet": uzenet,
+        "uzenetek": uzenetek,
+        "uj_koszontes": uj_koszontes,
+        "vendeg_atadas_allapot": atadas_allapot,
         "megszolitas_hianyzik": not _megszolitas(felhasznalo, server_profile),
         "nev_javaslatok": _nev_javaslatok(felhasznalo),
         # FLOW KÉRDEZ, ÉS ITT VANNAK A VÁLASZOK -- NEM KÁRTYARÁCS.
@@ -727,7 +788,86 @@ def flow_belepes_utan_vegpont(
         # A gombok KÓDBÓL jönnek (`belepes_valaszlehetosegek`), nem a
         # modelltől: a döntés determinisztikus, tehát nem is a modell dolga.
         # Így nem tud olyan gombot kitalálni, ami mögött nincs folyamat.
-        "valaszlehetosegek": belepes_valaszlehetosegek(celmunkakor),
+        "valaszlehetosegek": belepes_valaszlehetosegek(
+            celmunkakor,
+            cv_szakma,
+            van_cv,
+        ),
+        "valasz_tipus": (
+            "szolgaltatas"
+            if celmunkakor
+            else "celmunkakor"
+            if van_cv
+            else "kezdes"
+        ),
+    }
+
+
+@app.post("/api/v1/flow/celmunkakor")
+def flow_celmunkakor_vegpont(
+    bemenet: FlowCelmunkakorBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Menti a kimondott célt, majd Flow felteszi az egyetlen következő kérdést.
+
+    A célmunkakört nem a modell találja ki és nem a kliens tartja életben:
+    megerősített profiltény lesz. Emiatt F5, másik lap vagy új munkamenet után
+    is ugyanonnan folytatható a folyamat.
+    """
+
+    user_id = str(felhasznalo.id)
+    target_role = " ".join(bemenet.target_role.split())
+    try:
+        draft = profile_update_draft(user_id, {"target_role": target_role})
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    if not draft:
+        raise HTTPException(409, "A célmunkakör mentése közben változott a profil.")
+
+    confirmation = profile_confirm_vegpont(
+        ProfileConfirmBemenet(
+            fields=["target_role"],
+            reason="flow_target_role_confirmation",
+        ),
+        felhasznalo,
+    )
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    profile = profile_get_or_create(user_id) or {}
+    cv_javaslatok = _cv_szakma_javaslatok(
+        user_id,
+        dict(profile.get("confirmed_data") or {}),
+    )
+    cv_szakma = str((cv_javaslatok[0] if cv_javaslatok else {}).get("szakma") or "")
+    palyavaltas = bool(
+        cv_szakma and cv_szakma.casefold() != target_role.casefold()
+    )
+    if palyavaltas:
+        flow_uzenet = (
+            f"A CV-d alapján {cv_szakma}, a célod pedig {target_role}. "
+            "Ez pályaváltás. A következő elemzésben a közös készségeket és "
+            "a hiányokat is külön kell választanunk. Előbb nézzem át ehhez "
+            "a CV-det, vagy mutassam meg a cél szakma piacát?"
+        )
+    else:
+        flow_uzenet = (
+            f"Rendben, a célod: {target_role}. Átnézzem hozzá a CV-det, "
+            "vagy előbb mutassam meg, hogyan áll ez a szakma a piacon?"
+        )
+    valaszlehetosegek = ["Nézd át a CV-met", "Mutasd a piacot"]
+    uzenet_mentese(
+        user_id,
+        session_id,
+        "user",
+        f"A célmunkaköröm: {target_role}",
+    )
+    uzenet_mentese(user_id, session_id, "flow", flow_uzenet)
+
+    return {
+        **confirmation,
+        "target_role": target_role,
+        "palyavaltas": palyavaltas,
+        "uzenet": flow_uzenet,
+        "valaszlehetosegek": valaszlehetosegek,
     }
 
 
@@ -1219,6 +1359,7 @@ def profile_facts_review_vegpont(
     """Külön felhasználói jóváhagyással aktiválja az átnézett CV-t."""
 
     user_id = str(felhasznalo.id)
+    korabbi_import = cv_import_get(user_id, bemenet.import_id)
     try:
         approved_import = cv_import_mark_approved(
             user_id,
@@ -1257,12 +1398,32 @@ def profile_facts_review_vegpont(
     # A javaslatot NEM mentjük automatikusan: egy emberben több szakmai
     # profil is lehet (pénztáros és bolti eladó egyszerre), és a célmunkakör
     # nem azonos a jelenlegivel. A felhasználó választ, mi csak felkínáljuk.
+    javaslatok = celmunkakor_javaslatok(bemenet.approved_text or "")
+    if javaslatok:
+        felismert_szakma = str(javaslatok[0]["szakma"])
+        flow_uzenet = (
+            f"A CV-d alapján {felismert_szakma}. "
+            "Ez lesz a célod, vagy másra készülsz?"
+        )
+        flow_valaszlehetosegek = [felismert_szakma, "Másra készülök"]
+    else:
+        flow_uzenet = (
+            "A CV-d rendben megérkezett. Milyen pozíció vagy szakma a célod?"
+        )
+        flow_valaszlehetosegek = []
+
+    # Az átmenet maga is része a tartós beszélgetésnek. Így F5 után nem a
+    # CV-feltöltés előtti kérdés jelenik meg újra.
+    if not korabbi_import or korabbi_import.get("review_status") != "approved":
+        session_id = session_lekeres_vagy_letrehozas(user_id)
+        uzenet_mentese(user_id, session_id, "flow", flow_uzenet)
+
     return {
         **confirmation,
         "import": approved_import,
-        "celmunkakor_javaslatok": celmunkakor_javaslatok(
-            bemenet.approved_text or ""
-        ),
+        "celmunkakor_javaslatok": javaslatok,
+        "flow_uzenet": flow_uzenet,
+        "flow_valaszlehetosegek": flow_valaszlehetosegek,
     }
 
 
