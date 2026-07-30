@@ -590,8 +590,9 @@ def test_belepes_utani_koszontes_ures_modellvalasznal_sem_nema(monkeypatch):
     test = valasz.json()
     # 1. Flow nem maradhat néma: a kliens tartalékára ne kelljen esni.
     assert test["uzenet"].strip()
-    # 2. A névkérdés megmarad: a szerver válasza mondja meg, hogy kell a név.
-    assert test["megszolitas_hianyzik"] is True
+    # 2. A Google teljes neve már ismert adat: nem kérhetjük be még egyszer.
+    assert test["megszolitas_hianyzik"] is False
+    assert "Varga Andrea" in test["uzenet"]
     assert test["nev_javaslatok"] == ["Varga", "Andrea"]
     # 3. A köszöntés a NAPLÓBA is bekerül -- enélkül nincs mire emlékezni.
     assert len(mentett) == 1
@@ -631,18 +632,19 @@ def test_email_regisztracio_sajat_keresztneve_a_megszolitas():
     assert main._megszolitas(EmailFelhasznalo(), {}) == "Andrea"
 
 
-def test_google_given_name_nem_lesz_megszolitas():
-    """A szolgáltató neve javaslat marad, nem tény.
+def test_google_teljes_nev_tartalek_es_nem_kerdezzuk_ujra():
+    """A teljes Google-név tartalék, a bizonytalan given_name nem az.
 
     Mérve: magyar Google-fiókoknál a `given_name` gyakran a VEZETÉKNÉV, ezért
-    ebből nem szólíthatunk senkit. A `_nev_javaslatok` felkínálja, ő választ.
+    abból nem választunk keresztnevet. A teljes névvel viszont megszólítható,
+    így a regisztrációnál már megadott nevet nem kérjük be még egyszer.
     """
     from backend import main
 
     class GoogleFelhasznalo:
         user_metadata = {"given_name": "Varga", "full_name": "Varga Andrea"}
 
-    assert main._megszolitas(GoogleFelhasznalo(), {}) == ""
+    assert main._megszolitas(GoogleFelhasznalo(), {}) == "Varga Andrea"
     assert main._nev_javaslatok(GoogleFelhasznalo()) == ["Varga", "Andrea"]
 
 
@@ -787,6 +789,174 @@ def test_f5_a_tarolt_beszelgetest_tolti_vissza_uj_koszontes_nelkul(
     assert valasz.json()["uzenetek"] == tarolt
     assert valasz.json()["uj_koszontes"] is False
     assert valasz.json()["vendeg_atadas_allapot"] == "nincs"
+
+
+def test_f5_a_vendegchatet_nem_adja_at_a_belepett_feluletnek(monkeypatch):
+    """Flow emlékezhet a vendégelőzményre, de a munkatér nem rajzolhatja ki."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {"sajat_keresztnev": "Andrea"}
+
+    teljes_elozmeny = [
+        {
+            "szerep": "user",
+            "szoveg": "Bolti eladóként másik munkahelyet keresek.",
+        },
+        {
+            "szerep": "flow",
+            "szoveg": "Segítek megtalálni a hozzád illő pozíciókat.",
+        },
+        {
+            "szerep": "flow",
+            "szoveg": "Andrea, folytassuk. Van elkészített önéletrajzod?",
+        },
+    ]
+    belepett_elozmeny = teljes_elozmeny[-1:]
+    lekerdezesek = []
+
+    def elozmenyek(_user_id, _session_id, _limit=12, vendeg_uzenetekkel=True):
+        lekerdezesek.append(vendeg_uzenetekkel)
+        return list(teljes_elozmeny if vendeg_uzenetekkel else belepett_elozmeny)
+
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "elozmenyek_lekerese", elozmenyek)
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"id": "profile-1", "confirmed_data": {}, "draft_data": {}},
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {"id": "workflow-1", "current_state": "CEL_TISZTAZATLAN"},
+    )
+    monkeypatch.setattr(main, "gps_projekcio", lambda *_: [])
+    monkeypatch.setattr(
+        main,
+        "flow_belepes_utan",
+        lambda **__: pytest.fail("F5-re nem készülhet új köszöntés"),
+    )
+    monkeypatch.setattr(
+        main,
+        "uzenet_mentese",
+        lambda *_args, **_kwargs: pytest.fail("F5-re nem menthet új üzenetet"),
+    )
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/belepes-utan",
+            json={"vendeg_elozmeny": []},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert lekerdezesek == [True, False]
+    assert valasz.json()["uzenetek"] == belepett_elozmeny
+    assert valasz.json()["uzenet"] == belepett_elozmeny[-1]["szoveg"]
+
+
+def test_cv_kezdes_szerverre_menti_az_aktiv_nezetet(monkeypatch):
+    """A CV-feltöltő F5-álló workflow-kontextust kap."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+
+    mentett_kontextusok = []
+    mentett_uzenetek = []
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {
+            "id": "workflow-1",
+            "current_state": "CEL_TISZTAZATLAN",
+            "context": {},
+        },
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_kontextus_frissites",
+        lambda *args: mentett_kontextusok.append(args) or True,
+    )
+    monkeypatch.setattr(
+        main,
+        "uzenet_mentese",
+        lambda *args, **__: mentett_uzenetek.append(args),
+    )
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/kezdes",
+            json={"utvonal": "cv"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert valasz.json()["active_view"] == "cv_feltoltes"
+    assert mentett_kontextusok[0][2]["active_path"] == "cv"
+    assert [sor[2] for sor in mentett_uzenetek] == ["user", "flow"]
+
+
+def test_f5_visszaadja_a_folyamatban_levo_cv_feltoltest(monkeypatch):
+    """A beszélgetés és az aktív CV-nézet együtt áll vissza."""
+    from backend import main
+
+    class Felhasznalo:
+        id = "00000000-0000-0000-0000-000000000001"
+        user_metadata = {"sajat_keresztnev": "Andrea"}
+
+    tarolt = [
+        {"szerep": "user", "szoveg": "Van CV-m"},
+        {"szerep": "flow", "szoveg": "Rendben. Töltsd fel a CV-det."},
+    ]
+    app.dependency_overrides[jelenlegi_felhasznalo] = lambda: Felhasznalo()
+    monkeypatch.setattr(main, "session_lekeres_vagy_letrehozas", lambda _: "session-1")
+    monkeypatch.setattr(main, "elozmenyek_lekerese", lambda *_: list(tarolt))
+    monkeypatch.setattr(
+        main,
+        "profile_get_or_create",
+        lambda *_: {"id": "profile-1", "confirmed_data": {}, "draft_data": {}},
+    )
+    monkeypatch.setattr(
+        main,
+        "workflow_lekeres_vagy_letrehozas",
+        lambda *_: {
+            "id": "workflow-1",
+            "current_state": "CEL_TISZTAZATLAN",
+            "context": {"active_path": "cv"},
+        },
+    )
+    monkeypatch.setattr(main, "gps_projekcio", lambda *_: [])
+    monkeypatch.setattr(
+        main,
+        "flow_belepes_utan",
+        lambda **__: pytest.fail("F5-re nem készülhet új köszöntés"),
+    )
+    monkeypatch.setattr(
+        main,
+        "uzenet_mentese",
+        lambda *_args, **_kwargs: pytest.fail("F5-re nem menthet új üzenetet"),
+    )
+
+    try:
+        valasz = kliens.post(
+            "/api/v1/flow/belepes-utan",
+            json={"vendeg_elozmeny": []},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert valasz.status_code == 200
+    assert valasz.json()["active_view"] == "cv_feltoltes"
+    assert valasz.json()["valaszlehetosegek"] == []
+    assert valasz.json()["uzenetek"] == tarolt
 
 
 def test_vendeg_beszelgetes_atadasa_utan_flow_felveszi_a_fonalat(monkeypatch):
@@ -997,3 +1167,66 @@ def test_vendeg_atadas_azonos_uuid_val_nem_duplaz(monkeypatch):
     assert elso == "atadva"
     assert masodik == "mar_atadva"
     assert len(db.tabla.sorok) == 2
+
+
+def test_elozmeny_nezet_kiszuri_a_vendegbol_atvett_sorokat(monkeypatch):
+    """A vendégsor Flow-é marad, a belépett felület nézetéből viszont kimarad."""
+    from utils import flow_allapot
+
+    class Eredmeny:
+        def __init__(self, data):
+            self.data = data
+
+    class Tabla:
+        def select(self, *_):
+            return self
+
+        def eq(self, *_):
+            return self
+
+        def order(self, *_args, **_kwargs):
+            return self
+
+        def limit(self, *_):
+            return self
+
+        def execute(self):
+            return Eredmeny(
+                [
+                    {
+                        "szerep": "flow",
+                        "tartalom": "Belépés után innen folytatjuk.",
+                        "strukturalt_hivatkozasok": [],
+                    },
+                    {
+                        "szerep": "user",
+                        "tartalom": "Vendégként ezt mondtam.",
+                        "strukturalt_hivatkozasok": [
+                            {"tipus": "vendeg_atadas", "azonosito": "atadas-1"}
+                        ],
+                    },
+                ]
+            )
+
+    class Adatbazis:
+        def schema(self, nev):
+            assert nev == "private"
+            return self
+
+        def table(self, nev):
+            assert nev == "flow_messages"
+            return Tabla()
+
+    monkeypatch.setattr(flow_allapot, "kliens", Adatbazis)
+
+    teljes = flow_allapot.elozmenyek_lekerese("user-1", "session-1")
+    belepett = flow_allapot.elozmenyek_lekerese(
+        "user-1",
+        "session-1",
+        vendeg_uzenetekkel=False,
+    )
+
+    assert len(teljes) == 2
+    assert belepett == [
+        {"szerep": "flow", "szoveg": "Belépés után innen folytatjuk."}
+    ]

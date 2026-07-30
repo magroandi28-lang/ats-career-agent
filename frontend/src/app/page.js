@@ -480,6 +480,7 @@ export default function Home() {
   const kezdoValasztasRef = useRef(null);
   const folytatasRef = useRef(false);
   const flowPanelRef = useRef(null);
+  const cvFeltoltesRef = useRef(null);
   const uzenetVegeRef = useRef(null);
   const elsoRenderRef = useRef(true);
   const vendegElozmenyRef = useRef([]);
@@ -660,25 +661,34 @@ export default function Home() {
       "career_pending_given_name",
     );
     const nevMentes = megorzottNev
-      ? apiFetch("/api/v1/profile/draft", {
-          method: "PATCH",
-          body: JSON.stringify({ fields: { display_name: megorzottNev } }),
-        })
-          .then((valasz) =>
-            valasz.ok
-              ? apiFetch("/api/v1/profile/confirm", {
-                  method: "POST",
-                  body: JSON.stringify({
-                    fields: ["display_name"],
-                    reason: "user_confirmation",
-                  }),
-                })
-              : null,
-          )
-          .catch(() => null)
-          .finally(() =>
-            window.localStorage.removeItem("career_pending_given_name"),
-          )
+      ? (async () => {
+          // A regisztrációs név két tartós helyre kerül: az auth-metaadatba
+          // és a megerősített karrierprofilba. A helyi példányt csak akkor
+          // töröljük, ha mindkét mentés sikerült; átmeneti hiba után a
+          // következő betöltés újrapróbálja, nem kérdezi meg újra.
+          const supabaseNev = createClient();
+          const { error: authNevHiba } = await supabaseNev.auth.updateUser({
+            data: { sajat_keresztnev: megorzottNev },
+          });
+          if (authNevHiba) throw authNevHiba;
+
+          const draftValasz = await apiFetch("/api/v1/profile/draft", {
+            method: "PATCH",
+            body: JSON.stringify({ fields: { display_name: megorzottNev } }),
+          });
+          if (!draftValasz.ok) throw new Error("display-name-draft");
+
+          const megerositesValasz = await apiFetch("/api/v1/profile/confirm", {
+            method: "POST",
+            body: JSON.stringify({
+              fields: ["display_name"],
+              reason: "registration_form",
+            }),
+          });
+          if (!megerositesValasz.ok) throw new Error("display-name-confirm");
+
+          window.localStorage.removeItem("career_pending_given_name");
+        })().catch(() => null)
       : Promise.resolve();
 
     // A Google-belépés előtt adott hozzájárulás nyoma. A `signInWithOAuth`
@@ -743,6 +753,13 @@ export default function Home() {
         celSzabadMegadasRef.current =
           adat?.valasz_tipus === "celmunkakor" &&
           !(adat?.valaszlehetosegek || []).length;
+        if (adat?.active_view === "cv_feltoltes") {
+          kezdoValasztasRef.current = "cv";
+          setKezdoValasztas("cv");
+        } else if (adat?.active_view === "cv_cel") {
+          kezdoValasztasRef.current = "cv-cel";
+          setKezdoValasztas("cv-cel");
+        }
         setUzenetek(belepesUzenetek(adat));
       })
       .catch(() => {
@@ -754,7 +771,7 @@ export default function Home() {
   }, [felhasznaloId]);
 
   useEffect(() => {
-    if (!session || folytatasRef.current) return;
+    if (!session || folytatasRef.current || kuldesFolyamatban) return;
 
     // A belépés előtt begépelt üzenet visszakerül a mezőbe. Szándékosan
     // nem küldjük el automatikusan: a modellhívás pénzbe kerül, azt a
@@ -770,23 +787,29 @@ export default function Home() {
     const fuggoben = window.localStorage.getItem("career_pending_start");
     if (fuggoben !== "cv") return;
 
-    folytatasRef.current = true;
-    window.localStorage.removeItem("career_pending_start");
-    kezdoValasztasRef.current = "cv";
-    setKezdoValasztas("cv");
-  }, [session]);
+    kezdoLepesValasztasa(KEZDO_LEPESEK[0]).then((sikerult) => {
+      if (!sikerult) return;
+      folytatasRef.current = true;
+      window.localStorage.removeItem("career_pending_start");
+    });
+  }, [session, kuldesFolyamatban]);
 
-  // A Flow-panel 500 pixelnél magasabb, ezért nézetváltáskor a változás
-  // könnyen a képernyőn kívülre esik: a felhasználó kattint, dolgozik a
-  // rendszer, de ő ebből semmit nem lát. Ezért minden nézetváltásnál a
-  // panel tetejére görgetünk -- az első betöltéskor viszont nem, mert ott
-  // nincs mit megmutatni.
+  // A „Van CV-m" után nem a hosszú Flow-panel tetejére, hanem közvetlenül
+  // az újonnan megjelent feltöltőre görgetünk. A korábbi általános
+  // panelgörgetés pont a friss tartalmat vitte a képernyő alá.
   useEffect(() => {
     if (elsoRenderRef.current) {
       elsoRenderRef.current = false;
       return;
     }
-    flowPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (kezdoValasztas !== "cv" || cvMuvelet) return;
+    const frame = window.requestAnimationFrame(() => {
+      cvFeltoltesRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [kezdoValasztas, cvMuvelet]);
 
   // Új üzenetnél a beszélgetés aljára: enélkül Flow válasza a látható
@@ -856,8 +879,8 @@ export default function Home() {
     loginraNavigalas();
   }
 
-  function kezdoLepesValasztasa(lepes) {
-    if (kezdoValasztasRef.current || kuldesFolyamatban) return;
+  async function kezdoLepesValasztasa(lepes) {
+    if (kezdoValasztasRef.current || kuldesFolyamatban) return false;
 
     if (!belepve) {
       belepesreKuldes(
@@ -865,27 +888,40 @@ export default function Home() {
           ? { career_pending_start: "cv" }
           : { career_pending_message: lepes.cim },
       );
-      return;
+      return false;
     }
 
+    if (lepes.id === "cv") {
+      // Ez még nem elemzési szándék, de már aktív munkafolyamat. Előbb
+      // szerverre mentjük, így F5 után ugyanitt nyílik vissza.
+      setKuldesFolyamatban(true);
+      setHiba(null);
+      try {
+        const valasz = await apiFetch("/api/v1/flow/kezdes", {
+          method: "POST",
+          body: JSON.stringify({ utvonal: "cv" }),
+        });
+        if (!valasz.ok) throw new Error(`flow-kezdes: ${valasz.status}`);
+        const adat = await valasz.json();
+        kezdoValasztasRef.current = lepes.id;
+        setKezdoValasztas(lepes.id);
+        setUzenetek((elozo) => [
+          ...elozo,
+          { szerep: "user", szoveg: lepes.cim },
+          { szerep: "flow", szoveg: adat.uzenet },
+        ]);
+        return true;
+      } catch {
+        setHiba("A CV-folyamat indítása nem sikerült. Próbáld újra.");
+        return false;
+      } finally {
+        setKuldesFolyamatban(false);
+      }
+    }
     kezdoValasztasRef.current = lepes.id;
     setKezdoValasztas(lepes.id);
-    if (lepes.id === "cv") {
-      // A CV megléte még nem szolgáltatásválasztás. Előbb feltöltjük és
-      // jóváhagyjuk, utána Flow a felismert szakmáról kérdez.
-      setUzenetek((elozo) => [
-        ...elozo,
-        { szerep: "user", szoveg: lepes.cim },
-        {
-          szerep: "flow",
-          szoveg:
-            "Rendben. Töltsd fel a CV-det; előbb megmutatom a kinyert " +
-            "szöveget, és csak a jóváhagyásod után lépünk tovább.",
-        },
-      ]);
-      return;
-    }
     uzenetKuldese(lepes.cim);
+    return true;
   }
 
   function cvJovahagyasKesz(eredmeny) {
@@ -1521,11 +1557,13 @@ export default function Home() {
                       üzenete alatt -- nem cserélik le a chatet. Így ő vezet,
                       a panelek pedig a válaszlehetőségei. */}
                   {belepve && kezdoValasztas === "cv" && !cvMuvelet && (
-                    <ProfileGate
-                      embedded
-                      forceCvUpload
-                      onStateChange={cvJovahagyasKesz}
-                    />
+                    <div ref={cvFeltoltesRef} className="scroll-mt-24">
+                      <ProfileGate
+                        embedded
+                        forceCvUpload
+                        onStateChange={cvJovahagyasKesz}
+                      />
+                    </div>
                   )}
 
                   {belepve &&

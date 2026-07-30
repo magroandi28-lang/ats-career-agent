@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "../lib/api";
 
 const FIELD_CONFIG = {
@@ -80,6 +80,7 @@ export default function ProfileGate({
   const [extractedText, setExtractedText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const cvFileInputRef = useRef(null);
   // A CV-ből felismert célmunkakör-javaslatok. A jóváhagyás válaszából
   // jönnek, és csak felkínáljuk őket -- a döntés a felhasználóé.
   const [szakmaJavaslatok, setSzakmaJavaslatok] = useState([]);
@@ -229,6 +230,25 @@ export default function ProfileGate({
     } finally {
       setBusy(false);
     }
+  }
+
+  function cvFileKivalasztasa(event) {
+    const file = event.target.files?.[0] || null;
+    if (!file) {
+      setCvFile(null);
+      return;
+    }
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLocaleLowerCase("hu-HU").endsWith(".pdf")
+    ) {
+      event.target.value = "";
+      setCvFile(null);
+      setError("Csak PDF-formátumú CV tölthető fel.");
+      return;
+    }
+    setCvFile(file);
+    setError(null);
   }
 
   async function approveCv() {
@@ -389,7 +409,7 @@ export default function ProfileGate({
   if (needsCv && !cvImport) {
     return (
       <form onSubmit={uploadCv} className={shellClass}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/75">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-200/80">
           CV feltöltése
         </p>
         <h3 className="mt-2 text-base font-semibold text-white">
@@ -400,18 +420,32 @@ export default function ProfileGate({
           nem hagyunk jóvá és nem indítunk el automatikusan.
         </p>
         <input
+          ref={cvFileInputRef}
           type="file"
           accept="application/pdf,.pdf"
-          onChange={(event) => setCvFile(event.target.files?.[0] || null)}
-          className="mt-4 block w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-xs text-slate-300"
+          onChange={cvFileKivalasztasa}
+          className="sr-only"
         />
+        <div className="mt-4 rounded-2xl border border-sky-200/15 bg-sky-950/20 p-3.5">
+          <button
+            type="button"
+            onClick={() => cvFileInputRef.current?.click()}
+            disabled={busy}
+            className="rounded-xl border border-sky-200/20 bg-[#1a3455] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#23466f] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {cvFile ? "Másik PDF választása" : "PDF kiválasztása"}
+          </button>
+          <p className="mt-2.5 break-all text-xs text-slate-400">
+            {cvFile ? cvFile.name : "Még nincs fájl kiválasztva."}
+          </p>
+        </div>
         {error && <p className="mt-3 text-xs text-red-200">{error}</p>}
         <button
           type="submit"
-          disabled={busy}
-          className="mt-4 rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:opacity-50"
+          disabled={busy || !cvFile}
+          className="mt-4 rounded-xl border border-sky-200/20 bg-[#1a3455] px-5 py-3 text-sm font-bold text-white hover:bg-[#23466f] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-slate-800/45 disabled:text-slate-500"
         >
-          {busy ? "Feltöltés és szövegkinyerés…" : "Feltöltés ellenőrzésre"}
+          {busy ? "Feltöltés és szövegkinyerés…" : "Feltöltés és ellenőrzés"}
         </button>
       </form>
     );
@@ -420,7 +454,7 @@ export default function ProfileGate({
   if (needsCv && cvImport) {
     return (
       <section className={shellClass}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/75">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-200/80">
           Kinyert CV-szöveg ellenőrzése
         </p>
         <h3 className="mt-2 text-base font-semibold text-white">
@@ -445,7 +479,7 @@ export default function ProfileGate({
             type="button"
             onClick={approveCv}
             disabled={busy || !extractedText.trim()}
-            className="rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:opacity-50"
+            className="rounded-xl border border-sky-200/20 bg-[#1a3455] px-5 py-3 text-sm font-bold text-white hover:bg-[#23466f] disabled:opacity-50"
           >
             {busy ? "Jóváhagyás…" : "Átnéztem, jóváhagyom"}
           </button>

@@ -76,6 +76,38 @@ def workflow_frissites(
         return False
 
 
+def workflow_kontextus_frissites(
+    user_id: str,
+    workflow_id: str,
+    context: dict,
+) -> bool:
+    """Nézetet ment állapot- vagy szándékváltás nélkül.
+
+    A CV-feltöltés megnyitása még nem karriercél vagy elemzési szándék, de
+    F5 után is ugyanazt a munkafelületet kell visszaadni.
+    """
+
+    db = kliens()
+    if not db:
+        return False
+    try:
+        result = (
+            db.schema("private")
+            .table("career_workflows")
+            .update({
+                "context": context,
+                "updated_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            })
+            .eq("id", workflow_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return bool(result.data)
+    except Exception as exc:
+        print(f"[flow_allapot] workflow-kontextus hiba: {exc}")
+        return False
+
+
 def workflow_ujrakezdes(user_id: str, workflow_id: str) -> bool:
     """A felhasználó kifejezett visszalépésére tiszta kezdőállapotot ment."""
 
@@ -128,16 +160,55 @@ def session_lekeres_vagy_letrehozas(user_id: str) -> str | None:
         return None
 
 
-def elozmenyek_lekerese(user_id: str, session_id: str | None, limit: int = 12) -> list[dict]:
-    """A backend SAJÁT, tárolt előzménye -- nem a kliens állítása szerint."""
+def _vendeg_atadas_hivatkozas(hivatkozasok: object) -> bool:
+    """Igaz, ha a sor a belépés előtti vendégbeszélgetésből származik."""
+
+    if isinstance(hivatkozasok, dict):
+        hivatkozasok = [hivatkozasok]
+    if not isinstance(hivatkozasok, list):
+        return False
+    return any(
+        isinstance(hivatkozas, dict)
+        and hivatkozas.get("tipus") == "vendeg_atadas"
+        for hivatkozas in hivatkozasok
+    )
+
+
+def elozmenyek_lekerese(
+    user_id: str,
+    session_id: str | None,
+    limit: int = 12,
+    vendeg_uzenetekkel: bool = True,
+) -> list[dict]:
+    """A backend saját, tárolt előzménye.
+
+    Flow a teljes előzményt kapja, hogy emlékezzen a belépés előtt
+    elmondottakra. A belépett felület viszont kérheti a vendégből átvett
+    sorok nélküli nézetet: az emlékezet ettől megmarad, de a vendégchat nem
+    kerül át a belépett munkatérre.
+    """
     db = kliens()
     if not db or not session_id:
         return []
     try:
-        r = (db.schema("private").table("flow_messages").select("szerep, tartalom")
-               .eq("session_id", session_id)
-               .order("letrehozva", desc=True).limit(limit).execute())
+        r = (
+            db.schema("private")
+            .table("flow_messages")
+            .select("szerep, tartalom, strukturalt_hivatkozasok")
+            .eq("session_id", session_id)
+            .order("letrehozva", desc=True)
+            .limit(limit)
+            .execute()
+        )
         sorok = list(reversed(r.data or []))
+        if not vendeg_uzenetekkel:
+            sorok = [
+                sor
+                for sor in sorok
+                if not _vendeg_atadas_hivatkozas(
+                    sor.get("strukturalt_hivatkozasok")
+                )
+            ]
         return [{"szerep": s["szerep"], "szoveg": s["tartalom"]} for s in sorok]
     except Exception as e:
         print(f"[flow_allapot] elozmeny hiba: {e}")

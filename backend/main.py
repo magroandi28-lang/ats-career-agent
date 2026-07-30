@@ -55,6 +55,7 @@ from utils.flow_allapot import (
     vendeg_elozmeny_atadasa,
     workflow_lekeres_vagy_letrehozas,
     workflow_frissites,
+    workflow_kontextus_frissites,
     workflow_ujrakezdes,
     gps_esemeny_rogzitese,
     gps_snapshot_frissites,
@@ -676,6 +677,12 @@ class FlowCelmunkakorBemenet(ApiModel):
     target_role: str = Field(min_length=1, max_length=200)
 
 
+class FlowKezdesBemenet(ApiModel):
+    """A kiválasztott, még szándéksemleges kezdőút."""
+
+    utvonal: Literal["cv"]
+
+
 def _cv_szakma_javaslatok(user_id: str, server_profile: dict) -> list[dict]:
     """A jóváhagyott CV-ből újra előállítható javaslatok.
 
@@ -690,6 +697,41 @@ def _cv_szakma_javaslatok(user_id: str, server_profile: dict) -> list[dict]:
     if not cv_import or cv_import.get("review_status") != "approved":
         return []
     return celmunkakor_javaslatok(cv_import.get("extracted_text") or "")
+
+
+@app.post("/api/v1/flow/kezdes")
+def flow_kezdes_vegpont(
+    bemenet: FlowKezdesBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Tartósan megnyitja a kiválasztott kezdőfolyamatot."""
+
+    user_id = str(felhasznalo.id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    if not workflow:
+        raise HTTPException(503, "A karrierfolyamat állapota nem érhető el.")
+
+    context = dict(workflow.get("context") or {})
+    mar_aktiv = context.get("active_path") == bemenet.utvonal
+    context["active_path"] = bemenet.utvonal
+    if not workflow_kontextus_frissites(user_id, workflow["id"], context):
+        raise HTTPException(503, "A kiválasztott folyamat mentése nem sikerült.")
+
+    flow_uzenet = (
+        "Rendben. Töltsd fel a CV-det; előbb megmutatom a kinyert "
+        "szöveget, és csak a jóváhagyásod után lépünk tovább."
+    )
+    if not mar_aktiv:
+        uzenet_mentese(user_id, session_id, "user", "Van CV-m")
+        uzenet_mentese(user_id, session_id, "flow", flow_uzenet)
+
+    return {
+        "ok": True,
+        "active_view": "cv_feltoltes",
+        "uzenet": flow_uzenet,
+        "current_state": workflow.get("current_state"),
+    }
 
 
 @app.post("/api/v1/flow/belepes-utan")
@@ -734,6 +776,14 @@ def flow_belepes_utan_vegpont(
     cv_javaslatok = _cv_szakma_javaslatok(user_id, server_profile)
     cv_szakma = str((cv_javaslatok[0] if cv_javaslatok else {}).get("szakma") or "")
     van_cv = bool(server_profile.get("cv_document_id"))
+    active_path = str((workflow or {}).get("context", {}).get("active_path") or "")
+    active_view = (
+        "cv_feltoltes"
+        if active_path == "cv" and not van_cv
+        else "cv_cel"
+        if active_path == "cv" and van_cv and not celmunkakor
+        else None
+    )
     uj_koszontes = not korabbi_uzenetek or uj_vendeg_atadas
     if uj_koszontes:
         uzenet = flow_belepes_utan(
@@ -756,7 +806,10 @@ def flow_belepes_utan_vegpont(
             )
         uzenet_mentese(user_id, session_id, "flow", uzenet)
 
-    uzenetek = elozmenyek_lekerese(user_id, session_id, 50)
+    # A vendégbeszélgetés Flow memóriájának része, nem a belépett felületé.
+    # A tárolt forrásjelölés alapján minden betöltésnél kiszűrjük, ezért F5
+    # után sem jelenik meg újra a vendégchat.
+    uzenetek = elozmenyek_lekerese(user_id, session_id, 50, False)
     if not uzenetek:
         # Adatbázis-kimaradásnál a kliens akkor se maradjon üresen.
         uzenet = _belepes_tartalek(
@@ -788,13 +841,20 @@ def flow_belepes_utan_vegpont(
         # A gombok KÓDBÓL jönnek (`belepes_valaszlehetosegek`), nem a
         # modelltől: a döntés determinisztikus, tehát nem is a modell dolga.
         # Így nem tud olyan gombot kitalálni, ami mögött nincs folyamat.
-        "valaszlehetosegek": belepes_valaszlehetosegek(
-            celmunkakor,
-            cv_szakma,
-            van_cv,
+        "valaszlehetosegek": (
+            []
+            if active_view
+            else belepes_valaszlehetosegek(
+                celmunkakor,
+                cv_szakma,
+                van_cv,
+            )
         ),
+        "active_view": active_view,
         "valasz_tipus": (
-            "szolgaltatas"
+            active_view
+            if active_view
+            else "szolgaltatas"
             if celmunkakor
             else "celmunkakor"
             if van_cv
@@ -1046,9 +1106,9 @@ class CvImportReviewBemenet(ApiModel):
 def _megszolitas(felhasznalo, megerositett_profil: dict) -> str:
     """A felhasználó keresztneve, ha ismert.
 
-    Sorrend: a saját maga által megerősített profilnév, utána a
-    bejelentkezéskor kapott név (Google-fióknál a `full_name`). E-mail
-    címet szándékosan nem használunk megszólításnak.
+    Sorrend: a saját maga által megerősített profilnév, a saját
+    regisztrációs űrlapunkon megadott keresztnév, végül a szolgáltatótól
+    kapott teljes név. E-mail címet nem használunk megszólításnak.
     """
     # CSAK AMIT Ő MAGA ERŐSÍTETT MEG.
     #
@@ -1079,7 +1139,17 @@ def _megszolitas(felhasznalo, megerositett_profil: dict) -> str:
     # A Google `given_name` mezőjét szándékosan NEM olvassuk itt: az a
     # szolgáltatótól jön. Ezért van külön kulcsa annak, amit ő maga írt be.
     metaadat = getattr(felhasznalo, "user_metadata", None) or {}
-    return str(metaadat.get("sajat_keresztnev") or "").strip()
+    sajat_keresztnev = str(metaadat.get("sajat_keresztnev") or "").strip()
+    if sajat_keresztnev:
+        return sajat_keresztnev
+
+    # RÉGEBBI GOOGLE-FIÓKOK TARTALÉKA.
+    #
+    # A Google `given_name` mezőjét továbbra sem használjuk, mert magyar
+    # névsorrendnél gyakran a vezetéknevet tartalmazza. A teljes név viszont
+    # nem találgatás: a felhasználó fiókjának tényleges neve. Inkább ezen
+    # szólítjuk, mint hogy a regisztrációnál már megadott nevét újra kérjük.
+    return str(metaadat.get("full_name") or metaadat.get("name") or "").strip()
 
 
 def _nev_javaslatok(felhasznalo) -> list[str]:
