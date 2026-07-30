@@ -577,6 +577,13 @@ def _cv_uj_valtozat_inditasa(ctx: ActionContext) -> ActionOutcome:
         gps_allapot="terv",
         context_patch={
             "cv_ellenorzes_szakma": szakma,
+            # AZ ÚJ CV SZÖVEGE MEGMARAD, KÜLÖNBEN NINCS MIT LETÖLTENI.
+            #
+            # Eddig csak az összefoglaló került a folyamat állapotába, a CV
+            # maga pedig egyetlen válaszban élt: F5 után elveszett, és a
+            # letöltéshez újra le kellett volna futtatni a teljes -- fizetős --
+            # láncot. A DOCX/PDF ebből a szövegből készül, kéréskor.
+            "cv_uj_valtozat": result.get("improved_cv") or "",
             "eredmeny_cv_ellenorzes": {
                 "szakma": result.get("target_role") or szakma,
                 "statusz": fact_check.get("status"),

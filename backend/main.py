@@ -20,6 +20,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,6 +36,9 @@ from agents.karrier_ugynok import (
     tanacsado_velemeny,
 )
 from utils.adatbazis import kereslet_korkep, szakma_statisztika, kliens
+# Az ATS Standard sablon. A megjelenest KOD allitja elo, nem a modell:
+# a CV kinezete nem fugghet a modell pillanatnyi valaszatol (spec 8.).
+from backend.ats_renderer import ats_docx, ats_pdf
 from utils.teszt import ENERGIA_SKALA, STRESSZ_SKALA, holland_tipus, jollet_jelzes
 from utils.flow_agy import (
     # A köszöntés tartaléka. A végpontnak is szüksége van rá: ha a modell
@@ -1494,6 +1498,70 @@ def profile_confirm_vegpont(
         "current_state": current_state.value if current_state else None,
         "state_changed": state_changed,
     }
+
+
+class CvLetoltesBemenet(ApiModel):
+    """A letöltendő formátum és a letöltendő szöveg.
+
+    A `cv_szoveg` opcionális: ha a felhasználó szerkesztette az új CV-t, azt a
+    változatot töltjük le, nem a tárolt eredetit (folyamat_terkep.md 2.9-10).
+    """
+
+    formatum: Literal["docx", "pdf"]
+    cv_szoveg: str | None = Field(default=None, max_length=120_000)
+
+
+@app.post("/api/v1/cv/letoltes")
+def cv_letoltes_vegpont(
+    bemenet: CvLetoltesBemenet,
+    felhasznalo=Depends(jelenlegi_felhasznalo),
+):
+    """Az elkészült CV letöltése ATS Standard sablonban (folyamat_terkep.md 8.).
+
+    A DOKUMENTUM KÉRÉSKOR KÉSZÜL, A TÁROLT SZÖVEGBŐL.
+
+    Nem a lánc futásakor rendereljük és tesszük el, két okból. Egy: a
+    felhasználó a megjelenítés után még szerkesztheti a CV-t, és akkor az
+    eltett fájl azonnal elavulna. Kettő: a renderelés determinisztikus és
+    ingyenes, tehát nincs miért fájlt tárolni hozzá -- a drága rész a lánc,
+    az pedig már lefutott, és a szövege megmaradt a folyamat állapotában.
+
+    A megjelenést KIZÁRÓLAG a renderer adja: a modell a tartalmat írja, a
+    kinézet nem függ a pillanatnyi válaszától.
+    """
+
+    user_id = str(felhasznalo.id)
+    session_id = session_lekeres_vagy_letrehozas(user_id)
+    workflow = workflow_lekeres_vagy_letrehozas(user_id, session_id)
+    tarolt = str((workflow or {}).get("context", {}).get("cv_uj_valtozat") or "")
+
+    cv_szoveg = (bemenet.cv_szoveg or tarolt).strip()
+    if not cv_szoveg:
+        raise HTTPException(
+            409,
+            "Még nincs elkészült CV-változat. Előbb futtasd le a CV új változatát.",
+        )
+
+    keszito = ats_docx if bemenet.formatum == "docx" else ats_pdf
+    try:
+        tartalom = keszito(cv_szoveg)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+
+    tipus = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        if bemenet.formatum == "docx"
+        else "application/pdf"
+    )
+    return Response(
+        content=tartalom,
+        media_type=tipus,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="oneletrajz.{bemenet.formatum}"'
+            )
+        },
+    )
 
 
 @app.post("/api/v1/profile/import")
