@@ -482,12 +482,22 @@ export default function Home() {
   // miatt nem olvashatjuk a böngésző tárolójából (hidratálási hiba lenne).
   // Ezért beillesztés után igazítunk: ha a látogató a belépő oldalról jött
   // vissza, ugyanaz a szöveg marad, csak gépelés nélkül.
+  //
+  // SZÁNDÉKOSAN `session !== null`, nem `belepve`: a `session` kezdőértéke
+  // `undefined` (még nem tudjuk, van-e munkamenet). Ha itt `belepve`-t
+  // néztünk volna, ez az effekt minden mountnál lefutott volna, MIELŐTT a
+  // belépés utáni takarító effekt (lent) törölhette volna a
+  // `career_login_probalkozas` / `career_guest_chat` bejegyzéseket -- így a
+  // `vendegKezdo()` a teljes, elavult vendégelőzményt fagyasztotta volna a
+  // gyorsítótárba, ami aztán egy későbbi kijelentkezéskor visszaköszönt
+  // volna. `session === null` csak akkor igaz, ha MÁR biztosan tudjuk, hogy
+  // nincs bejelentkezve senki.
   useEffect(() => {
-    if (belepve) return;
+    if (session !== null) return;
     setUzenetek((elozo) =>
       elozo.length === 1 && elozo[0] === VENDEG_UZENET ? vendegKezdo() : elozo,
     );
-  }, [belepve, vendegKezdo]);
+  }, [session, vendegKezdo]);
 
   // A belépés elnavigál a /login oldalra, ezért a React-állapot elveszne.
   // A vendégbeszélgetést a böngészőben őrizzük meg, hogy belépés után
