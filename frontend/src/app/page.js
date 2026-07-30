@@ -616,10 +616,24 @@ export default function Home() {
         // ténylegesen előfordult. A szerveroldali tartalék nem segít, ha a
         // kérés el sem jut odáig, ezért itt is kell egy.
         //
-        // A megszólítás ilyenkor a munkamenetből jön -- azt a belépés után
-        // biztosan tudjuk, modellhívás nélkül is.
+        // A TARTALÉKSZÖVEG CSAK A SZÖVEGET PÓTOLJA -- A NÉVKÉRDÉST NEM.
+        //
+        // Eddig a tartalék egy önálló üzenet volt, `nevetKer` és
+        // `nevJavaslatok` nélkül. Így amikor a szerver válaszolt, de üres
+        // üzenettel, a válasz többi mezője a földre esett: a megszólítást
+        // kérő kérdés és a névjavaslat-gombok sem jelentek meg. Mérve
+        // (2026-07-30): pontosan ez történt, ezért nem szólított néven, és
+        // nem is kérdezte meg, hogyan szólítsa.
+        //
+        // Ha a szerver válaszolt, a mezőit megtartjuk, és csak a szöveget
+        // pótoljuk. Ha egyáltalán nem válaszolt (`adat` null), nincs mit
+        // megtartani -- olyankor nem találgatunk: a megszólítás állapotát
+        // csak a szerver tudja, és rosszul kérdezni rosszabb, mint nem
+        // kérdezni.
         if (!adat?.uzenet) {
-          setUzenetek([{ ...tartalekKoszontes(), gepel: true }]);
+          setUzenetek([
+            koszontoUzenet({ ...(adat || {}), uzenet: tartalekKoszontes().szoveg }),
+          ]);
           return;
         }
         setUzenetek([koszontoUzenet(adat)]);
