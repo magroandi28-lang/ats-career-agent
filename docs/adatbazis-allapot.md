@@ -13,7 +13,8 @@ Ez a dokumentum azt rögzíti, milyen felhasználói szolgáltatás építhető 
 | ESCO-kapcsolattal rendelkező szakma | 989 |
 | FEOR/KSH-kapcsolattal rendelkező szakma | 544 |
 | Hirdetésből kinyert feladat vagy elvárás | 56 826 |
-| Tételes adattal rendelkező hirdetés | 15 803 |
+| Bármilyen tételes adattal rendelkező hirdetés | 15 803 |
+| Ebből: feladat- vagy elvárástétellel rendelkező hirdetés | 5 740 |
 | ESCO-foglalkozás | 3 039 |
 | ESCO-készség | 13 939 |
 | ESCO foglalkozás–készség kapcsolat | 126 051 |
@@ -28,6 +29,41 @@ nincs 14 napnál régebben látott, még aktívként jelölt hirdetés. Az adatb
 `aktiv` állapot azonban nem bizonyítja, hogy a külső link még megnyitható:
 élő ellenőrzés során már találtunk aktívként tárolt, de az EURES oldalán nem
 megjelenő hirdetést is.
+
+## Mennyire teljes a bér- és elvárásadat
+
+Ez a szakasz azért van külön, mert a „részben építhető" önmagában nem mond
+semmit, és mert két különböző dolgot könnyű összekeverni.
+
+**Amit egy KONKRÉT hirdetésről tudunk** (mérve 2026-07-30, 14 653 valódi
+állásra):
+
+| | Hirdetés | Arány |
+|---|---:|---:|
+| Van forintban megadott béradat | 2 334 | 15,9% |
+| Van feladat- vagy elvárástétel | 5 740 | 39,2% |
+| Nincs hozzárendelt szakma | 2 715 | 18,5% |
+
+**Amit egy SZAKMÁRÓL tudunk.** A `mv_szakma_lefedettseg` bizalmi szintje nem
+arány, hanem szakmánkénti abszolút darabszám:
+
+| Bizalmi szint | Kereslet | Bér | Elvárás |
+|---|---|---|---|
+| `eros` | ≥ 20 aktív állás | ≥ 10 béres hirdetés | ≥ 30 tétel |
+| `gyenge` | ≥ 5 | ≥ 4 | ≥ 10 |
+| `nincs` | ez alatt | ez alatt | ez alatt |
+
+A 993 szakmából `eros` szinten: kereslet **137**, bér **54**, elvárás **38**.
+Legalább 10 hirdetése **223** szakmának van.
+
+**A kettőt nem szabad összemosni.** Egy „a bolti eladó bére 400–500 ezer" típusú
+állítás a szakma szintjén állhat meg, mintából — miközben az adott hirdetésről
+külön-külön az esetek 84%-ában semmit nem tudunk a bérről. A felhasználónak azt
+kell mondani, amelyik igaz: szakmára mintát, hirdetésre csak azt, ami ott van.
+
+Ha a szakmalista bővül, ezek az arányok esnek, mert az új szakmák kevés
+hirdetéssel érkeznek — a küszöbök viszont abszolút darabszámok. Ez hígulás,
+nem adatvesztés: abszolút értékben minden nőtt (kinyert tétel 52 663 → 56 826).
 
 ## Mire építhető szolgáltatás
 
@@ -106,8 +142,27 @@ ajánlható:
 
 ## Működés és biztonság
 
-- 49 éles migráció van.
 - A `napi-karbantartas` cron naponta 08:00 UTC-kor fut.
-- A `public.arfolyam` táblán nincs RLS. Ez külön biztonsági teendő; csak a
-  tényleges hozzáférési mód és a szükséges policy tisztázása után szabad
-  bekapcsolni, mert policy nélkül a jelenlegi olvasás megszűnhet.
+- A napi gyűjtés fut: 2026-07-30-án 7 203 hirdetést láttamozott, a legutóbbi
+  hirdetés 06:38 UTC-kor érkezett. Mind az 5 materializált nézet feltöltve.
+
+### A migrációk elcsúsztak, és ezt ma semmi nem fogja meg
+
+Mérve 2026-07-30: a repóban **50** migrációs fájl van, az éles adatbázisban
+**49** fut. Az eltérés a `20260730150000_arfolyam_rls.sql` — ez a fájl bekerült
+a repóba, de **nincs alkalmazva**.
+
+Ezért igaz még mindig, hogy a `public.arfolyam` táblán nincs RLS: nem azért,
+mert a döntés még hátravan, hanem mert a megírt migráció nem futott le.
+
+**A `scripts/migracio_szinkron.py` ezt elkapná — csak épp egyetlen workflow sem
+hívja meg.** A `.github/workflows/` állományaiban egyedül az `adat_or.py`
+szerepel. Amíg ez így van, a migrációs eltérés csendben nő: a repó és az éles
+séma külön életet él, és ez pontosan az a hibaosztály, amit a szkript
+megelőzni hivatott.
+
+Két teendő, egymástól függetlenül:
+
+1. A hiányzó migráció alkalmazása (vagy tudatos visszavonása a repóból).
+2. A `migracio_szinkron.py` bekötése a Quality workflow-ba, hogy legközelebb
+   ne egy kézi ellenőrzésen múljon.
