@@ -904,7 +904,24 @@ def _megszolitas(felhasznalo, megerositett_profil: dict) -> str:
     # kattintással eldönti, hogyan szólítsuk. Egy kérdés egyszer, szemben
     # azzal, hogy végig rossz néven szólítjuk.
     sajat = str(megerositett_profil.get("display_name") or "").strip()
-    return sajat
+    if sajat:
+        return sajat
+
+    # AMIT A SAJÁT ŰRLAPUNKON ÍRT BE, AZ IS TŐLE VAN.
+    #
+    # Az e-mailes regisztráció KÖTELEZŐ „Keresztneved" mezőjének értéke ide
+    # kerül. Ez nem a szolgáltató tippje, hanem a felhasználó saját szava --
+    # ugyanabba a kategóriába tartozik, mint a fenti megerősített profilnév.
+    #
+    # Ez eddig kimaradt, és emiatt az e-mailes ág néma hibában állt: a nevet
+    # kötelező mezőben megadta, a `user_metadata`-ba be is került, de EGYETLEN
+    # sor sem olvasta -- Flow végig úgy viselkedett, mintha nem tudná a nevét,
+    # és újra meg újra megkérdezte.
+    #
+    # A Google `given_name` mezőjét szándékosan NEM olvassuk itt: az a
+    # szolgáltatótól jön. Ezért van külön kulcsa annak, amit ő maga írt be.
+    metaadat = getattr(felhasznalo, "user_metadata", None) or {}
+    return str(metaadat.get("sajat_keresztnev") or "").strip()
 
 
 def _nev_javaslatok(felhasznalo) -> list[str]:

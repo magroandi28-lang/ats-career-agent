@@ -148,10 +148,21 @@ export default function LoginPage() {
               email: email.trim(),
               password: jelszo,
               options: {
-                // Ugyanabba a mezőbe kerül, amit a Google-belépés is tölt,
-                // így Flow-nak egyetlen névforrása van, nem kettő.
+                // SAJÁT KULCS, MERT A `given_name` KÉT DOLGOT JELENTHET.
+                //
+                // Eddig ide `given_name` került -- ugyanabba a mezőbe, amit a
+                // Google is tölt a saját fiókadataiból. Csak épp a kettő nem
+                // ugyanaz: a Google `given_name`-je magyarul megbízhatatlan
+                // (sokan a vezetéknevüket írják oda), ezt viszont a
+                // felhasználó maga írta be a „Keresztneved" mezőbe. A backend
+                // ezért a Google-változatot nem hiheti el -- és amíg egy
+                // kulcsban laktak, ezt sem tudta elhinni: a nevet, amit
+                // kötelező mezőben ő maga adott meg, egyetlen sor sem olvasta.
+                //
+                // A magyar kulcsnév itt szándékos: szolgáltató sosem fogja
+                // felülírni, tehát ami ebben van, azt biztosan ő írta.
                 data: {
-                  given_name: keresztnev.trim(),
+                  sajat_keresztnev: keresztnev.trim(),
                   // A hozzájárulás nyoma: mikor és melyik szövegváltozatra
                   // adta. Verzióváltáskor újra be kell kérni.
                   gdpr_consent_version: ADATKEZELES_VERZIO,

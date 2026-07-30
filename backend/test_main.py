@@ -613,3 +613,43 @@ def test_ures_modellvalasz_a_koszontesben_tartalekra_esik(monkeypatch):
 
     assert uzenet.strip()
     assert "Andrea" in uzenet
+
+
+def test_email_regisztracio_sajat_keresztneve_a_megszolitas():
+    """Amit a saját űrlapunkon kötelező mezőben beírt, azt tudjuk a nevének.
+
+    Az e-mailes ág néma hibában állt: a nevet `user_metadata`-ba mentettük,
+    de egyetlen sor sem olvasta, ezért Flow végig úgy viselkedett, mintha nem
+    tudná -- pedig a felhasználó kötelező mezőben megadta.
+    """
+    from backend import main
+
+    class EmailFelhasznalo:
+        user_metadata = {"sajat_keresztnev": "Andrea"}
+
+    assert main._megszolitas(EmailFelhasznalo(), {}) == "Andrea"
+
+
+def test_google_given_name_nem_lesz_megszolitas():
+    """A szolgáltató neve javaslat marad, nem tény.
+
+    Mérve: magyar Google-fiókoknál a `given_name` gyakran a VEZETÉKNÉV, ezért
+    ebből nem szólíthatunk senkit. A `_nev_javaslatok` felkínálja, ő választ.
+    """
+    from backend import main
+
+    class GoogleFelhasznalo:
+        user_metadata = {"given_name": "Varga", "full_name": "Varga Andrea"}
+
+    assert main._megszolitas(GoogleFelhasznalo(), {}) == ""
+    assert main._nev_javaslatok(GoogleFelhasznalo()) == ["Varga", "Andrea"]
+
+
+def test_megerositett_profilnev_eros_a_sajat_urlapnal_is():
+    """Ha később mást erősített meg, az a döntése -- az nyer."""
+    from backend import main
+
+    class Felhasznalo:
+        user_metadata = {"sajat_keresztnev": "Andrea"}
+
+    assert main._megszolitas(Felhasznalo(), {"display_name": "Andi"}) == "Andi"
