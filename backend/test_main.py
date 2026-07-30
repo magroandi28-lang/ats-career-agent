@@ -1343,3 +1343,42 @@ def test_celmunkakor_szandek_nelkul_nem_lep_allapotot(monkeypatch):
     assert valasz.status_code == 200
     assert "current_state" not in valasz.json()
     assert lepett["igen"] is False
+
+
+def test_akcio_lista_megadja_a_szandekhoz_tartozo_egyetlen_muveletet():
+    """A felület ne másolja le az INTENT_START_ACTION táblát.
+
+    Ha a leképezés két helyen élne, előbb-utóbb elcsúszna, és a felület olyan
+    gombot mutatna, ami mögött nincs engedélyezett művelet. A spec 2.7 szerint
+    a lánc közben nincs újabb szolgáltatásválasztás -- ehhez a felületnek
+    tudnia kell, MELYIK az az egy művelet, és azt a szerver mondja meg.
+    """
+    from backend import main
+
+    lista = main._akcio_lista(
+        CareerState.PROFIL_ELLENORZOTT, CareerIntent.CV_FRISSITES
+    )
+
+    assert lista["kovetkezo_muvelet"] == "cv_frissites_inditasa"
+    # Az allapotbol tobb CV-muvelet is engedelyezett -- pont ezert kell
+    # megmondani, melyik a szandekhoz tartozo.
+    assert "cv_ellenorzes_inditasa" in lista["available_actions"]
+
+
+def test_akcio_lista_nem_ajanl_az_allapotbol_nem_indithato_muveletet():
+    """Olyan gombot ne mutassunk, ami elutasitasba futna."""
+    from backend import main
+
+    lista = main._akcio_lista(
+        CareerState.CEL_TISZTAZOTT, CareerIntent.CV_FRISSITES
+    )
+
+    assert lista["kovetkezo_muvelet"] is None
+
+
+def test_akcio_lista_szandek_nelkul_nem_valaszt_helyettunk():
+    from backend import main
+
+    lista = main._akcio_lista(CareerState.PROFIL_ELLENORZOTT)
+
+    assert lista["kovetkezo_muvelet"] is None

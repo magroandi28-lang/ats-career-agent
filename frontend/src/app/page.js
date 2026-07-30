@@ -478,6 +478,13 @@ export default function Home() {
   const [cvMuvelet, setCvMuvelet] = useState(null);
   // A profilban megerősített célmunkakör. Üres string, ha még nincs.
   const [megerositettCel, setMegerositettCel] = useState("");
+  // A MEGERŐSÍTETT SZÁNDÉKHOZ TARTOZÓ EGYETLEN KÖVETKEZŐ MŰVELET.
+  //
+  // A SZERVERTŐL jön (`kovetkezo_muvelet`), nem itt számoljuk. A leképezés az
+  // `INTENT_START_ACTION` tábla a backendben; ha itt is leírnánk, a két lista
+  // előbb-utóbb elcsúszna, és a felület olyan gombot mutatna, ami mögött nincs
+  // engedélyezett művelet. Egy forrás van, és az a szerver.
+  const [kovetkezoMuvelet, setKovetkezoMuvelet] = useState(null);
   const [futoMuvelet, setFutoMuvelet] = useState(null);
   const kezdoValasztasRef = useRef(null);
   const folytatasRef = useRef(false);
@@ -555,6 +562,7 @@ export default function Home() {
         setMegerositettCel(
           String((profile.confirmed_data || {}).target_role || "").trim(),
         );
+        setKovetkezoMuvelet(profile.kovetkezo_muvelet || null);
       })
       .catch(() => {});
     gpsFrissites();
@@ -1025,6 +1033,7 @@ export default function Home() {
       // Mostantól ez a megerősített cél. Enélkül egy F5 nélküli, ugyanabban a
       // munkamenetben történő újabb CV-feltöltés megint rákérdezne rá.
       setMegerositettCel(tisztaCel);
+      setKovetkezoMuvelet(adat.kovetkezo_muvelet || null);
       setUzenetek((elozo) => [
         ...elozo,
         {
@@ -1675,6 +1684,10 @@ export default function Home() {
                       // piaci körkép is. A spec 2.7 szerint a CV-feltöltés
                       // után nincs újabb szolgáltatásválasztás -- a lánc fut.
                       aktivFolyamat={cvFolyamatAktiv ? "cv" : null}
+                      // A megerősített szándékhoz tartozó EGYETLEN művelet.
+                      // A leképezés a backend INTENT_ACTIONS táblájának
+                      // párja: ha ott változik, itt is változnia kell.
+                      egyetlenLepes={kovetkezoMuvelet}
                       onStateChange={(result) => {
                         setWorkflowState(result.current_state);
                         setValaszthatoLepesek(result.available_actions || []);

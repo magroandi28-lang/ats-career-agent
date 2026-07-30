@@ -355,16 +355,30 @@ const FOLYAMAT_LEPESEI = {
 export default function FolyamatPanel({
   availableActions = [],
   aktivFolyamat = null,
+  egyetlenLepes = null,
   onStateChange,
 }) {
   const [futo, setFuto] = useState(null);
   const [eredmeny, setEredmeny] = useState(null);
   const [hiba, setHiba] = useState(null);
 
+  // HA MÁR ELDŐLT, MI KÖVETKEZIK, NE KELLJEN ÚJRA VÁLASZTANI.
+  //
+  // A folyamatszűkítés önmagában kevés volt: a CV-úton is három művelet
+  // maradt (átvizsgálás, új változat, nulláról készítés), és a felhasználónak
+  // megint döntenie kellett -- pedig a célmunkakör megerősítésekor már
+  // megmondta, mit akar. A spec 2.7 szerint innentől nincs újabb
+  // szolgáltatásválasztás, csak a lánc indítása.
+  //
+  // A hívó a MEGERŐSÍTETT szándékhoz tartozó egyetlen műveletet adja meg. Ha
+  // az épp nem engedélyezett az aktuális állapotból, visszaesünk a szűkített
+  // listára -- inkább lássa a választást, mint egy üres panelt.
   const engedett = FOLYAMAT_LEPESEI[aktivFolyamat] || null;
-  const lepesek = availableActions
+  const szurt = availableActions
     .filter((akcio) => AKCIO_FELIRATOK[akcio])
     .filter((akcio) => !engedett || engedett.includes(akcio));
+  const lepesek =
+    egyetlenLepes && szurt.includes(egyetlenLepes) ? [egyetlenLepes] : szurt;
 
   async function inditas(action) {
     if (futo) return;

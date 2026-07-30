@@ -62,6 +62,7 @@ from utils.flow_allapot import (
     gps_projekcio,
 )
 from backend.career_state_machine import (
+    INTENT_START_ACTION,
     CareerAction,
     CareerIntent,
     CareerState,
@@ -934,7 +935,7 @@ def _cel_megerositese(
         actor="user",
     )
     return {
-        **_akcio_lista(cel_allapot),
+        **_akcio_lista(cel_allapot, intent),
         "current_state": cel_allapot.value,
         "state_changed": True,
     }
@@ -1322,21 +1323,32 @@ def _muvelet_futtatasa(
     return outcome
 
 
-def _akcio_lista(state: CareerState | None) -> dict:
+def _akcio_lista(state: CareerState | None, intent: CareerIntent | None = None) -> dict:
     """Mit enged az állapotgép, és abból mi van ténylegesen bekötve.
 
     A kettő szándékosan külön: az `allowed_actions` a kanonikus terv
     szerinti lehetőség, az `available_actions` az, amire ma van modul.
     A felület csak az utóbbit kínálja fel, így nem fut 501-be.
+
+    A `kovetkezo_muvelet` a MEGERŐSÍTETT szándékhoz tartozó egyetlen indító
+    művelet. Azért adjuk vissza, mert enélkül a felületnek magának kellene
+    leképeznie a szándékot műveletre -- vagyis le kellene másolnia az
+    `INTENT_START_ACTION` táblát, és a két lista előbb-utóbb elcsúszna.
+    Egy forrás van, és az itt van.
     """
     if state is None:
-        return {"allowed_actions": [], "available_actions": []}
+        return {"allowed_actions": [], "available_actions": [], "kovetkezo_muvelet": None}
     engedett = allowed_actions(state)
+    elerheto = [akcio.value for akcio in engedett if vegrehajthato(akcio)]
+    indito = INTENT_START_ACTION.get(intent) if intent else None
     return {
         "allowed_actions": [akcio.value for akcio in engedett],
-        "available_actions": [
-            akcio.value for akcio in engedett if vegrehajthato(akcio)
-        ],
+        "available_actions": elerheto,
+        # Csak akkor, ha az adott állapotból tényleg elindítható. Különben a
+        # felület egy olyan gombot mutatna, ami 501-be vagy elutasításba fut.
+        "kovetkezo_muvelet": (
+            indito.value if indito and indito.value in elerheto else None
+        ),
     }
 
 
@@ -1371,7 +1383,7 @@ def profile_get_vegpont(felhasznalo=Depends(jelenlegi_felhasznalo)):
         except ValueError:
             aktualis_allapot = None
     return {
-        **_akcio_lista(aktualis_allapot),
+        **_akcio_lista(aktualis_allapot, intent),
         "id": profile["id"],
         "draft_data": profile.get("draft_data") or {},
         "draft_version": profile.get("draft_version", 0),
