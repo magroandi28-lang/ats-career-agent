@@ -124,6 +124,39 @@ export default function LoginPage() {
     }
   }
 
+  async function megerositesUtaniBelepes() {
+    // Az e-mail és a jelszó az űrlapon van, tehát nem kell újra bekérni.
+    // Ha a megerősítés még nem történt meg, a Supabase „Email not confirmed"
+    // hibát ad -- azt itt konkrétan ki is mondjuk, mert az „ellenőrizd az
+    // adataidat" ilyenkor félrevezet: az adat jó, csak a link vár rá.
+    if (dolgozik) return;
+    setDolgozik(true);
+    setHiba("");
+    try {
+      const { error } = await createClient().auth.signInWithPassword({
+        email: email.trim(),
+        password: jelszo,
+      });
+      if (!error) {
+        setMegerositesreVar(false);
+        setUzenet("");
+        router.replace(kovetkezoOldal());
+        router.refresh();
+        return;
+      }
+      setHiba(
+        /confirm/i.test(error.message)
+          ? "A fiók még nincs megerősítve. Nyisd meg a levelet, kattints a " +
+            "benne lévő linkre, majd gyere vissza ide és próbáld újra."
+          : "A belépés nem sikerült. Ellenőrizd az emailcímet és a jelszót.",
+      );
+    } catch {
+      setHiba("A szolgáltatás most nem érhető el. Próbáld újra néhány perc múlva.");
+    } finally {
+      setDolgozik(false);
+    }
+  }
+
   async function hitelesites() {
     if (mod === "regisztracio" && !keresztnev.trim()) {
       setHiba("Add meg a keresztnevedet.");
@@ -396,18 +429,25 @@ export default function LoginPage() {
                     {uzenet}
                   </p>
                 )}
+                {/* A MEGERŐSÍTŐ LINK MÁSIK ABLAKBAN NYÍLIK MEG.
+                    Inkognitóból regisztrálva a levélben lévő link a rendszer
+                    alapértelmezett böngészőjében nyílik: ott belépsz, ITT
+                    viszont a bejelentkezési képernyőn ragadsz.
+
+                    Ez a gomb korábban csak átváltott a belépés fülre, és újra
+                    be kellett gépelni mindent -- pedig az e-mail és a jelszó
+                    itt van az űrlapon. Most megpróbálja a belépést egy
+                    kattintással. */}
                 {megerositesreVar && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setMegerositesreVar(false);
-                      setUzenet("");
-                      setHiba("");
-                      setMod("belepes");
-                    }}
-                    className="mt-3 w-full rounded-xl border border-amber-300/40 px-4 py-3 text-sm font-semibold text-amber-100 hover:border-amber-200 hover:bg-amber-300/10"
+                    onClick={megerositesUtaniBelepes}
+                    disabled={dolgozik}
+                    className="mt-3 w-full rounded-xl border border-amber-300/40 px-4 py-3 text-sm font-semibold text-amber-100 hover:border-amber-200 hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Belépés ebben az ablakban
+                    {dolgozik
+                      ? "Belépés…"
+                      : "Megerősítettem — léptess be ebben az ablakban"}
                   </button>
                 )}
 
