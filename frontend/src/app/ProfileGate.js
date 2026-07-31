@@ -451,16 +451,22 @@ export default function ProfileGate({
             (11.1) kimondja: nem láthat két külön feltöltési műveletet.
             Ugyanaz a gomb előbb kiválaszt, utána feldolgoz -- a felirata
             mondja meg, most melyik. A fájlcsere másodlagos, halkabb hivatkozás. */}
+        {/* A fájlnév és a csere EGY sorban, a csere pedig keskeny, körvonalas
+            gomb -- nem aláhúzott hivatkozás. Az aláhúzás linknek látszott,
+            és a nagy „CV feldolgozása" gomb mellett esetlen volt. A súlyuk
+            különbözzön, de mindkettő gomb legyen. */}
         {cvFile && (
-          <div className="mt-4 rounded-2xl border border-[#685922]/45 bg-[#685922]/10 p-3.5">
-            <p className="break-all text-xs text-slate-300">{cvFile.name}</p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#685922]/45 bg-[#685922]/10 px-3.5 py-3">
+            <p className="min-w-0 break-all text-xs text-slate-300">
+              {cvFile.name}
+            </p>
             <button
               type="button"
               onClick={() => cvFileInputRef.current?.click()}
               disabled={busy}
-              className="mt-1.5 text-xs font-semibold text-amber-200/80 underline hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="shrink-0 rounded-lg border border-[#685922] px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-[#685922]/25 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Másik fájl választása
+              Csere
             </button>
           </div>
         )}
