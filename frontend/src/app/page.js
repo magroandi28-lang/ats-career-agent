@@ -219,10 +219,22 @@ const VENDEG_UZENET = {
   ].join("\n\n"),
   gepel: true,
   rendszerKoszonto: true,
-  // A teljes bemutatkozás legfeljebb 4,5 másodperc alatt jelenjen meg.
-  // Korábban karakterenként 60 ms volt: ez ennél a hosszú szövegnél több
-  // mint egy perc várakozást jelentett.
-  gepelMaxIdotartamMs: 4500,
+  // MENNYI IDŐ ALATT ÍRÓDJON KI A TELJES BEMUTATKOZÁS.
+  //
+  // Ez a szöveg ~1160 karakter, és két rossz véglet közt kell megállni:
+  //
+  // - karakterenként 60 ms: több mint egy perc, senki nem várja ki;
+  // - 4,5 másodperc: 6 karakter villan fel 20 ms-onként, ami már nem
+  //   gépelésnek látszik, hanem ugráló szövegnek -- ijesztő, nem
+  //   figyelemfelkeltő.
+  //
+  // 16 másodperc ~14 ms/karakter, tehát valódi, folyamatos gépelés. Aki nem
+  // akarja kivárni, egy kattintással kiírja a maradékot; aki csökkentett
+  // animációt kért a rendszerében, annak eleve azonnal megjelenik.
+  //
+  // EZ AZ EGY SZÁM állítja a bemutatkozás ütemét -- ha lassítani kell,
+  // elég itt emelni.
+  gepelMaxIdotartamMs: 16000,
 };
 
 const VENDEG_CHAT_KULCS = "career_guest_chat";
@@ -353,10 +365,33 @@ function GepeloSzoveg({ szoveg, sebessegMs = 18, maxIdotartamMs = null }) {
       return;
     }
     setHossz(0);
-    const idokoz = maxIdotartamMs ? 20 : sebessegMs;
-    const lepes = maxIdotartamMs
-      ? Math.max(1, Math.ceil(szoveg.length / (maxIdotartamMs / idokoz)))
-      : 1;
+
+    // KARAKTERENKÉNT ÍRJUNK, NE BLOKKOKBAN.
+    //
+    // A korábbi változat fix 20 ms-os ütemben annyi karaktert dobott ki
+    // egyszerre, amennyi a megadott össz-időbe belefért. A hosszú
+    // bemutatkozásnál ez 6 karakter/lépést jelentett: az nem gépelés, hanem
+    // villódzva megjelenő szövegblokk -- mérve ijesztő, nem figyelemfelkeltő.
+    //
+    // Most fordítva számolunk: a lépés MARAD egy karakter, és az ütemet
+    // igazítjuk hozzá. Így az animáció akkor is folyamatos marad, ha a
+    // szöveg hosszú.
+    //
+    // A 12 ms-os alsó korlát azért kell, mert a böngésző időzítője ez alatt
+    // pontatlan: a kért ütemet úgysem tartaná, viszont fölöslegesen sokszor
+    // rajzolna újra. Nagyon hosszú szövegnél emiatt tovább tart a gépelés,
+    // mint a kért idő -- ez a jobbik hiba: a kattintás bármikor kiírja a
+    // maradékot.
+    let idokoz = sebessegMs;
+    let lepes = 1;
+    if (maxIdotartamMs && szoveg.length > 0) {
+      idokoz = maxIdotartamMs / szoveg.length;
+      if (idokoz < 12) {
+        lepes = Math.max(1, Math.round(12 / idokoz));
+        idokoz = 12;
+      }
+    }
+
     const idozito = setInterval(() => {
       setHossz((elozo) =>
         elozo >= szoveg.length ? elozo : Math.min(szoveg.length, elozo + lepes),
