@@ -69,6 +69,9 @@ function PiaciKorkep({ adat }) {
   const ber = adat.ber || {};
   const bizalom = adat.bizalom || {};
   const atjarhatosag = adat.atjarhatosag || [];
+  const elvarasok = adat.elvarasok || [];
+  const feladatok = adat.feladatok || [];
+  const elvarasForras = adat.elvaras_forras_hirdetes || 0;
   const leiras = adat.esco?.[0]?.leiras;
 
   return (
@@ -123,6 +126,64 @@ function PiaciKorkep({ adat }) {
               {ber.figyelmeztetes}
             </p>
           )}
+        </div>
+      )}
+
+      {/* MIT VÁRNAK EL — a kérdés, amire eddig csak a bizalmi szint válaszolt.
+          Minden tétel mellett ott áll, HÁNY hirdetésből jön: ami egyetlen
+          hirdetésben szerepel, az nem piaci elvárás, hanem egy cég szövege.
+          A felhasználónak látnia kell a különbséget, különben egy véletlen
+          mondatot hisz általános követelménynek. */}
+      {(elvarasok.length > 0 || feladatok.length > 0) && (
+        <div className="mt-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Mit kérnek a hirdetésekben
+          </p>
+          {elvarasok.length > 0 && (
+            <>
+              <p className="mt-2 text-xs font-semibold text-slate-300">
+                Elvárás
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                {elvarasok.map((tetel) => (
+                  <li
+                    key={tetel.szoveg}
+                    className="flex items-start justify-between gap-4 text-sm"
+                  >
+                    <span className="text-slate-200">{tetel.szoveg}</span>
+                    <span className="shrink-0 pt-0.5 text-xs text-slate-500">
+                      {tetel.hirdetes_db} hirdetés
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {feladatok.length > 0 && (
+            <>
+              <p className="mt-3 text-xs font-semibold text-slate-300">
+                Feladat
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                {feladatok.map((tetel) => (
+                  <li
+                    key={tetel.szoveg}
+                    className="flex items-start justify-between gap-4 text-sm"
+                  >
+                    <span className="text-slate-200">{tetel.szoveg}</span>
+                    <span className="shrink-0 pt-0.5 text-xs text-slate-500">
+                      {tetel.hirdetes_db} hirdetés
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            {elvarasForras} hirdetés szövegéből, gyakoriság szerint. A
+            hirdetések tárolt szövege rövid kivonat, ezért ez nem a teljes
+            elváráslista — csak az, amit ténylegesen ki tudtunk olvasni.
+          </p>
         </div>
       )}
 

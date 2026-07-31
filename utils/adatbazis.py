@@ -449,6 +449,133 @@ def szakma_id_nevbol(szakma_nev: str):
         return None
 
 
+# A TÖREDÉKMONDAT KISZŰRÉSE — MIÉRT KELL, ÉS MIÉRT ENNYI.
+#
+# A hirdetések tárolt szövege medián 269 karakter (forráskorlát, lásd
+# `docs/adatbazis-allapot.md`), ezért a kinyert tételek egy része félbevágott
+# mondat: „Értékeinkkel összhangban hozzájárulsz közös, valamint a vállalat".
+# Ezt nem lehet a felhasználó elé tenni „ezt várják el" felirattal.
+#
+# A szűrés determinisztikus és szándékosan óvatos: inkább essen ki egy jó
+# tétel, mint hogy egy csonka mondat elvárásként jelenjen meg. Modellhívás
+# nincs benne -- ez nem értelmezés, hanem formai rostálás.
+
+# Ezekkel a szavakkal befejezett mondat mindig csonka: kötőszó vagy névelő
+# után jönnie kellene még valaminek.
+_CSONKA_VEGZODES = frozenset({
+    "a", "az", "és", "es", "vagy", "valamint", "illetve", "de", "hogy",
+    "mint", "hanem", "ha", "amely", "ami", "aki", "amit", "azt", "ezt",
+    "több", "magas", "szintű", "szintu", "közös", "kozos", "egy",
+})
+
+# Ezekkel kezdődő tétel a előző mondat folytatása, nem önálló elvárás.
+_CSONKA_KEZDET = frozenset({
+    "a", "az", "és", "es", "valamint", "illetve", "vagy", "de", "hogy",
+    "továbbá", "tovabba", "ezen", "ehhez", "ahhoz",
+})
+
+_TETEL_MIN_HOSSZ = 8
+_TETEL_MAX_HOSSZ = 140
+
+
+def _hasznalhato_tetel(szoveg: str) -> bool:
+    """Önálló, értelmes tétel-e — vagy egy félbevágott mondat darabja."""
+
+    tiszta = " ".join((szoveg or "").split()).strip(" -–—•*")
+    if not (_TETEL_MIN_HOSSZ <= len(tiszta) <= _TETEL_MAX_HOSSZ):
+        return False
+
+    szavak = tiszta.split()
+    if len(szavak) < 2:
+        return False
+    if szavak[0].casefold().strip(".,;:") in _CSONKA_KEZDET:
+        return False
+    if szavak[-1].casefold().strip(".,;:") in _CSONKA_VEGZODES:
+        return False
+    # Vesszővel vagy kötőszóval végződő sor mindig folytatódna.
+    if tiszta[-1] in ",;:":
+        return False
+
+    # NÉVELŐ + EGY SZÓ A VÉGÉN: ott vágták el a mondatot.
+    #
+    # Mérve az „eladó" szakmán: „Értékeinkkel összhangban hozzájárulsz közös,
+    # valamint a vállalat" -- a záró szó főnév, tehát az előző szabályok
+    # átengedik, mégis nyilvánvalóan csonka. A magyar birtokos szerkezet itt
+    # folytatódna („a vállalat értékeihez").
+    #
+    # Ez a szabály tudatosan kidob néhány ép tételt is (pl. „...rendben
+    # tartása a boltban"). Vállalt csere: inkább essen ki egy jó tétel, mint
+    # hogy egy félbevágott mondat jelenjen meg „ezt várják el" felirattal.
+    if len(szavak) >= 2 and szavak[-2].casefold().strip(".,;:") in {"a", "az"}:
+        return False
+    return True
+
+
+def szakma_elvarasai(szakma_nev: str, darab: int = 8) -> dict:
+    """Mit kérnek és mit adnak feladatul — a hirdetésekből, modell nélkül.
+
+    A `szakma_csomag` RPC a bizalmi szintet megadja az elvárásokra, DE magukat
+    az elvárásokat nem -- ezért a piaci körkép eddig azt jelezte, hogy tudna
+    válaszolni a „Mit várnak el?" kérdésre, közben nem írt ki semmit.
+
+    Gyakoriság szerint rangsorol, és MINDIG megmondja, hány hirdetésből jött
+    az adott tétel. Egy tétel, ami egyetlen hirdetésben szerepel, nem piaci
+    elvárás, hanem egy cég szövege -- a `hirdetes_db` mezőből ez látszik.
+
+    Üres listák, ha nincs adat. A hívó dolga eldönteni, hogy ez baj-e.
+    """
+
+    db = kliens()
+    szakma_id = szakma_id_nevbol(szakma_nev)
+    if not db or szakma_id is None:
+        return {"elvarasok": [], "feladatok": [], "forras_hirdetes": 0}
+
+    try:
+        r = (db.table("hirdetes_tetel")
+               .select("hirdetes_id, szekcio, szoveg")
+               .eq("szakma_id", szakma_id)
+               .in_("szekcio", ["elvaras", "feladat"])
+               .limit(3000)
+               .execute())
+    except Exception as e:
+        print(f"[adatbazis] Elvaras-lekerdezes hiba: {e}")
+        return {"elvarasok": [], "feladatok": [], "forras_hirdetes": 0}
+
+    # Szekciónként és normalizált szöveg szerint gyűjtjük, hogy ugyanaz a
+    # mondat két hirdetésből EGY tételként, 2-es darabszámmal jelenjen meg.
+    gyujto: dict[str, dict[str, dict]] = {"elvaras": {}, "feladat": {}}
+    hirdetesek: set = set()
+    for sor in (r.data or []):
+        szoveg = " ".join(str(sor.get("szoveg") or "").split()).strip(" -–—•*")
+        if not _hasznalhato_tetel(szoveg):
+            continue
+        szekcio = sor.get("szekcio")
+        if szekcio not in gyujto:
+            continue
+        kulcs = szoveg.casefold()
+        tetel = gyujto[szekcio].setdefault(
+            kulcs, {"szoveg": szoveg, "hirdetesek": set()}
+        )
+        tetel["hirdetesek"].add(sor.get("hirdetes_id"))
+        hirdetesek.add(sor.get("hirdetes_id"))
+
+    def _rangsor(szekcio: str) -> list:
+        elemek = sorted(
+            gyujto[szekcio].values(),
+            key=lambda t: (-len(t["hirdetesek"]), t["szoveg"].casefold()),
+        )
+        return [
+            {"szoveg": t["szoveg"], "hirdetes_db": len(t["hirdetesek"])}
+            for t in elemek[:darab]
+        ]
+
+    return {
+        "elvarasok": _rangsor("elvaras"),
+        "feladatok": _rangsor("feladat"),
+        "forras_hirdetes": len(hirdetesek),
+    }
+
+
 def szakma_csomag(szakma_nev: str) -> dict:
     """A szakma teljes piaci képe EGY hívásban, a `szakma_csomag` RPC-ből.
 

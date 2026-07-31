@@ -31,6 +31,7 @@ from utils.adatbazis import (
     kliens,
     cv_illesztes,
     szakma_csomag,
+    szakma_elvarasai,
 )
 
 
@@ -149,6 +150,10 @@ def _piaci_korkep_inditasa(ctx: ActionContext) -> ActionOutcome:
     szakma = _celmunkakor(ctx)
     csomag = szakma_csomag(szakma)
     korkep = kereslet_korkep()
+    # MIT VARNAK EL -- a csomag ezt NEM adja vissza, csak a bizalmi szintjet.
+    # Enelkul a korkep azt jelezte, hogy tudna valaszolni a kerdesre, kozben
+    # nem irt ki semmit. Determinisztikus, modellhivas nelkul.
+    elvarasok = szakma_elvarasai(szakma)
     sajat_kereslet = next(
         (sor for sor in korkep if sor["szakma"].casefold() == szakma.casefold()),
         None,
@@ -184,6 +189,12 @@ def _piaci_korkep_inditasa(ctx: ActionContext) -> ActionOutcome:
                 "figyelmeztetes": ber.get("figyelmeztetes"),
             },
             "esco": csomag.get("esco") or [],
+            # A hirdetesekbol kinyert, gyakorisag szerint rangsorolt tetelek.
+            # Minden tetel mellett ott a `hirdetes_db`: ami egyetlen
+            # hirdetesbol jon, az nem piaci elvaras, hanem egy ceg szovege.
+            "elvarasok": elvarasok.get("elvarasok") or [],
+            "feladatok": elvarasok.get("feladatok") or [],
+            "elvaras_forras_hirdetes": elvarasok.get("forras_hirdetes") or 0,
             "atjarhatosag": (csomag.get("szomszedok") or [])[:5],
             "frissesseg": csomag.get("frissesseg"),
             "osszehasonlitott_szakmak": len(korkep),
